@@ -2,7 +2,7 @@
 
 Updated: 2026-10-09 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** Deploy a trusted HTTPS MCP endpoint, connect an eligible Claude account, and complete real iPad Safari device acceptance. Gateway and browser bridge implemented in v0.2 development branch; live B1/B2/D acceptance **not confirmed**. Do not count synthetic Chromium and mock-GM tests as actual iPad or subscription validation.
+**Current focus:** Test the prepared Mac + Tailscale Funnel gateway using [MAC_TAILSCALE_TEST.md](MAC_TAILSCALE_TEST.md), connect an eligible Claude account, and complete real iPad Safari device acceptance. Gateway and browser bridge merged on `main`; Mac Funnel launcher added as an optional test deployment path; live B1/B2/D acceptance **not confirmed**. Do not count synthetic Chromium and mock-GM tests as actual iPad or subscription validation.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -70,3 +70,9 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 - GitHub CI now runs a separate Playwright browser-integration job, including a true navigated two-page scenario where CI permits networking. CI results must be checked before merge.
 - Actual iPad Claude connection, public HTTPS deployment, device-specific lifecycle and ten-run reliability **remain blocked on external account/device access**. Do not mark D2 accepted.
 - Release evidence and prerequisites: [B1_D_STATUS.md](B1_D_STATUS.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+
+## Mac test deployment pathway (2026-10-09)
+
+- Tailscale already installed on the user's Mac and iPad; no Verpex server is required for the initial test.
+- Mac launcher and [instructions](MAC_TAILSCALE_TEST.md) are committed. It binds the gateway to localhost, generates separate local secrets and uses Tailscale Funnel to expose HTTPS for remote MCP.
+- Actual Mac launch, public HTTPS endpoint, Claude account connector and device acceptance are **not yet completed**. Do not mark B1/D2 as accepted until demonstrated.

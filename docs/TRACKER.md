@@ -1,5 +1,9 @@
 # Safari AI Agent work tracker
 
+> **Canonical scope and order:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md). This tracker contains *historical original task IDs* as well as future work; do not treat a completed manual prototype as an AI-agent MVP.
+
+**Current focus:** Phase B1 — prove an actual iPad AI client can invoke an authenticated MCP test tool using an eligible subscription (or document the exact blocker). In parallel, finish A: real-device Userscripts acceptance. **Do not build a manual copy/paste AI bridge as the MVP.**
+
 Updated: 2026-10-09. Acceptance is based on automated tests plus required device testing, not assumptions.
 
 ## Scope

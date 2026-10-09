@@ -136,7 +136,7 @@ test('Demo endpoints challenge unauthenticated callers without leaking page cont
     assert.match(await good.text(),/Demo|demo/);
   }
   const catalog=await (await fetch(base+'/demo',{headers:{Authorization:auth}})).text();
-  assert.match(catalog,/href='\\/demo\\/product'/);
+  assert.ok(catalog.includes("href='/demo/product'"));
   assert.match(await (await fetch(base+'/demo/product',{headers:{Authorization:auth}})).text(),/type="time"/);
 }));
 test('Demo is hidden when demo password is not configured',()=>testGateway(async({base})=>{

@@ -1,5 +1,7 @@
 # Safari AI Agent
 
+> **Project baseline (2026-10-09):** [Product requirements](docs/PRODUCT_REQUIREMENTS.md) · [Implementation plan](docs/IMPLEMENTATION_PLAN.md) · [Decision log](docs/DECISIONS.md) · [Progress tracker](docs/TRACKER.md). The current Userscripts build is a **manual prototype**, not the end-to-end AI/MCP MVP.
+
 A browser-action prototype for **iPad Safari via Userscripts**. The first milestone is deliberately **local and manual**: it does not require an Apple Developer Program membership, an LLM, API credentials, a Mac-hosted server, or a cloud account.
 
 ## What works in 0.1.1

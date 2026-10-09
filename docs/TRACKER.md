@@ -1,44 +1,56 @@
-# Safari AI Agent work tracker
+# Safari AI Agent — Delivery tracker
 
-Updated: 2026-10-09. Acceptance is based on automated tests plus required device testing, not assumptions.
+Updated: 2026-10-09 | This tracker tracks implementation evidence, not ideas.
 
-## Scope
+**Current focus:** **B1 — validate an eligible AI client calling an authenticated MCP test tool from the actual iPad.** In parallel close A: manual Safari Userscripts device acceptance. Do not build a copy/paste AI bridge as the MVP.
 
-Build an iPad Safari webpage automation layer that can later be driven by provider-independent AI agents. First validate the low-level behavior in Userscripts without a developer membership.
+**Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
-| ID | Task | Status | Depends on | Acceptance |
+## Versions and release meaning
+
+- **0.1.1 — Manual browser-action prototype:** implemented and merged; unit/Chromium tests passed. User reports that form manipulation seems to work on iPad; complete iPad regression evidence has not yet been recorded.
+- **End-to-end MVP — Not implemented:** AI client -> supported tool integration/MCP -> iPad Safari DOM executor -> verified result, through a real multi-page workflow.
+- **Post-MVP — General governance harness:** configurable policy, approval profiles, capability leases, budgets, detailed audit and extensive adversarial protections. **Not implemented and intentionally outside initial MVP**, while basic authorization/approvals for any remote execution remain mandatory.
+
+## Delivery milestones
+
+| ID | Work package | State | Blocking dependency | Exit evidence |
 |---|---|---|---|---|
-| M1-1 | Shared DOM snapshot and element references | Implemented | None | Real page inspected, sensitive input values absent |
-| M1-2 | Fill, click, highlight, navigate | Implemented | M1-1 | Local smoke test succeeds |
-| M1-3 | Manual Userscripts test panel and bundling | Implemented | M1-1, M1-2 | Self-contained `.user.js` loads without remote dependencies |
-| M1-4 | Automated checks and demo fixture | Implemented | M1-1 to M1-3 | Unit/build and Chromium tests pass |
-| M1-6 | Time input format and HTML validity constraints | Implemented; iPad confirmation pending | M1-2 | Accept `14:30` on HTTPBin; reject malformed, out-of-range and non-step values without changing prior time |
-| M1-5 | iPad Safari functional acceptance | **Pending device testing** | M1-1 to M1-4 | All actions demonstrated in Userscripts on iPad |
-| M2-1 | Versioned browser capabilities contract | Planned | M1-5 | Schema, permissions and version negotiation documented/tested |
-| M2-2 | Workflow persistence across page loads | Planned | M2-1 | Resume safely after navigation and browser suspension |
-| M2-G1 | Basic governance policy contract (separate follow-on milestone) | Planned | M2-1 | Versioned policy with explicit allow/deny, site and action scopes, default deny for AI |
-| M2-G2 | Deterministic action authorization and approval binding | Planned | M2-G1 | Independent policy check before every AI action, human approval for high-impact operations, expiring task-scoped approval |
-| M2-G3 | Audit, quotas and safe interruption | Planned | M2-G2, M2-2 | Local audit events, budgets, timeout, cancellation, and conservative restart policy |
-| M2-G4 | Untrusted webpage and prompt-injection tests | Planned | M2-G2 | Website text cannot expand agent authority, approvals or permitted targets |
-| M2-3 | Secure external agent transport | Planned | M2-1, M2-G2 | Authenticated, scoped, replay-resistant command flow enforced at execution |
-| M2-4 | WebExtension distribution | Planned | M1-5 | Native WebExtension permission/lifecycle tests |
-| M3-1 | ChatGPT provider feasibility test | Planned | M2-3 | Validated subscription authorization for eligible accounts |
-| M3-2 | Claude MCP connector feasibility | Planned | M2-3 | Supported connector executes approved tool calls |
-| M3-3 | Gemini integration feasibility | Planned | M2-3 | Eligibility, supported interface and billing verified |
-| M3-4 | Model-driven observe-act-verify | Planned | M2-1, M2-3, provider | Multi-step test site flow reaches correct verified state |
-| M4-1 | Injection, permissions and negative tests | Planned | M2-3 | Hostile content cannot bypass policy |
-| M4-2 | Multi-page reliability and recovery | Planned | M2-2, M3-4 | Tested failure/retry strategy; no duplicate submissions |
+| A-01 | Page snapshots, references and actions | Done in 0.1.1 | None | Existing merged code and Chromium tests |
+| A-02 | Time inputs and field constraints | Done in 0.1.1 | A-01 | Browser regression tests; user retest recommended |
+| A-03 | iPad Safari acceptance checklist | Partially observed, open | A-01/A-02 | Recorded inspect/fill/click/navigate/permission tests on actual iPad |
+| B1-01 | Supported AI-client custom-tool/MCP feasibility | **Next** | None | Actual tool invocation from user's eligible iPad AI account |
+| B1-02 | Subscription entitlement, terms and costs | Open | B1-01 | Verified supported subscription or approved alternative; no guessed billing |
+| B2-01 | Foreground iPad outbound transport and lifecycle | Open | A-03; initial tool contract | Command response, navigation, suspend and resume results |
+| C1-01 | Versioned browser tool contract and errors | Open | B1/B2 findings | Schemas and contract tests |
+| C2-01 | Authenticated MCP gateway/session routing | Open | B1-01, C1-01 | Tool-call round-trip through approved gateway |
+| C3-01 | Userscripts transport adapter | Open | B2-01, C1-01, C2-01 | Pairing and authorized observation/action in Safari |
+| C4-01 | **Minimum MVP safety gate**, not full harness | Open | C1-01, C3-01 | Allowlisted origins/actions; expiring, replay-safe requests; submission confirmation |
+| D1-01 | Model-driven observe/act/verify and navigation recovery | Open | C2, C3, C4 | End-to-end safe multi-page task without manual copy/paste |
+| D2-01 | Device acceptance, regression, documented limits | Open | D1-01 | All MVP release criteria in PRODUCT_REQUIREMENTS met |
+| E-01 | **Separate post-MVP governance harness** | Deferred | MVP acceptance | Independently specified policy and capability-lease milestone |
+| F-01 | Additional provider adapters and native packaging | Future | MVP acceptance | Independently verified adapters and Safari packaging |
 
-## Concurrency
+## Current blockers and decisions to close
 
-After M1-5, M2-1 contract design can proceed in parallel with evaluating provider authentication (M3-1 to M3-3) and research on Safari packaging. M2-2 and M2-3 should implement against a reviewed M2-1 contract. AI-driven automation (M3-4) depends on transport, all baseline M2-G1/G2 governance gates, and at least one validated provider. M2-G1 can be designed after M2-1 while M2-2 persistence and M3 provider feasibility analysis proceed in parallel. Baseline governance is **not** part of the current manual Userscripts MVP.
+1. Is a supported custom MCP/tool caller available in at least **one** of the user's actual subscription-backed iPad AI clients? This has not been demonstrated yet.
+2. Is a secure remotely reachable gateway required, and what does it cost? Need proof, not assumption.
+3. What can a foreground Userscripts page reliably send/receive across navigation and Safari suspension? Requires device tests.
 
-## Known risk and deliberate restrictions
+If B1 fails, record a decision and seek approval for one alternative: supported API billing, a different tool client, an optional Mac-hosted agent, or an adjusted requirement. **Do not quietly redefine the MVP as manual copy/paste.**
 
-- Only user-initiated local actions are available; **no remote command listener** is installed.
-- Snapshot contains up to 2,000 characters of rendered page text and 100 visible interactive elements. It may include sensitive *page text* even though form values are excluded.
-- Permission to inject into a website is distinct from permission for an AI to operate it.
-- A manual confirmation is not a general security policy. A separate deterministic governance harness is mandatory before remote AI control; it is explicitly deferred until Milestone 2.
-- Browser-driven synthetic events may not work on all websites, especially complex editors, browser-native dialogs and protected actions.
-- Device acceptance must happen on the user's actual iPad; automated Chromium results do not prove Safari compatibility.
-- Paid Apple developer enrollment is deferred; native Safari extension packaging/testing requires revisiting signing options.
+## Development discipline
+
+Each implementation PR must identify FR IDs, work-package IDs, expected acceptance, performed tests, and affected decisions. Keep at most one current critical-path priority while pursuing genuinely independent parallel tests. Research only to close documented blockers.
+
+## Preserved historical task mapping
+
+Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-4` map to B2/C1/C2/C3 and future packaging. Former `M3-1`–`M3-4` map to B1 and D1. Original `M2-G1`–`M2-G4` described early governance ideas; the basic mandatory authorization controls are now C4 while the **configurable full harness is E-01 after MVP**, reflecting the user's scope decision. Former `M4` adversarial and recovery work is split between MVP C4/D2 acceptance and later E hardening.
+
+## Known limits (existing 0.1.1)
+
+- No external command listener or provider integration exists today.
+- Snapshot collects bounded page text (potentially sensitive) but omits input values; this does not make it safe to send to an unapproved service.
+- Element references can go stale; synthetic clicks may fail on protected/complex controls.
+- Safari website permissions and foreground execution constrain actions. Chromium success is not proof of iPad Safari behavior.
+- Apple Developer membership and native WebExtension packaging are deferred.

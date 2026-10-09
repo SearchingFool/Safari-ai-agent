@@ -1,0 +1,12 @@
+.git
+.github
+*.zip
+node_modules
+scripts
+src
+tests
+README.md
+docs
+*.log
+.env
+.env.*

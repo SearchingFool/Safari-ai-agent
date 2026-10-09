@@ -62,3 +62,11 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 - **Still blocked:** public HTTPS gateway deployment, actual Claude custom connector authentication/entitlement, iPad GM network/permission/lifecycle proof, live multi-page AI task, external security audit and ten-run reliability measurements.
 - **Supporting details:** [MCP_INTEGRATION.md](MCP_INTEGRATION.md), [B1_D_STATUS.md](B1_D_STATUS.md).
 - **Release decision:** **not ready for end-to-end iPad user acceptance**; do not tag the AI MVP as released.
+
+## 2026-10-09 additional B1–D hardening and acceptance evidence
+
+- Implemented explicit /device/disconnect server-side revocation on Stop, MCP transport protocol/content-type validation, a public inert two-page /demo workflow, Docker gateway packaging and a non-destructive HTTPS MCP deployment checker.
+- Automated local validation: **13/13 Node tests pass**; 3 Chromium suites pass, including a real authenticated MCP HTTP-to-DOM roundtrip using a mocked GM transport.
+- GitHub CI now runs a separate Playwright browser-integration job, including a true navigated two-page scenario where CI permits networking. CI results must be checked before merge.
+- Actual iPad Claude connection, public HTTPS deployment, device-specific lifecycle and ten-run reliability **remain blocked on external account/device access**. Do not mark D2 accepted.
+- Release evidence and prerequisites: [B1_D_STATUS.md](B1_D_STATUS.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).

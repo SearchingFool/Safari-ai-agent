@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Safari AI Agent Remote MCP
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.2.0
+// @version      0.2.1
 // @description  Opt-in MCP gateway bridge. Only use on safe websites; never put credentials in webpage context.
 // @match        https://*/*
 // @run-at       document-idle
@@ -271,6 +271,9 @@
           // acknowledgement ONLY, not confirmation that navigation succeeded.
           const a=await request('/device/result',{id:command.id,origin:location.origin,result:outcome});
           if(!a.accepted)throw new Error('Gateway rejected result');
+          // Stop while the request was in flight must prevent further local actions.
+          // An already-acknowledged navigation/click is still unverified remotely.
+          if(!running) return;
           if(outcome.success && outcome.dispatched && command.action==='browser_navigate'){
             running=false;
             location.assign(outcome.url);
@@ -297,7 +300,20 @@
     if(!url.startsWith('https://')||token.length<24)throw Error('Configure HTTPS gateway and 24+ character device token first');
     running=true; await GM.setValue(K_SITE,true);show('Connecting...');void pump();
   }
-  async function stop(){running=false;clearTimeout(timer);await GM.setValue(K_SITE,false);show('Disconnected');}
+  async function stop(){
+    running=false;clearTimeout(timer);
+    // Persist the explicit stop before asking the gateway to revoke this device.
+    await GM.setValue(K_SITE,false);
+    show('Stopping and revoking queued commands...');
+    try {
+      if(url && token) await request('/device/disconnect',{origin:location.origin});
+      show('Disconnected; queued commands revoked.');
+    } catch (error) {
+      // Local stop always wins. If offline, the gateway may retain an in-flight
+      // request until timeout; no further local actions will be executed.
+      show('Stopped locally. Remote revoke unavailable; pending calls will time out.');
+    }
+  }
   function mount(){
     const host=document.createElement('div');host.setAttribute('data-safari-ai-remote-host','');
     const shadow=host.attachShadow({mode:'closed'});

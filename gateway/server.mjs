@@ -8,6 +8,7 @@
  */
 import {createServer} from 'node:http';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
+import {serveDemo} from './demo-pages.mjs';
 
 const MAX_REQUEST_BYTES = 65536;
 const PROTOCOL = '2025-11-25'; // Broadly implemented compatibility target.
@@ -53,7 +54,7 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
-  const pending=new Map(); let current=null;let lastPoll=0;let generation=0;let stop=false;
+  const pending=new Map(); let current=null;let lastPoll=0;let generation=0;
   const status=()=>({connected:clock()-lastPoll<deviceFreshMs,activeOrigin:current?.origin||null,queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
   function cancelAll(reason='Cancelled'){
@@ -76,10 +77,17 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
     try{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/health'&&req.method==='GET')return json(res,200,{ok:true});
+      if(serveDemo(req,res,url.pathname))return;
       if(url.pathname==='/mcp'){
         if(req.headers.origin)return fail(res,403,'Browser Origin not accepted for MCP');
         if(!tokenMatches(req.headers.authorization,clientToken))return fail(res,401,'Unauthorized MCP caller');
-        if(req.method!=='POST')return fail(res,405,'POST only');
+        if(req.method!=='POST'){res.setHeader('Allow','POST');return fail(res,405,'POST only');}
+        // Enforce the legacy Streamable HTTP version advertised by initialize.
+        // No protocol-level session header is issued: each authenticated request is independent.
+        const version=req.headers['mcp-protocol-version'];
+        if(version && version!==PROTOCOL)return fail(res,400,'Unsupported MCP protocol version');
+        const contentType=(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+        if(contentType!=='application/json')return fail(res,415,'Expected application/json');
         const b=await readBody(req);
         if(b.jsonrpc!=='2.0'||typeof b.method!=='string')return fail(res,400,'Invalid JSON-RPC');
         if(b.method==='notifications/initialized'){res.writeHead(202);return res.end();}
@@ -98,6 +106,14 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
         if(!tokenMatches(req.headers.authorization,deviceToken))return fail(res,401,'Unauthorized device');
         if(req.method!=='POST')return fail(res,405,'POST only');
         const b=await readBody(req);
+        if(url.pathname==='/device/disconnect'){
+          if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
+          if(current && current.origin!==b.origin)return fail(res,409,'Different active origin');
+          // Stop is a server-side revocation, not just a paused client poller.
+          // Cancelling a claimed command invalidates subsequent result submissions.
+          current=null;lastPoll=0;cancelAll('Device explicitly disconnected');
+          return json(res,200,{disconnected:true,generation});
+        }
         if(url.pathname==='/device/poll'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
           if(current && current.origin!==b.origin && clock()-lastPoll<deviceFreshMs)return fail(res,409,'Another site already owns the device session');
@@ -126,7 +142,7 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
     }catch(e){return fail(res,400,e.message||'Invalid request');}
   }
   const server=createServer((req,res)=>void router(req,res));
-  return {server,status,call,cancelAll,close:()=>{stop=true;cancelAll('Server shutting down');return new Promise(r=>server.close(r));},tools:TOOL_DEFS};
+  return {server,status,call,cancelAll,close:()=>{cancelAll('Server shutting down');return new Promise(r=>server.close(r));},tools:TOOL_DEFS};
 }
 
 if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){

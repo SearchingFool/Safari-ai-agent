@@ -1,78 +1,51 @@
 # Safari AI Agent
 
-> **0.2 development build: MCP gateway and opt-in remote Userscripts bridge implemented, but not yet accepted on actual iPad / live Claude connector.** Keep the existing manual Browser Lab for ordinary website testing. The remote bridge is a separate script and must be used only on a non-sensitive test site until device and security acceptance.
+**0.2.1 integration candidate — not yet certified for real iPad + Claude use.**
 
-[Remote MCP setup and security](docs/MCP_INTEGRATION.md) · [B1–D implementation/testing evidence](docs/B1_D_STATUS.md) · [Canonical requirements](docs/PRODUCT_REQUIREMENTS.md) · [Execution plan](docs/IMPLEMENTATION_PLAN.md) · [Tracker](docs/TRACKER.md)
+An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
-> **Project baseline (2026-10-09):** [Product requirements](docs/PRODUCT_REQUIREMENTS.md) · [Implementation plan](docs/IMPLEMENTATION_PLAN.md) · [Decision log](docs/DECISIONS.md) · [Progress tracker](docs/TRACKER.md). The current Userscripts build is a **manual prototype**, not the end-to-end AI/MCP MVP.
+## Where to start
 
-A browser-action prototype for **iPad Safari via Userscripts**. The first milestone is deliberately **local and manual**: it does not require an Apple Developer Program membership, an LLM, API credentials, a Mac-hosted server, or a cloud account.
+- [Product requirements](docs/PRODUCT_REQUIREMENTS.md) — definitive product MVP acceptance criteria.
+- [Implementation plan](docs/IMPLEMENTATION_PLAN.md) — phases B1–D, dependencies and release gates.
+- [Decision log](docs/DECISIONS.md) — architecture and decisions still requiring real evidence.
+- [MCP setup and deployment](docs/MCP_INTEGRATION.md) — exact setup procedure.
+- [Release checklist](docs/RELEASE_CHECKLIST.md) — what remains before user acceptance.
+- [Execution evidence](docs/B1_D_STATUS.md) and [work tracker](docs/TRACKER.md).
 
-## What works in 0.1.1
+## Existing components
 
-- Inspect the visible page and enumerate links, buttons, form controls and accessible labels.
-- Show temporary element references (`e1`, `e2`, …) and a bounded page-text excerpt.
-- Highlight a referenced element.
-- Fill ordinary text inputs, time inputs, textareas, contenteditable regions and `<select>` controls. Browser min/max/step constraints are enforced for time fields.
-- Click links and click controls; request an explicit confirmation before forms or potentially consequential actions.
-- Navigate to HTTP(S) URLs, confirming cross-site navigation.
-- View and optionally copy the *local* snapshot. **Nothing is sent to an AI service.**
+| Component | Function | State |
+|---|---|---|
+| `scripts/safari-ai-agent.user.js` | Manual **Browser Lab**; no remote AI connection | v0.1.1; previous iPad form testing |
+| `scripts/safari-ai-agent-remote.user.js` | Separately installed, opt-in remote Userscripts bridge | v0.2.1; tested with mocked Userscripts APIs in Chromium |
+| `gateway/server.mjs` | Authenticated MCP Streamable HTTP gateway, per-device action queue and authorization | Local HTTP tests passed; not deployed |
+| `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Tested through gateway; actual Safari flow pending |
+| `Dockerfile` | Node 22 container gateway, non-root runtime | Created; image build needs Docker-equipped environment |
 
-**Not yet implemented:** autonomous AI, workflows across navigation, cross-tab control, external command transport, model integrations, durable action logs, full Safari WebExtension packaging. Never use this early prototype on sensitive production workflows.
+The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Clicking requires local approval; consequential controls, cross-site navigation, password filling and real submissions are blocked in this test release.
 
-## Install on an iPad (no developer membership)
+## Run automated checks
 
-1. Install and enable the free [Userscripts](https://apps.apple.com/us/app/userscripts/id1463298887) app and its Safari extension.
-2. **Easiest:** Open the [raw `.user.js` file](https://raw.githubusercontent.com/SearchingFool/Safari-ai-agent/main/scripts/safari-ai-agent.user.js) in **Safari**. Open the **Userscripts** extension popup; accept its install prompt. If Safari instead downloads the file, use step 3.
-3. **Alternative:** In the **Files** app, save [`safari-ai-agent.user.js`](scripts/safari-ai-agent.user.js) into the scripts directory selected in the Userscripts app. The script must retain its `.user.js` extension.
-4. Enable **Safari AI Agent Lab** in the Userscripts popup. Allow Userscripts access to your chosen test website in Safari's extension website permissions.
-5. Visit [httpbin test form](https://httpbin.org/forms/post) or another nonsensitive HTML page, refresh if necessary, and tap the floating **Browser Lab** button near the bottom-right.
-6. On HTTPBin, **Preferred delivery time** must use 24-hour `HH:mm` notation, be between `11:00` and `21:00`, and use 15-minute increments, e.g. `14:30`. If an invalid value is entered, the extension now reports why and preserves the previous time.
-7. Tap **Inspect page**. The output contains references like `e3` for visible controls. Enter a reference in **Element reference**, text in **Text or select-option value**, and tap **Fill**, **Highlight**, or **Click**.
-8. For **Navigate**, enter a full HTTPS URL and tap **Navigate**. The panel should reappear on the next website if Userscripts has permission there.
+Requirements: Node.js 22+, Python 3.12+, Playwright and Chromium for browser tests. No Node package dependencies.
 
-**Security:** Keep Userscripts website permissions limited to sites you choose while testing. Snapshot text may contain personal or confidential page information; do not copy it into untrusted apps. Confirmation dialogs do not make every action reversible, and site-defined JavaScript can behave unpredictably. Password fields and file inputs are deliberately excluded from automation.
-
-## Local development
-
-Requirements: Node.js 20+ (no npm packages required).
-
-```bash
-npm run build    # generate installable scripts/safari-ai-agent.user.js
-npm run check    # metadata, offline security, syntax tests
+```sh
+npm run check
+npm run test:browser
 ```
 
-For browser integration smoke testing, with Python Playwright and Chromium installed:
+GitHub Actions separately runs Node tests and Chromium browser tests, including a full two-page workflow test in an unrestricted CI browser environment. The local gateway-to-DOM test sends actual MCP HTTP requests through the server but mocks Userscripts' privileged GM transport and loads an in-memory fixture because network navigation is restricted in this environment.
 
-```bash
-python tests/browser_e2e.py
-```
+## Try after a public HTTPS deployment
 
-The Chromium smoke test checks the generated userscript against a local, harmless form. It is **not** a substitute for testing the actual iPad Safari/Userscripts combination.
+1. Configure `MCP_CLIENT_TOKEN`, `DEVICE_TOKEN` (different random secrets), and `SAFARI_ALLOWED_ORIGINS=https://YOUR_HOST` on the deployed gateway, and terminate TLS at the hosting ingress. **Do not post tokens in chat, logs or GitHub.**
+2. Verify the public endpoint using `MCP_ENDPOINT=https://YOUR_HOST/mcp npm run check:deployment` with the MCP caller token in a local environment variable.
+3. Install the [remote userscript](scripts/safari-ai-agent-remote.user.js) in Userscripts, visit `https://YOUR_HOST/demo`, enter gateway base URL and **device** token, Save and Connect.
+4. Add `https://YOUR_HOST/mcp` as a Claude **custom remote MCP connector** and configure a fixed `Authorization: Bearer ...` header holding the distinct **MCP caller** token. These steps require the user's own eligible Claude account.
+5. Ask Claude to search for *widget*, open the demo result, fill a fictional name and `14:30`, press *Preview selection*, verify *Preview ready*, and stop without submitting.
 
-## New MCP development components (separate from manual Browser Lab)
+See [MCP setup](docs/MCP_INTEGRATION.md) and [release checklist](docs/RELEASE_CHECKLIST.md) for full safeguards and limitations. The same installation is **not** proof that Claude, ChatGPT or Gemini subscription access is active for any specific account.
 
-- `gateway/server.mjs`: authenticated MCP browser-tool gateway (Node.js 22+, in-memory single-device queue).
-- `src/remote.js` and `scripts/safari-ai-agent-remote.user.js`: **opt-in** Userscripts bridge using content-world GM permissions and explicit site consent.
-- `tools/build-remote.mjs`: deterministic remote script build.
-- `tests/gateway.test.mjs`: local HTTP MCP security and tool behavior tests.
-- `tests/remote_dom_smoke.py`: Chromium smoke test with mocked privileged GM API, not Safari.
-- See [MCP integration instructions](docs/MCP_INTEGRATION.md) before installing the remote bridge. A public HTTPS endpoint and connector configuration are still needed.
+## Security and scope
 
-## Source layout
-
-- `src/core.js`: reusable inspect / reference / fill / click / navigate engine.
-- `src/panel.js`: manual test UI using Shadow DOM to isolate styling.
-- `src/bootstrap.js`: inject the panel into the top-level page.
-- `tools/build.mjs`: produces a self-contained userscript without runtime dependencies.
-- `scripts/safari-ai-agent.user.js`: **the file to install**; generated but committed for direct installation.
-- `tests/fixtures/`: harmless example website; `tests/browser_e2e.py`: integration smoke test.
-- `docs/TRACKER.md`: feature milestones, dependencies and limitations.
-
-## Architecture direction
-
-The browser action engine must remain independent from model providers. A future WebExtension adapter will reuse it with per-site permissions, persistent/resumable task state and a tool contract; independent, audited agent policy will authorize model-proposed actions. We will evaluate ChatGPT, Claude and Gemini subscription-based integration individually, rather than assuming that installing those apps on iPad gives another app direct API access.
-
-## Limitations
-
-Page-provided interaction elements may be inside cross-origin iframes, closed shadow roots or canvas UIs. Some sites require trusted user input and will reject synthetic clicks. Changes to the page invalidate element references; use Inspect again. The prototype does not control other apps, browser tabs, downloads, login UI, or Safari itself. Running it on a new site always depends on Safari's permission settings.
+Use only on harmless demonstration pages until iPad acceptance and an independent security review. Browser text may contain confidential data and is sent to the connected model when inspected. The optional remote script can be stopped manually; Stop now revokes queued commands at the gateway where reachable. The full configurable governance harness remains a later milestone. **The remote integration is not a general-purpose trusted autonomous browser or an enterprise authorization system.**

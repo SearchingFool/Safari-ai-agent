@@ -1,20 +1,34 @@
-# B1–D execution record
+# B1–D execution evidence
 
-Date: 2026-10-09. Honest status; no device-specific facts inferred.
+Updated: 2026-10-09. **Engineering validation is not equivalent to device acceptance.**
 
-| Workstream | Outcome | Evidence and remaining blocker |
+| Workstream | Result | Proof / remaining restriction |
 |---|---|---|
-| B1 provider/MCP | **Supported path identified, actual account not verified** | Claude official remote MCP custom connectors support mobile; subscription permissions and fixed headers documented. Need operator sign-in, published HTTPS URL, live echo/browser_status call. |
-| B2 iPad bridge | **Implemented; iPad untested** | Userscripts content world and GM storage/XHR remote transport coded. Simulated isolated-GM bridge tested in Chromium, but actual Userscripts API and suspension not tested. |
-| C1 contract | **Implemented** | Seven versioned MCP tool definitions and JSON-RPC Streamable HTTP compatibility. Actual Claude inspector/client validation pending. |
-| C2 gateway | **Implemented** | Two distinct bearer credentials, static origin allowlist, 1 inflight request, expiry, replay/cancel checks; Node HTTP tests pass. Gateway not deployed. |
-| C3 Userscripts adapter | **Implemented** | Remote UI and foreground polling, manually enabled per exact origin, reinit on same-origin navigation, results/confirmations. Test through mocked GM and Chromium only. |
-| C4 minimum controls | **Implemented for test use; not security audited** | Foreground site opt-in, allowlisted origin, human confirm on clicks/navigation, blocking high-impact controls, no arbitrary JS, no credential extraction. Further hardening and iPad proof needed. |
-| D1 AI loop | **Contract permits model tool-calling, not live verified** | MCP roundtrip simulated and browser actions exercised separately; actual agent call from subscription and full navigation workflow pending. |
-| D2 release acceptance | **Blocked** | Needs hosting/authorization/real iPad; physical Safari tests and repetition metrics cannot run from this environment. |
+| B1 — Provider/MCP | **Supported route verified in public documentation; account unverified** | Claude custom remote MCP connectors support iOS clients and eligible subscriptions; require public HTTPS. Account sign-in and fixed-header behavior still need a real test. |
+| B2 — iPad transport | **Implemented, simulated** | Isolated Userscripts GM API documented; mocked-GM browser tests pass. Actual iPad background/polling/navigation handling not yet tested. |
+| C1 — Browser tool contract | **Implemented and HTTP-tested** | Seven MCP tool schemas; legacy Streamable HTTP protocol 2025-11-25; accepts matching protocol-header requests and rejects wrong media type/version. |
+| C2 — Gateway | **Implemented and tested locally** | Bearer separation, origin allowlist, one pending command, timeouts, replay/cancel resistance, explicit server-side device disconnect. Container packaging exists. **No public HTTPS deployment.** |
+| C3 — Userscripts bridge | **Implemented, simulated** | Explicit origin activation, privileged GM storage/transport, connected controls, local approval and Stop. Chromium with mocked GM passes; real extension runtime not validated. |
+| C4 — Minimum safety | **Implemented for tests, not audited** | Forbidden origin, bad credentials/arguments, refused submissions, old results and revoked commands rejected. No arbitrary JS from AI. A full security audit and live negative tests remain. |
+| D1 — Observe/act/verify | **Integrated local HTTP/DOM roundtrip passes; live model not tested** | Real Node MCP gateway -> local GM-transport shim -> Chromium DOM -> verified result. Separate unrestricted CI tests cover simulated real page navigation/Userscripts reinjection. |
+| D2 — Release | **Not accepted** | User Claude connector, HTTPS deployment, real iPad actions, navigation/recovery, ten-run reliability measurements all pending. |
 
-Prior user test: original manual Browser Lab can manipulate the HTTPBin form on iPad. This is evidence for A-01 only, not for B1–D.
+## Test evidence
 
-Verification: `npm run check` (10/10 tests), existing Chromium Browser Lab smoke passed, remote DOM with mocked GM passed. Browser-host HTTP E2E test is blocked by Chromium network restrictions, not counted as passed. Run full suite in a normal development environment and record tool responses before publishing a release.
+- `npm run check`: 13/13 Node/build/integration tests passed in local environment.
+- `npm run test:browser`: 3/3 Chromium suites passed, including real MCP HTTP through isolated GM test shim. The original manual Browser Lab remains intact.
+- `tests/remote_browser_e2e.py`: requires browser navigation to intercepted HTTPS origin; **blocked in the current environment** by `ERR_BLOCKED_BY_ADMINISTRATOR`, and is scheduled in GitHub Actions' browser-integration job. Its result must be checked before merge.
+- `Dockerfile`: not build-tested here because no container engine is available. Node gateway startup and loopback HTTP confirmed.
 
-No separate AI subscription API was purchased or used, no cloud hosting was deployed, and no private service was made publicly accessible.
+## Known unresolved behavior
+
+- Userscripts runs only while Safari allows its content script to execute. Any iPad sleep/background behavior must be treated as an interruption; do not promise unattended operation.
+- A click/navigation response may be *dispatched but unverified*. Re-inspect the destination and never retry an uncertain consequential action automatically.
+- Public MCP endpoint requires a hosting account, public HTTPS hostname and owner-created secrets. No service was deployed and no paid provider account was modified.
+- The MCP server uses a single-operator static bearer prototype, not OAuth/multi-user governance. Do not expose it to untrusted users.
+
+## Documentation sources verified
+
+- Claude custom remote connectors: https://support.claude.com/en/articles/11175166-get-started-with-custom-connectors-using-remote-mcp
+- Safari Userscripts isolated GM APIs: https://github.com/quoid/userscripts
+- Legacy Streamable HTTP: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports

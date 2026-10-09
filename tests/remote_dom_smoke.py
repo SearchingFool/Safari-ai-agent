@@ -5,6 +5,7 @@ mocks only GM privileged APIs, not real Safari or remote networking.
 """
 import json
 from pathlib import Path
+import shutil
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,7 +15,7 @@ remote = (ROOT / 'src/remote.js').read_text()
 
 def main():
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox'])
+        browser = p.chromium.launch(headless=True, executable_path=shutil.which('chromium'), args=['--no-sandbox'])
         page = browser.new_page()
         page.on('dialog', lambda dialog: dialog.accept())
         page.set_content((ROOT / 'tests/fixtures/demo.html').read_text())

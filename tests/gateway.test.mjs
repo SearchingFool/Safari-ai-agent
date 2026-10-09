@@ -97,3 +97,37 @@ test('Allowed navigation and inspect round trip do not require a model or API bi
   await device('result',{id:next.id,origin,result:{success:true,data:{url:origin+'/page2',title:'Page 2'}}});
   assert.equal(output(await payload(await inspect)).data.url,origin+'/page2');
 }));
+
+test('Device disconnect revokes pending commands and rejects old results',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const req=rpc('tools/call',call('browser_click',{ref:'e2'}),90);
+  const cmd=(await payload(await device('poll',{origin}))).command;
+  assert.ok(cmd.id);
+  const revoked=await payload(await device('disconnect',{origin}));
+  assert.equal(revoked.disconnected,true);
+  assert.match(output(await payload(await req)).error,/explicitly disconnected/);
+  assert.equal((await device('result',{id:cmd.id,origin,result:{success:true}})).status,409);
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).connected,false);
+  assert.equal((await device('disconnect',{origin:'https://evil.test'})).status,403);
+}));
+
+test('MCP protocol and content-type validation fail closed',()=>testGateway(async({post})=>{
+  const ping={jsonrpc:'2.0',id:1,method:'ping'};
+  assert.equal((await post('/mcp',ping,mcpToken,{'MCP-Protocol-Version':'2099-01-01'})).status,400);
+  assert.equal((await post('/mcp',ping,mcpToken,{'Content-Type':'text/plain'})).status,415);
+  const acceptable=await post('/mcp',ping,mcpToken,{'MCP-Protocol-Version':'2025-11-25'});
+  assert.equal(acceptable.status,200);
+  assert.deepEqual((await acceptable.json()).result,{});
+}));
+
+test('Public inert demo pages support multi-step Safari workflows without receiving data',()=>testGateway(async({base})=>{
+  for(const path of ['/demo','/demo/product']){
+    const response=await fetch(base+path);
+    assert.equal(response.status,200);
+    assert.match(response.headers.get('content-security-policy'),/form-action 'none'/);
+    assert.match(await response.text(),/Demo|demo/);
+  }
+  const catalog=await (await fetch(base+'/demo')).text();
+  assert.match(catalog,/href='\/demo\/product'/);
+  assert.match(await (await fetch(base+'/demo/product')).text(),/type="time"/);
+}));

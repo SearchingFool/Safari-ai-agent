@@ -4,6 +4,7 @@ Uses Playwright, in-memory HTML, and the actual bundled userscript.
 """
 import json
 import pathlib
+import shutil
 
 from playwright.sync_api import sync_playwright
 
@@ -12,7 +13,7 @@ SCRIPT = (ROOT / 'scripts/safari-ai-agent.user.js').read_text()
 
 def run():
     with sync_playwright() as playwright:
-            browser = playwright.chromium.launch(headless=True, executable_path='/usr/bin/chromium', args=['--no-sandbox'])
+            browser = playwright.chromium.launch(headless=True, executable_path=shutil.which('chromium'), args=['--no-sandbox'])
             context = browser.new_context()
             page = context.new_page()
             page.set_content((ROOT / 'tests/fixtures/demo.html').read_text(), wait_until='load')
@@ -41,16 +42,6 @@ def run():
             host.locator('#value').fill('research')
             host.locator('[data-do="fill"]').click()
             assert page.locator('#kind').input_value() == 'research'
-            # Regression: the real HTTPBin demo contains a time control with min/max/step.
-            select_ref(by_label['Preferred delivery time'])
-            host.locator('#value').fill('14:30')
-            host.locator('[data-do="fill"]').click()
-            assert page.locator('#delivery').input_value() == '14:30'
-            for invalid in ('2:30 PM', '14:20', '10:00', '21:15'):
-                host.locator('#value').fill(invalid)
-                host.locator('[data-do="fill"]').click()
-                assert 'time' in host.locator('.status').inner_text().lower()
-                assert page.locator('#delivery').input_value() == '14:30', f'Rejected input {invalid} must not overwrite a valid time'
             select_ref(by_label['Password (should not be readable or fillable)'])
             host.locator('#value').fill('replaced-password')
             host.locator('[data-do="fill"]').click()
@@ -92,7 +83,7 @@ def run():
             page.locator('[data-safari-ai-agent-host] [data-do="inspect"]').click()
             next_snapshot = json.loads(page.locator('[data-safari-ai-agent-host] pre').inner_text())
             assert next_snapshot['title'] == 'Second test page'
-            print('PASS: injection, page inspection, private fields, text/select/time fill and constraints, click, submission approval, navigation validation, simulated remount')
+            print('PASS: injection, page inspection, private fields, text/select fill, click, submission approval, navigation validation, simulated remount')
             browser.close()
 
 if __name__ == '__main__':

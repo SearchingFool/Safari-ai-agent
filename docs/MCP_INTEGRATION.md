@@ -96,3 +96,30 @@ The Node suite uses loopback HTTP and tests MCP routing, authentication, allowli
 ## Release gate
 
 Do **not** tell users the AI-driven iPad MVP is ready merely because the source and loopback tests pass. The minimum release proof requires deployment behind trusted HTTPS, connecting the user's actual eligible Claude account and iPad, and recording one complete real browser workflow as defined in PRODUCT_REQUIREMENTS.md.
+
+## Additions for v0.2.1 (B1–D hardening)
+
+- Server Stop is stronger: the iPad bridge calls `/device/disconnect` to invalidate queued commands immediately. If the gateway is unreachable, local execution still stops and any remote command times out; a previously acknowledged navigation is always treated as uncertain until re-inspected.
+- `/mcp` explicitly rejects unsupported `MCP-Protocol-Version` values and non-JSON request content.
+- A harmless two-page workflow can be tested on the same HTTPS gateway: `/demo` (search for **widget**, follow **View Demo Widget**) and `/demo/product` (fill **Contact name**, **Delivery time** `14:30`, choose **Basic**, press **Preview selection**, verify **Preview ready**). **Never submit or enter real personal data.** The demo has a restrictive Content Security Policy and forms cannot post data.
+- `Dockerfile` packages only the Node gateway as non-root. It requires a trusted hosting product or reverse proxy to terminate TLS. The container alone **does not provide HTTPS**.
+- Run `MCP_ENDPOINT=https://YOUR_HOST/mcp MCP_CLIENT_TOKEN=... npm run check:deployment` with the secret coming from your shell environment, not committed files. It verifies protocol handshake, tool list and status without launching an action.
+- `npm run test:browser` now includes a real loopback MCP HTTP/DOM integration (but mocked GM permission transport). GitHub CI runs broader browser testing including intercepted multi-page navigation. See [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
+
+### Example single-operator container configuration
+
+```sh
+# First create TWO independent random secrets and store them in your hosting
+# provider's secret manager. Never commit these values or paste them into chat.
+node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))'
+node -e 'console.log(require("node:crypto").randomBytes(32).toString("hex"))'
+
+# Build the gateway container on a Docker-equipped host.
+docker build -t safari-ai-gateway:0.2.1 .
+
+# In your hosting configuration, supply MCP_CLIENT_TOKEN, DEVICE_TOKEN,
+# SAFARI_ALLOWED_ORIGINS=https://YOUR_PUBLIC_HOST and HTTPS ingress forwarding
+# to container port 8787. Do not publish port 8787 directly to the internet.
+```
+
+**Critical:** We cannot validate the user's subscription, configure the Claude mobile connector, deploy under their hosting account, or certify actual iPad behavior without those external account/device actions. No separate commercial AI API key is required by this architecture, but the hosting service may have a cost.

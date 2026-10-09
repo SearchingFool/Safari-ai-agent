@@ -12,3 +12,19 @@ jobs:
           node-version: '22'
       - run: npm run check
       - run: git diff --exit-code -- scripts/safari-ai-agent.user.js scripts/safari-ai-agent-remote.user.js
+  browser-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'playwright>=1.55,<2'
+      - run: python -m playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run test:browser
+      - run: python tests/remote_browser_e2e.py

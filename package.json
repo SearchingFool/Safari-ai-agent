@@ -1,6 +1,6 @@
 {
   "name": "safari-ai-agent",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "description": "Safari iPad Userscripts bridge and MCP browser automation gateway",
@@ -9,7 +9,8 @@
     "test": "npm run build && node --test tests/*.test.cjs tests/*.test.mjs",
     "check": "npm run test && node --check scripts/safari-ai-agent.user.js && node --check scripts/safari-ai-agent-remote.user.js && node --check gateway/server.mjs",
     "build:remote": "node tools/build-remote.mjs",
-    "test:browser": "python tests/browser_e2e.py && python tests/remote_dom_smoke.py"
+    "test:browser": "python tests/browser_e2e.py && python tests/remote_dom_smoke.py && python tests/remote_gateway_integration.py",
+    "check:deployment": "node tools/check-deployment.mjs"
   },
   "engines": {
     "node": ">=20"

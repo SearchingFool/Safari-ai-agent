@@ -48,11 +48,19 @@ if [[ ! -e "$secrets" ]]; then
   chmod 600 "$secrets"
   echo "Generated two credentials in .env.mac-tailscale (gitignored)"
 fi
+# Upgrade the existing two-token Mac test credentials safely without rotating them.
+if [[ "$(wc -l < "$secrets" | tr -d ' ')" == 2 ]] &&
+   [[ "$(grep -Ec '^MCP_CLIENT_TOKEN=[a-f0-9]{64}$' "$secrets")" == 1 ]] &&
+   [[ "$(grep -Ec '^DEVICE_TOKEN=[a-f0-9]{64}$' "$secrets")" == 1 ]]; then
+  node -e 'console.log("DEMO_PASSWORD="+require("node:crypto").randomBytes(32).toString("hex"))' >> "$secrets"
+  echo "Generated a separate demo login password; existing tokens were preserved."
+fi
 chmod 600 "$secrets"
-# Refuse arbitrary shell content: exactly two KEY=hex-secret lines are permitted.
-if [[ "$(wc -l < "$secrets" | tr -d ' ')" != 2 ]] ||
+# Refuse arbitrary shell content: exactly three KEY=hex-secret lines are permitted.
+if [[ "$(wc -l < "$secrets" | tr -d ' ')" != 3 ]] ||
    [[ "$(grep -Ec '^MCP_CLIENT_TOKEN=[a-f0-9]{64}$' "$secrets")" != 1 ]] ||
-   [[ "$(grep -Ec '^DEVICE_TOKEN=[a-f0-9]{64}$' "$secrets")" != 1 ]]; then
+   [[ "$(grep -Ec '^DEVICE_TOKEN=[a-f0-9]{64}$' "$secrets")" != 1 ]] ||
+   [[ "$(grep -Ec '^DEMO_PASSWORD=[a-f0-9]{64}$' "$secrets")" != 1 ]]; then
   echo "Unexpected secrets file format; refusing to source it" >&2
   exit 1
 fi
@@ -67,7 +75,7 @@ if ! node -e 'const s=require("node:net").createServer();s.on("error",()=>proces
   echo "localhost:8787 is already occupied" >&2
   exit 1
 fi
-export MCP_CLIENT_TOKEN DEVICE_TOKEN
+export MCP_CLIENT_TOKEN DEVICE_TOKEN DEMO_PASSWORD
 export PORT=8787 BIND_ADDRESS=127.0.0.1 SAFARI_ALLOWED_ORIGINS="https://$host"
 
 gateway_pid=""
@@ -90,7 +98,9 @@ if [[ "$healthy" != 1 ]]; then echo "Gateway failed local health check; Funnel n
 
 echo "Gateway health check: PASS"
 echo "Claude MCP URL: https://$host/mcp"
-echo "iPad test page: https://$host/demo"
+echo "iPad test page: https://$host/demo (browser login required)"
+echo "Demo username: safari-demo"
+echo "Demo password is DEMO_PASSWORD in the local credentials file; never share it."
 echo "iPad Remote AI base URL: https://$host"
 echo "Credentials location on this Mac: $(pwd)/$secrets"
 echo "Use MCP_CLIENT_TOKEN only in Claude's authenticated connector."

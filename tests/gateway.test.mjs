@@ -2,9 +2,9 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createGateway} from '../gateway/server.mjs';
-const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48), origin = 'https://example.org';
+const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48), demoPassword='P'.repeat(48), origin = 'https://example.org';
 async function testGateway(fn, options={}) {
-  const g=createGateway({clientToken:mcpToken,deviceToken,allowedOrigins:[origin],commandTimeoutMs:500,...options});
+  const g=createGateway({clientToken:mcpToken,deviceToken,demoPassword,allowedOrigins:[origin],commandTimeoutMs:500,...options});
   await new Promise(resolve=>g.server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${g.server.address().port}`;
   const post=(path,body,token=mcpToken,headers={})=>fetch(base+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
@@ -120,14 +120,25 @@ test('MCP protocol and content-type validation fail closed',()=>testGateway(asyn
   assert.deepEqual((await acceptable.json()).result,{});
 }));
 
-test('Public inert demo pages support multi-step Safari workflows without receiving data',()=>testGateway(async({base})=>{
+test('Demo endpoints challenge unauthenticated callers without leaking page content',()=>testGateway(async({base})=>{
+  const auth='Basic '+Buffer.from('safari-demo:'+demoPassword).toString('base64');
   for(const path of ['/demo','/demo/product']){
-    const response=await fetch(base+path);
-    assert.equal(response.status,200);
-    assert.match(response.headers.get('content-security-policy'),/form-action 'none'/);
-    assert.match(await response.text(),/Demo|demo/);
+    const publicReply=await fetch(base+path);
+    assert.equal(publicReply.status,401);
+    assert.equal((await publicReply.text()).length,0);
+    assert.match(publicReply.headers.get('www-authenticate'),/^Basic /);
+    for(const credential of ['Bearer '+mcpToken,'Bearer '+deviceToken,'Basic '+Buffer.from('safari-demo:wrong').toString('base64')]){
+      assert.equal((await fetch(base+path,{headers:{Authorization:credential}})).status,401);
+    }
+    const good=await fetch(base+path,{headers:{Authorization:auth}});
+    assert.equal(good.status,200);
+    assert.match(good.headers.get('content-security-policy'),/form-action 'none'/);
+    assert.match(await good.text(),/Demo|demo/);
   }
-  const catalog=await (await fetch(base+'/demo')).text();
-  assert.match(catalog,/href='\/demo\/product'/);
-  assert.match(await (await fetch(base+'/demo/product')).text(),/type="time"/);
+  const catalog=await (await fetch(base+'/demo',{headers:{Authorization:auth}})).text();
+  assert.ok(catalog.includes("href='/demo/product'"));
+  assert.match(await (await fetch(base+'/demo/product',{headers:{Authorization:auth}})).text(),/type="time"/);
 }));
+test('Demo is hidden when demo password is not configured',()=>testGateway(async({base})=>{
+  assert.equal((await fetch(base+'/demo')).status,404);
+},{demoPassword:undefined}));

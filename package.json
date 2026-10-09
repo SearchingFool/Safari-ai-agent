@@ -1,13 +1,17 @@
 {
   "name": "safari-ai-agent",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "description": "Local-only Safari Userscripts browser interaction prototype",
+  "description": "Safari iPad Userscripts bridge and MCP browser automation gateway",
   "scripts": {
-    "build": "node tools/build.mjs",
-    "test": "npm run build && node --test tests/*.test.cjs",
-    "check": "npm run test && node --check scripts/safari-ai-agent.user.js"
+    "build": "node tools/build.mjs && node tools/build-remote.mjs",
+    "test": "npm run build && node --test tests/*.test.cjs tests/*.test.mjs",
+    "check": "npm run test && node --check scripts/safari-ai-agent.user.js && node --check scripts/safari-ai-agent-remote.user.js && node --check gateway/server.mjs",
+    "build:remote": "node tools/build-remote.mjs",
+    "test:browser": "python tests/browser_e2e.py && python tests/remote_dom_smoke.py"
   },
-  "engines": {"node": ">=20"}
+  "engines": {
+    "node": ">=20"
+  }
 }

@@ -6,7 +6,7 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const header = `// ==UserScript==
 // @name         Safari AI Agent Lab
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.1.0
+// @version      0.1.1
 // @description  Local-only manual browser inspection, form filling and navigation test tools.
 // @match        https://*/*
 // @match        http://*/*

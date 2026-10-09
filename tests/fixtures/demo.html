@@ -5,6 +5,7 @@
 <form id="test-form"><label for="person">Name</label><input id="person" name="person" type="text" autocomplete="off"/>
 <label for="mail">Email</label><input id="mail" type="email"/><label for="secret">Password (should not be readable or fillable)</label><input id="secret" type="password" value="never-share-me"/>
 <label for="kind">Category</label><select id="kind"><option value="">Select...</option><option value="research">Research</option><option value="development">Development</option></select>
+<label for="delivery">Preferred delivery time</label><input id="delivery" name="delivery" type="time" min="11:00" max="21:00" step="900"/>
 <label for="note">Note</label><textarea id="note"></textarea><button id="save" type="submit">Submit test form</button></form>
 <button id="ping" type="button">Show confirmation</button>
 <p id="feedback" role="status">No actions yet.</p><a id="next" href="/second.html">Next page</a>

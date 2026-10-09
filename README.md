@@ -1,5 +1,9 @@
 # Safari AI Agent
 
+> **0.2 development build: MCP gateway and opt-in remote Userscripts bridge implemented, but not yet accepted on actual iPad / live Claude connector.** Keep the existing manual Browser Lab for ordinary website testing. The remote bridge is a separate script and must be used only on a non-sensitive test site until device and security acceptance.
+
+[Remote MCP setup and security](docs/MCP_INTEGRATION.md) · [B1–D implementation/testing evidence](docs/B1_D_STATUS.md) · [Canonical requirements](docs/PRODUCT_REQUIREMENTS.md) · [Execution plan](docs/IMPLEMENTATION_PLAN.md) · [Tracker](docs/TRACKER.md)
+
 > **Project baseline (2026-10-09):** [Product requirements](docs/PRODUCT_REQUIREMENTS.md) · [Implementation plan](docs/IMPLEMENTATION_PLAN.md) · [Decision log](docs/DECISIONS.md) · [Progress tracker](docs/TRACKER.md). The current Userscripts build is a **manual prototype**, not the end-to-end AI/MCP MVP.
 
 A browser-action prototype for **iPad Safari via Userscripts**. The first milestone is deliberately **local and manual**: it does not require an Apple Developer Program membership, an LLM, API credentials, a Mac-hosted server, or a cloud account.
@@ -45,6 +49,15 @@ python tests/browser_e2e.py
 ```
 
 The Chromium smoke test checks the generated userscript against a local, harmless form. It is **not** a substitute for testing the actual iPad Safari/Userscripts combination.
+
+## New MCP development components (separate from manual Browser Lab)
+
+- `gateway/server.mjs`: authenticated MCP browser-tool gateway (Node.js 22+, in-memory single-device queue).
+- `src/remote.js` and `scripts/safari-ai-agent-remote.user.js`: **opt-in** Userscripts bridge using content-world GM permissions and explicit site consent.
+- `tools/build-remote.mjs`: deterministic remote script build.
+- `tests/gateway.test.mjs`: local HTTP MCP security and tool behavior tests.
+- `tests/remote_dom_smoke.py`: Chromium smoke test with mocked privileged GM API, not Safari.
+- See [MCP integration instructions](docs/MCP_INTEGRATION.md) before installing the remote bridge. A public HTTPS endpoint and connector configuration are still needed.
 
 ## Source layout
 

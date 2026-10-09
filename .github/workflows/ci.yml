@@ -11,4 +11,4 @@ jobs:
         with:
           node-version: '22'
       - run: npm run check
-      - run: git diff --exit-code -- scripts/safari-ai-agent.user.js
+      - run: git diff --exit-code -- scripts/safari-ai-agent.user.js scripts/safari-ai-agent-remote.user.js

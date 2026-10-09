@@ -2,7 +2,7 @@
 
 Updated: 2026-10-09 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** **B1 — validate an eligible AI client calling an authenticated MCP test tool from the actual iPad.** In parallel close A: manual Safari Userscripts device acceptance. Do not build a copy/paste AI bridge as the MVP.
+**Current focus:** Deploy a trusted HTTPS MCP endpoint, connect an eligible Claude account, and complete real iPad Safari device acceptance. Gateway and browser bridge implemented in v0.2 development branch; live B1/B2/D acceptance **not confirmed**. Do not count synthetic Chromium and mock-GM tests as actual iPad or subscription validation.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -54,3 +54,11 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 - Element references can go stale; synthetic clicks may fail on protected/complex controls.
 - Safari website permissions and foreground execution constrain actions. Chromium success is not proof of iPad Safari behavior.
 - Apple Developer membership and native WebExtension packaging are deferred.
+
+## 2026-10-09 B1–D implementation evidence
+
+- **Implemented:** MCP gateway, authenticated single-device command queue, allowlisted origins, command timeout/cancellation/replay rejection, seven browser tools, remote Userscripts script using isolated GM APIs, explicit site opt-in, confirmation prompts, block of consequential clicks, same-origin navigation with dispatch-only acknowledgement.
+- **Passed locally:** `npm run check` (10 automated gateway/build tests) and Chromium manual/remote smoke suites (the remote test uses a mock GM API); no extra inference API billing.
+- **Still blocked:** public HTTPS gateway deployment, actual Claude custom connector authentication/entitlement, iPad GM network/permission/lifecycle proof, live multi-page AI task, external security audit and ten-run reliability measurements.
+- **Supporting details:** [MCP_INTEGRATION.md](MCP_INTEGRATION.md), [B1_D_STATUS.md](B1_D_STATUS.md).
+- **Release decision:** **not ready for end-to-end iPad user acceptance**; do not tag the AI MVP as released.

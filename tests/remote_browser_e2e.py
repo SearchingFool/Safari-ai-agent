@@ -47,6 +47,39 @@ def call(gateway, name, args=None, request_id=1):
 def parse(result):
     return json.loads(result['content'][0]['text'])
 
+def call_through_browser(page, gateway, name, args=None, request_id=1):
+    """Keep the Playwright event loop responsive while the MCP request waits.
+
+    A browser-side GM.xmlHttpRequest mock invokes expose_binding('__gmBridge').
+    If we block the only Playwright sync thread inside urllib's HTTP request,
+    the browser binding cannot be processed, and the gateway command times out.
+    Send MCP HTTP on a worker thread; continue pumping browser events here.
+    """
+    result = {}
+    finished = threading.Event()
+
+    def worker():
+        try:
+            result['value'] = call(gateway, name, args, request_id)
+        except BaseException as exc:
+            result['error'] = exc
+        finally:
+            finished.set()
+
+    thread = threading.Thread(target=worker, daemon=True)
+    thread.start()
+    deadline = time.monotonic() + 38
+    while not finished.is_set() and time.monotonic() < deadline:
+        # Playwright's synchronous API processes exposed binding callbacks here.
+        page.wait_for_timeout(100)
+    if not finished.is_set():
+        raise TimeoutError(f'Gateway call {name} did not finish')
+    thread.join(timeout=1)
+    if 'error' in result:
+        raise result['error']
+    return result['value']
+
+
 
 class QuietHandler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *unused):
@@ -121,7 +154,7 @@ def run():
             assert ready, 'Userscript failed to connect to gateway'
 
             # Observe current webpage from a remote MCP tool call.
-            observed = parse(call(gateway, 'browser_inspect', request_id=10))
+            observed = parse(call_through_browser(page, gateway, 'browser_inspect', request_id=10))
             assert observed['success']
             snapshot = observed['data']
             assert snapshot['title'] == 'Safari AI Agent Test Page'
@@ -130,26 +163,26 @@ def run():
             assert 'Name' in refs and 'Submit test form' in refs
 
             # Real browser DOM mutations performed via remotely issued MCP tool calls.
-            fill = parse(call(gateway, 'browser_fill', {'ref': refs['Name'], 'value': 'Browser Agent'}, request_id=11))
+            fill = parse(call_through_browser(page, gateway, 'browser_fill', {'ref': refs['Name'], 'value': 'Browser Agent'}, request_id=11))
             assert fill['success']
             assert page.locator('#person').input_value() == 'Browser Agent'
-            assert parse(call(gateway, 'browser_verify', {'textIncludes': 'Safari AI Agent Test Page'}, request_id=12))['success']
+            assert parse(call_through_browser(page, gateway, 'browser_verify', {'textIncludes': 'Safari AI Agent Test Page'}, request_id=12))['success']
             # After verify re-inspection, old refs can be reused only if stable.
             # A consequential submit button must be blocked even if a local confirmation would accept.
-            blocked = call(gateway, 'browser_click', {'ref': refs['Submit test form']}, request_id=13)
+            blocked = call_through_browser(page, gateway, 'browser_click', {'ref': refs['Submit test form']}, request_id=13)
             assert blocked['isError']
             assert 'High-impact' in parse(blocked)['error']
             assert page.locator('#feedback').inner_text() == 'No actions yet.'
 
             # Explicitly navigate to next page. Response is only dispatch acknowledgement.
-            ack = parse(call(gateway, 'browser_navigate', {'url': origin + '/second.html'}, request_id=14))
+            ack = parse(call_through_browser(page, gateway, 'browser_navigate', {'url': origin + '/second.html'}, request_id=14))
             assert ack['dispatched'] and not ack['verified']
             page.wait_for_url('**/second.html', timeout=10000)
             assert page.locator('body').inner_text().find('Navigation succeeded') >= 0
             # Auto-resume across navigation: re-injected Userscripts reads GM storage.
-            next_page = parse(call(gateway, 'browser_inspect', request_id=15))
+            next_page = parse(call_through_browser(page, gateway, 'browser_inspect', request_id=15))
             assert next_page['data']['title'] == 'Second test page'
-            verified = parse(call(gateway, 'browser_verify', {'textIncludes': 'Navigation succeeded'}, request_id=16))
+            verified = parse(call_through_browser(page, gateway, 'browser_verify', {'textIncludes': 'Navigation succeeded'}, request_id=16))
             assert verified['success']
             print('PASS: MCP -> authenticated gateway -> mocked GM isolated bridge -> Chromium DOM -> navigation -> auto-resume -> verify')
             browser.close()

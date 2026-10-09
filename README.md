@@ -50,6 +50,10 @@ See [MCP setup](docs/MCP_INTEGRATION.md) and [release checklist](docs/RELEASE_CH
 
 Use only on harmless demonstration pages until iPad acceptance and an independent security review. Browser text may contain confidential data and is sent to the connected model when inspected. The optional remote script can be stopped manually; Stop now revokes queued commands at the gateway where reachable. The full configurable governance harness remains a later milestone. **The remote integration is not a general-purpose trusted autonomous browser or an enterprise authorization system.**
 
+## Public demo security
+
+The Mac Tailscale test launcher now generates a **third, independent demo password**. The browser challenges for username `safari-demo` and the local `DEMO_PASSWORD` from `.env.mac-tailscale`; unauthenticated requests receive no demo HTML. The MCP and device credentials remain distinct and are never used as browser passwords. This is basic protection for a test site, not complete production hardening. The HTTPS endpoint remains publicly reachable while Funnel runs. If the Mac launcher was already running, stop it before updating code and relaunching.
+
 ## Mac + Tailscale live MCP testing
 
 To test the hosted gateway without Verpex, use the [Mac Tailscale Funnel guide](docs/MAC_TAILSCALE_TEST.md) and the launcher `bash tools/start-mac-tailscale-test.sh`. The Mac hosts Node on localhost; Funnel provides the public HTTPS URL needed by Claude's remote MCP connector. Keep credentials on the Mac and use only the harmless demo for initial testing. **Account and iPad acceptance remain unverified.**

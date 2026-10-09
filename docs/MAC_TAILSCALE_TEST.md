@@ -25,7 +25,9 @@ bash tools/start-mac-tailscale-test.sh
 
 For an existing clone, use `git pull --ff-only` instead of `git clone` and continue from the repository root.
 
-The launcher automatically discovers the Mac's real Tailscale hostname, generates two 64-character random secrets in gitignored `.env.mac-tailscale` (permissions 0600), binds Node to **127.0.0.1:8787**, allowlists the precise HTTPS origin, checks the local gateway, and starts `tailscale funnel 8787` in the foreground. It never needs administrator/root access itself and does not alter the Tailscale installation.
+Existing two-token files are upgraded in place with a separate `DEMO_PASSWORD`; the original caller/device credentials are not changed. The demo challenges with browser HTTP Basic authentication over HTTPS and will not serve the test form anonymously.
+
+The launcher automatically discovers the Mac's real Tailscale hostname, generates two API credentials plus an independent 64-character demo-page password in gitignored `.env.mac-tailscale` (permissions 0600), binds Node to **127.0.0.1:8787**, allowlists the precise HTTPS origin, checks the local gateway, and starts `tailscale funnel 8787` in the foreground. It never needs administrator/root access itself and does not alter the Tailscale installation.
 
 Approve Tailscale's own Funnel enablement screen if prompted. Do not send either secret to ChatGPT, GitHub, or another person.
 
@@ -44,7 +46,7 @@ If your Claude account does not support custom MCP tools or fixed authentication
 ## Configure iPad
 
 1. Keep existing Browser Lab. Install the separate [Remote AI Userscripts file](../scripts/safari-ai-agent-remote.user.js) from the `main` branch using its raw GitHub URL, and permit Userscripts only on the demo site.
-2. Visit the printed iPad demo URL (ends in `/demo`), then tap **Remote AI**.
+2. Visit the printed iPad demo URL (ends in `/demo`). For the browser login use username `safari-demo` and the `DEMO_PASSWORD` value in the Mac's `.env.mac-tailscale` file; never use MCP_CLIENT_TOKEN or DEVICE_TOKEN in the login. Then tap **Remote AI**.
 3. Enter the printed **base** gateway HTTPS URL (without `/mcp` or `/demo`) and the separate **DEVICE_TOKEN** from the Mac credentials file in the Remote AI extension panel. Select **Save** then **Connect**.
 4. Keep this Safari tab active. Claude should now be able to call `browser_inspect` and other allowed tools. The iPad bridge requires local confirmation for clicking and navigation; high-impact submissions remain blocked.
 

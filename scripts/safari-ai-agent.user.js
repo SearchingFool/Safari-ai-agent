@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Safari AI Agent Lab
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.1.0
+// @version      0.1.1
 // @description  Local-only manual browser inspection, form filling and navigation test tools.
 // @match        https://*/*
 // @match        http://*/*
@@ -22,7 +22,9 @@
   const MAX_ELEMENTS = 100;
   const MAX_TEXT = 2000;
   const ACTIONABLE = 'a[href], button, input, textarea, select, [role="button"], [role="link"], [contenteditable="true"]';
-  const TEXT_INPUT_TYPES = new Set(['text', 'search', 'email', 'url', 'tel']);
+  // Time fields accept only canonical HTML values; other input types stay restricted.
+  const FILLABLE_INPUT_TYPES = new Set(['text', 'search', 'email', 'url', 'tel', 'time']);
+  const TIME_FORMAT = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
   const HIGH_IMPACT = /\b(delete|remove|erase|pay|purchase|buy|checkout|transfer|send|publish|confirm|submit|post|order)\b/i;
   const trim = (value, max = 120) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
 
@@ -108,11 +110,28 @@
         const option = [...el.options].find(item => item.value === value || trim(item.textContent) === value);
         if (!option || option.disabled) throw new Error('No enabled option matches that text or value.');
         el.value = option.value;
-      } else if (tag === 'textarea' || (tag === 'input' && TEXT_INPUT_TYPES.has((el.type || 'text').toLowerCase()))) {
+      } else if (tag === 'textarea' || (tag === 'input' && FILLABLE_INPUT_TYPES.has((el.type || 'text').toLowerCase()))) {
+        const inputType = tag === 'input' ? (el.type || 'text').toLowerCase() : null;
+        // The native time widget accepts HH:mm, not locale-specific inputs such as 2:30 PM.
+        // Validate before writing so malformed values never clear a previously valid value.
+        if (inputType === 'time' && value !== '' && !TIME_FORMAT.test(value)) {
+          throw new Error('Time must use 24-hour HH:mm format, e.g. 14:30.');
+        }
         const proto = tag === 'textarea' ? win.HTMLTextAreaElement.prototype : win.HTMLInputElement.prototype;
         const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set;
         if (!setter) throw new Error('Native value setter unavailable.');
+        const previousValue = el.value;
         setter.call(el, value);
+        if (inputType === 'time') {
+          // Browser constraint validation checks min/max/step as defined by each site.
+          // For the HTTPBin demo, only 11:00-21:00 at 15-minute intervals is legal.
+          // Revert on failure, and do not emit change events for rejected values.
+          if (el.value !== value || !el.validity.valid) {
+            const reason = el.validationMessage || 'Time is outside the allowed range or interval.';
+            setter.call(el, previousValue);
+            throw new Error(`Invalid time: ${reason}`);
+          }
+        }
       } else if (el.isContentEditable && el.getAttribute('contenteditable') === 'true') {
         el.textContent = value;
       } else {

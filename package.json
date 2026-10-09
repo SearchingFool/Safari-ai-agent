@@ -1,0 +1,13 @@
+{
+  "name": "safari-ai-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-only Safari Userscripts browser interaction prototype",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "test": "npm run build && node --test tests/*.test.cjs",
+    "check": "npm run test && node --check scripts/safari-ai-agent.user.js"
+  },
+  "engines": {"node": ">=20"}
+}

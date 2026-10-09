@@ -24,6 +24,19 @@ const TOOL_DEFS = [
 ];
 const json = (res,code,value) => {res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
 const fail = (res,code,message)=>json(res,code,{error:message});
+// Demo Basic authentication is distinct from the MCP and device bearer tokens.
+const DEMO_USER='safari-demo';
+function demoMatches(header,password){
+  if(typeof password!=='string'||password.length<24||typeof header!=='string'||
+     !header.startsWith('Basic ')||header.length>256)return false;
+  const encoded=header.slice(6);
+  if(!/^[A-Za-z0-9+/]+={0,2}$/.test(encoded))return false;
+  const raw=Buffer.from(encoded,'base64').toString('utf8');
+  const cut=raw.indexOf(':');
+  if(cut<0||raw.slice(0,cut)!==DEMO_USER)return false;
+  const supplied=Buffer.from(raw.slice(cut+1)), expected=Buffer.from(password);
+  return supplied.length===expected.length&&timingSafeEqual(supplied,expected);
+}
 function tokenMatches(header, expected){
   if (!expected || typeof header!=='string'||!header.startsWith('Bearer '))return false;
   const a=Buffer.from(header.slice(7));const b=Buffer.from(expected);
@@ -50,7 +63,7 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,allowedOrigins,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now()}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now()}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -77,7 +90,15 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
     try{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/health'&&req.method==='GET')return json(res,200,{ok:true});
-      if(serveDemo(req,res,url.pathname))return;
+      if(['/demo','/demo/product'].includes(url.pathname)){
+        if(req.method!=='GET'||!demoPassword)return fail(res,404,'Not found');
+        if(!demoMatches(req.headers.authorization,demoPassword)){
+          // Minimal challenge, no data in the response body or server details.
+          res.writeHead(401,{'WWW-Authenticate':'Basic realm="Safari AI Agent Test", charset="UTF-8"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+          return res.end();
+        }
+        return serveDemo(req,res,url.pathname);
+      }
       if(url.pathname==='/mcp'){
         if(req.headers.origin)return fail(res,403,'Browser Origin not accepted for MCP');
         if(!tokenMatches(req.headers.authorization,clientToken))return fail(res,401,'Unauthorized MCP caller');
@@ -147,7 +168,7 @@ export function createGateway({clientToken,deviceToken,allowedOrigins,commandTim
 
 if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
   const origins=(process.env.SAFARI_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean);
-  const g=createGateway({clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,allowedOrigins:origins});
+  const g=createGateway({clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,demoPassword:process.env.DEMO_PASSWORD,allowedOrigins:origins});
   const port=Number(process.env.PORT||8787);
   const host=process.env.BIND_ADDRESS||'127.0.0.1';
   if(host!=='127.0.0.1'&&process.env.ALLOW_PROXY_BIND!=='true')throw Error('Nonloopback bind needs explicit ALLOW_PROXY_BIND=true; deploy behind HTTPS proxy');

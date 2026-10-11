@@ -3,8 +3,14 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createGateway} from '../gateway/server.mjs';
 const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48), demoPassword='P'.repeat(48), origin = 'https://example.org';
+// D-020: an unlisted origin is read-only, so a test that exercises fill, click
+// or navigate must say so explicitly. Most existing tests drive an acting tool,
+// so the helper nominates the test origin as trusted and the tests that care
+// about the RESTRICTIVE defaults override `sitePolicy` themselves. Opting in is
+// the point: nothing acts on a site the operator did not nominate.
 async function testGateway(fn, options={}) {
-  const g=createGateway({clientToken:mcpToken,deviceToken,demoPassword,allowedOrigins:[origin],commandTimeoutMs:500,...options});
+  const g=createGateway({clientToken:mcpToken,deviceToken,demoPassword,allowedOrigins:[origin],
+    sitePolicy:{[origin]:'trusted'},commandTimeoutMs:500,...options});
   await new Promise(resolve=>g.server.listen(0,'127.0.0.1',resolve));
   const base=`http://127.0.0.1:${g.server.address().port}`;
   const post=(path,body,token=mcpToken,headers={})=>fetch(base+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
@@ -277,6 +283,91 @@ test('One tab cannot disconnect another tab session',()=>testGateway(async({devi
   assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).connected,true);
   assert.equal((await payload(await device('disconnect',{origin}))).disconnected,true);
 }));
+
+// --- Per-origin capability modes and gateway-delivered policy (D-020, D-025) --
+// The gateway owns only the TUNABLE half of policy. These tests pin three
+// properties: an unlisted origin is read-only, each mode gates exactly the
+// tools it should, and the policy the bridge acts on actually reaches it.
+const other='https://other.example';
+
+test('An origin with no site policy is read-only, not permissive',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  // Observation is still allowed: read-only is about ACTING, not about the
+  // page-text disclosure, which is what allowlisting the origin consented to.
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),50));
+  const cmd=await awaitCommand(device,origin);
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{ok:true}}});
+  assert.equal(output(await payload(await inflight)).data.ok,true);
+  for(const [tool,args] of [['browser_fill',{ref:'e1',value:'x'}],['browser_click',{ref:'e1'}],
+                            ['browser_navigate',{url:origin+'/p'}]]){
+    const refused=await payload(await rpc('tools/call',call(tool,args),51));
+    assert.equal(refused.result.isError,true,tool);
+    assert.match(output(refused).error,/not permitted|site mode: read-only/,tool);
+  }
+},{sitePolicy:undefined}));
+
+test('fill-only permits fills and navigation but never a click',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const filling=inFlight(rpc('tools/call',call('browser_fill',{ref:'e1',value:'hello'}),52));
+  const cmd=await awaitCommand(device,origin);
+  assert.equal(cmd.action,'browser_fill');
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{action:'fill'}}});
+  assert.equal(output(await payload(await filling)).data.action,'fill');
+  const refused=await payload(await rpc('tools/call',call('browser_click',{ref:'e1'}),53));
+  assert.equal(refused.result.isError,true);
+  assert.match(output(refused).error,/site mode: fill-only/);
+},{sitePolicy:{[origin]:'fill-only'}}));
+
+test('trusted is the only mode that unlocks clicking, and it is per-origin',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin:other});
+  // other.example is allowlisted for connection but NOT nominated as trusted.
+  const refused=await payload(await rpc('tools/call',call('browser_click',{ref:'e1'}),54));
+  assert.match(output(refused).error,/site mode: read-only/);
+  const status=output(await payload(await rpc('tools/call',call('browser_status'),55)));
+  assert.equal(status.activeMode,'read-only');
+  // Same gateway, same device session, a different origin: trusted.
+  await device('poll',{origin,takeover:true});
+  const clicking=inFlight(rpc('tools/call',call('browser_click',{ref:'e1'}),56));
+  const cmd=await awaitCommand(device,origin);
+  assert.equal(cmd.action,'browser_click');
+  await device('result',{id:cmd.id,origin,result:{success:true,dispatched:true,verified:false}});
+  assert.equal(output(await payload(await clicking)).dispatched,true);
+},{allowedOrigins:[origin,other],sitePolicy:{[origin]:'trusted'}}));
+
+test('Every poll carries the policy for the ASKING origin, including idle and hidden ones',()=>testGateway(async({device})=>{
+  const idle=await payload(await device('poll',{origin}));
+  assert.equal(idle.command,null);
+  assert.equal(idle.policy.mode,'trusted');
+  assert.equal(idle.policy.grants,true);
+  assert.ok(idle.policy.version,'policy must be versioned so the bridge can drop grants on change');
+  // A hidden tab still gets policy: revoking trust must take effect within one
+  // poll interval even while the tab is backgrounded.
+  const hidden=await payload(await device('poll',{origin,visibility:'hidden'}));
+  assert.equal(hidden.paused,'hidden');
+  assert.equal(hidden.policy.mode,'trusted');
+  // A poll is only ever answered with policy for the origin that asked, so a
+  // response to this tab cannot set a different site's mode.
+  const elsewhere=await payload(await device('poll',{origin:other,instanceId:second,takeover:true}));
+  assert.equal(elsewhere.policy.mode,'read-only');
+},{allowedOrigins:[origin,other],sitePolicy:{[origin]:'trusted'}}));
+
+test('Standing grants can be switched off centrally but never switched on',()=>testGateway(async({device})=>{
+  const idle=await payload(await device('poll',{origin}));
+  // `grants:false` can only REMOVE the "Always allow" option from the local
+  // dialog. There is no field by which the gateway creates a grant itself:
+  // the wire format carries a boolean, never a list of granted classes.
+  assert.equal(idle.policy.grants,false);
+  assert.deepEqual(Object.keys(idle.policy).sort(),['grants','mode','version']);
+},{standingGrants:false}));
+
+test('Site policy configuration is validated and must not exceed the origin allowlist',()=>{
+  const base={clientToken:mcpToken,deviceToken,allowedOrigins:[origin]};
+  assert.throws(()=>createGateway({...base,sitePolicy:{'https://unlisted.example':'trusted'}}),/not an allowed origin/);
+  assert.throws(()=>createGateway({...base,sitePolicy:{[origin]:'full-access'}}),/Unknown site mode/);
+  assert.throws(()=>createGateway({...base,sitePolicy:{'https://example.org/path':'trusted'}}),/exact HTTP\(S\) origin/);
+  // The string form is what the launcher passes through from the environment.
+  assert.ok(createGateway({...base,sitePolicy:`${origin}=fill-only`}));
+});
 
 test('A stale session is replaced without takeover once it ages out',()=>testGateway(async({device,rpc})=>{
   await device('poll',{origin});

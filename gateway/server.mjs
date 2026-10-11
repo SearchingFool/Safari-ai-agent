@@ -40,6 +40,49 @@ const TOOL_DEFS = [
   {name:'browser_cancel',description:'Cancel queued browser actions; an action already running may not be reversible.',inputSchema:{type:'object',properties:{},additionalProperties:false},
    annotations:{title:'Cancel queued actions',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}}
 ];
+// ---------------------------------------------------------------------------
+// SITE POLICY (D-020 modes, D-025 gateway-delivered tunable policy)
+//
+// The gateway owns only the TUNABLE half: which mode each origin runs in. The
+// hard ceilings - payment, account deletion, credential and security changes -
+// are hardcoded in src/core.js and ship with the bridge, deliberately OUTSIDE
+// network reach, so a compromised or spoofed gateway cannot talk the bridge
+// into an irreversible action.
+//
+// These three strings are duplicated rather than imported from src/core.js on
+// purpose. The gateway and the bridge validate the mode independently, and a
+// DOM engine import would couple a network service to browser code. Both ends
+// collapse an unrecognised value to read-only.
+const MODES = Object.freeze({READ_ONLY:'read-only', FILL_ONLY:'fill-only', TRUSTED:'trusted'});
+const MODE_VALUES = new Set(Object.values(MODES));
+// Default for an unlisted origin is the MOST restrictive, not the least. An
+// origin being on the connection allowlist says the operator will let the agent
+// look at it; it does not say they will let the agent act on it.
+function normalizeMode(value){return MODE_VALUES.has(value)?value:MODES.READ_ONLY;}
+function parseSitePolicy(raw){
+  const out=new Map();
+  if(!raw)return out;
+  const entries=typeof raw==='string'
+    ? raw.split(',').map(part=>part.split('=')).filter(pair=>pair.length===2)
+    : Object.entries(raw);
+  for(const [origin,mode] of entries){
+    const key=String(origin).trim();
+    let valid=false;
+    try{valid=new URL(key).origin===key&&/^https?:/.test(key);}catch{valid=false;}
+    if(!valid)throw Error(`Site policy key must be an exact HTTP(S) origin: ${key}`);
+    const value=String(mode).trim();
+    if(!MODE_VALUES.has(value))throw Error(`Unknown site mode "${value}" for ${key}; use read-only, fill-only or trusted`);
+    out.set(key,value);
+  }
+  return out;
+}
+// Which tool each mode may reach. Mirrored by the bridge; neither side relies
+// on the other having checked.
+const MODE_ALLOWS = Object.freeze({
+  [MODES.READ_ONLY]: new Set(['browser_inspect','browser_verify']),
+  [MODES.FILL_ONLY]: new Set(['browser_inspect','browser_verify','browser_fill','browser_navigate']),
+  [MODES.TRUSTED]:   new Set(['browser_inspect','browser_verify','browser_fill','browser_navigate','browser_click'])
+});
 const json = (res,code,value) => {res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
 // Error bodies carry the request id so a user can quote it and it can be found
 // in the diagnostics log without guessing which request they mean.
@@ -83,10 +126,21 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
+  const modes=parseSitePolicy(sitePolicy);
+  for(const origin of modes.keys()){
+    if(!allowed.has(origin))throw Error(`Site policy names ${origin}, which is not an allowed origin`);
+  }
+  const modeFor=origin=>normalizeMode(modes.get(origin));
+  // Changes to policy must invalidate the grants a bridge made under the old
+  // one, so the bridge needs to be able to tell that it changed. The stamp is
+  // derived from the configuration, not from a clock, so it is stable across a
+  // restart with identical config and differs the moment config differs.
+  const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#grants=${standingGrants!==false}`;
+  const policyFor=origin=>({mode:modeFor(origin),grants:standingGrants!==false,version:policyVersion});
   // Diagnostics are injectable so tests can capture events without touching disk.
   const diag = diagnostics || createDiagnostics({
     enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
@@ -107,6 +161,10 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     // Last visibility the paired tab reported. A session can be fresh and still
     // unusable because the tab is backgrounded.
     activeVisibility:current?.visibility||null,
+    // Surface the mode so a caller can see WHY a tool will be refused before it
+    // spends a round trip finding out, and so the operator can confirm which
+    // policy is actually live.
+    activeMode:current?modeFor(current.origin):null,
     queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
   function cancelAll(reason='Cancelled'){
@@ -134,6 +192,13 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     // back as "outcome may be uncertain" - the one class of failure a caller
     // cannot safely retry. A hidden tab is a known, certain refusal.
     if(current.visibility!=='visible')return toolError('The paired Safari tab is not visible. Bring it to the front, then retry.');
+    // D-020 mode gate. The bridge enforces the same rule from the live DOM;
+    // this one stops the command ever being queued, so a refusal costs one
+    // round trip instead of an approval prompt the operator has to decline.
+    const mode=modeFor(current.origin);
+    if(!MODE_ALLOWS[mode].has(tool)){
+      return toolError(`${tool} is not permitted on ${current.origin} (site mode: ${mode}). The operator must nominate this site for a less restrictive mode.`);
+    }
     if(pending.size>=1)return toolError('Only one in-flight action allowed');
     const id=randomUUID();
     return await new Promise(resolve=>{
@@ -237,19 +302,25 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           }
           const visibility=b.visibility==='visible'?'visible':'hidden';
           current={origin:b.origin,instanceId:b.instanceId,visibility};lastPoll=clock();
+          // Policy rides on EVERY poll, including the idle and paused ones, so
+          // revoking trust takes effect within one poll interval rather than at
+          // the bridge's next connect. It is always the policy for the origin
+          // that is ASKING, so a gateway answer cannot set policy for a site
+          // other than the one the bridge is currently on.
+          const policy=policyFor(b.origin);
           // SAFETY GATE. A hidden tab is told "nothing to do", not given an
           // error: it is a healthy session that simply must not act. Delivering
           // here would raise window.confirm() in a tab the operator cannot see,
           // so they would either never answer it or approve the visible tab's
           // page while a different page acted.
-          if(visibility!=='visible')return json(res,200,{command:null,generation,paused:'hidden'});
+          if(visibility!=='visible')return json(res,200,{command:null,generation,policy,paused:'hidden'});
           for(const p of pending.values()){
             if(!p.claimed && p.origin===b.origin && p.instanceId===b.instanceId && p.expiresAt>clock()){
               p.claimed=true;
-              return json(res,200,{command:{id:p.id,action:p.action,args:p.args,origin:p.origin,expiresAt:p.expiresAt,generation}});
+              return json(res,200,{command:{id:p.id,action:p.action,args:p.args,origin:p.origin,expiresAt:p.expiresAt,generation},policy});
             }
           }
-          return json(res,200,{command:null,generation});
+          return json(res,200,{command:null,generation,policy});
         }
         if(url.pathname==='/device/result'){
           const p=pending.get(b.id);
@@ -292,6 +363,12 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
   const g=createGateway({
     clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,
     demoPassword:process.env.DEMO_PASSWORD,allowedOrigins:origins,
+    // SAFARI_SITE_POLICY="https://a.example=trusted,https://b.example=fill-only".
+    // Anything not named here is read-only, which is why there is no default.
+    sitePolicy:process.env.SAFARI_SITE_POLICY,
+    // Lets the operator switch off "Always allow" fleet-wide without editing
+    // the bridge. It can only ever REMOVE an option from the local dialog.
+    standingGrants:process.env.SAFARI_STANDING_GRANTS!=='0',
     diagnostics:createDiagnostics({
       enabled:diagEnabled,
       clientTokenLength:(process.env.MCP_CLIENT_TOKEN||'').length,
@@ -302,6 +379,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     })
   });
   if(diagEnabled)console.log(`Diagnostics ON -> ${appendLine?logFile:'console only'}  (npm run diagnose for a report)`);
+  console.log(`Site policy: ${process.env.SAFARI_SITE_POLICY||'(none - every origin is read-only)'}`);
   const port=Number(process.env.PORT||8787);
   const host=process.env.BIND_ADDRESS||'127.0.0.1';
   if(host!=='127.0.0.1'&&process.env.ALLOW_PROXY_BIND!=='true')throw Error('Nonloopback bind needs explicit ALLOW_PROXY_BIND=true; deploy behind HTTPS proxy');

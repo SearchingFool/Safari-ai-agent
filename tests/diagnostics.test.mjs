@@ -115,6 +115,47 @@ test('Diagnostics record credential shape but never credential values', async ()
   } finally { await g.close(); }
 });
 
+test('Device polls record which tab was talking and whether it was on screen', async () => {
+  // A session handover (D-033) is invisible without these two fields: every
+  // poll looks alike, so nothing can attribute a request to a tab or time a
+  // transfer. tools/analyze-handover.mjs reads exactly deviceInstance and
+  // deviceVisibility, so this is the contract between gateway and that tool.
+  const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48), origin = 'https://example.org';
+  const captured = [];
+  const diagnostics = createDiagnostics({
+    enabled: true, clientTokenLength: mcpToken.length, deviceTokenLength: deviceToken.length,
+    allowedOrigins: [origin], write: () => {}, append: line => captured.push(line)
+  });
+  const g = createGateway({clientToken: mcpToken, deviceToken, allowedOrigins: [origin], diagnostics});
+  await new Promise(r => g.server.listen(0, '127.0.0.1', r));
+  const port = g.server.address().port;
+  const poll = (instanceId, visibility) => fetch(`http://127.0.0.1:${port}/device/poll`, {
+    method: 'POST',
+    headers: {Authorization: `Bearer ${deviceToken}`, 'Content-Type': 'application/json'},
+    body: JSON.stringify({origin, instanceId, visibility})
+  });
+  try {
+    assert.equal((await poll('tab-alpha-1', 'visible')).status, 200);
+    // A second tab on the same origin while the first is visible is refused -
+    // and the refusal must be attributable too, or a stand-by period cannot be
+    // measured and a 409 storm could not be traced to the tab causing it.
+    assert.equal((await poll('tab-beta-2', 'visible')).status, 409);
+    await new Promise(r => setTimeout(r, 20));
+    const events = captured.map(line => JSON.parse(line)).filter(e => e.path === '/device/poll');
+    assert.equal(events.length, 2);
+    assert.deepEqual(events.map(e => e.deviceInstance), ['tab-alpha-1', 'tab-beta-2']);
+    assert.deepEqual(events.map(e => e.deviceVisibility), ['visible', 'visible']);
+    assert.deepEqual(events.map(e => e.status), [200, 409]);
+    // An absent visibility is recorded as the value the gateway ACTED on, not
+    // as null, so the log cannot disagree with the decision it explains.
+    await poll('tab-alpha-1', undefined);
+    await new Promise(r => setTimeout(r, 20));
+    const last = JSON.parse(captured[captured.length - 1]);
+    assert.equal(last.deviceVisibility, 'hidden');
+    assert.ok(!captured.join('').includes(deviceToken), 'device token value must never be logged');
+  } finally { await g.close(); }
+});
+
 test('Error responses carry the request id for support correlation', async () => {
   const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48);
   const g = createGateway({clientToken: mcpToken, deviceToken, allowedOrigins: ['https://example.org']});

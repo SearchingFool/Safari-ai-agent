@@ -1,6 +1,6 @@
 # B1–D execution evidence
 
-Updated: 2026-10-09. **Engineering validation is not equivalent to device acceptance.**
+Updated: 2026-10-11. **Engineering validation is not equivalent to device acceptance.**
 
 | Workstream | Result | Proof / remaining restriction |
 |---|---|---|
@@ -15,8 +15,10 @@ Updated: 2026-10-09. **Engineering validation is not equivalent to device accept
 
 ## Test evidence
 
-- `npm run check`: 13/13 Node/build/integration tests passed in local environment.
+- `npm run check`: 14/14 Node/build/integration tests passed in local environment (2 in `tests/build.test.cjs`, 12 in `tests/gateway.test.mjs`), measured over 5 consecutive runs on 2026-10-11.
 - `npm run test:browser`: 3/3 Chromium suites passed, including real MCP HTTP through isolated GM test shim. The original manual Browser Lab remains intact.
+
+**Correction (2026-10-11).** The earlier "13/13 Node tests pass" claim recorded a single lucky run of a suite that was in fact non-deterministic: roughly half of local runs failed. `/device/poll` returns immediately with `command:null` when the queue is empty, so the tests' single poll after an un-awaited `tools/call` raced the gateway's registration of the pending command and read `null`. The gateway and the iPad bridge were never affected — `src/remote.js` re-polls every 1200ms against a 25s command timeout and treats an empty answer as the normal idle case — so this was a test-harness defect, not a product defect. The tests now re-poll the way the real bridge does; 25 consecutive gateway runs and 5 consecutive full `npm run check` runs passed with no failures. Treat past single-run green results in this repo as unverified unless a repeat count is recorded alongside them.
 - `tests/remote_browser_e2e.py`: requires browser navigation to intercepted HTTPS origin; **blocked in the current environment** by `ERR_BLOCKED_BY_ADMINISTRATOR`, and is scheduled in GitHub Actions' browser-integration job. Its result must be checked before merge.
 - `Dockerfile`: not build-tested here because no container engine is available. Node gateway startup and loopback HTTP confirmed.
 

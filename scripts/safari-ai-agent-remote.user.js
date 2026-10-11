@@ -824,7 +824,8 @@
           category:preview.category, reasons:preview.reasons,
           grantable:verdict.grantable, expiresAt:command.expiresAt
         });
-        if(answer==='deny')throw new Error('User denied click');
+        const refusal=refusalFor(answer,'click');
+        if(refusal)throw new Error(refusal);
         if(answer==='always')addGrant(preview.category);
         // Links may cause a page unload. Caller must inspect again to verify.
         return {success:true,dispatched:true,verified:false,action:'click',approval:answer,category:preview.category};
@@ -840,7 +841,8 @@
           reasons:['same-origin navigation, reversible with the back button'],
           grantable:verdict.grantable, expiresAt:command.expiresAt
         });
-        if(answer==='deny')throw new Error('User denied navigation');
+        const refusal=refusalFor(answer,'navigation');
+        if(refusal)throw new Error(refusal);
         if(answer==='always')addGrant(NAV_CLASS);
         return {success:true,dispatched:true,verified:false,url:dest.href,approval:answer};
       }
@@ -971,12 +973,38 @@
     if(className)node.className=className;
     return node;
   }
+  // The answers that MEAN CONSENT. Everything else refuses, including any value
+  // added later. This is an allowlist on purpose: the previous code refused only
+  // the literal string 'deny' and returned success for anything else, so adding
+  // a 'timeout' answer - the obvious fix for D-037 - would have turned every
+  // unanswered prompt into consent. Extending this dialog must never be able to
+  // create an approval path by accident.
+  const APPROVALS=new Set(['once','always']);
+  // Why the refusal happened, in the words the MODEL and the audit log will see.
+  // These were one string - 'User denied click' - for every outcome, so a prompt
+  // that expired unanswered was recorded as a decision the operator never made
+  // (D-037). 'They refused' and 'they never saw it' call for opposite responses,
+  // so they must be distinguishable.
+  function refusalFor(answer,verb){
+    if(APPROVALS.has(answer))return null;
+    // Only this one is an operator decision.
+    if(answer==='deny')return `The operator denied ${verb} in the paired tab.`;
+    if(answer==='timeout')return `Nobody answered the approval prompt for ${verb} in the paired tab, so it was refused. This is NOT an operator decision - the prompt may not have been seen. Check the tab is visible before retrying.`;
+    if(answer==='hidden')return `The paired tab went off screen while the approval for ${verb} was open, so it was refused. Consent given to a page the operator cannot see is not consent.`;
+    if(answer==='stopped')return `The operator pressed Stop while the approval for ${verb} was open, revoking it and disconnecting this tab.`;
+    if(answer==='superseded')return `The approval prompt for ${verb} was replaced by a newer request before it was answered, so it was refused.`;
+    // Unrecognised outcome. Refuse - but do NOT attribute it to the operator.
+    // Claiming a decision nobody made is the whole of D-037, and a default that
+    // does it for every future answer value would reintroduce it by design.
+    return `The approval for ${verb} did not complete (unrecognised outcome), so it was refused. No operator decision was recorded.`;
+  }
   function requestApproval(request){
     // No UI means no way to obtain consent, so the answer is no. Failing closed
     // here matters: a headless or stripped environment must not become a path
     // to unattended action.
     if(!approvalBox)return Promise.resolve('deny');
-    if(pendingApproval)pendingApproval('deny');
+    // A prompt replaced before it was answered. Refused, but nobody decided it.
+    if(pendingApproval)pendingApproval('superseded');
     return new Promise(resolve=>{
       let done=false;
       const settle=answer=>{
@@ -993,7 +1021,10 @@
       // an unattended tab yields a clean refusal instead of "outcome may be
       // uncertain" - the one failure class a caller cannot safely retry.
       const remaining=(Number(request.expiresAt)||0)-Date.now()-1500;
-      const timer2=setTimeout(()=>settle('deny'),Math.max(1000,Math.min(120000,remaining)));
+      // Settles 'timeout', not 'deny'. It still REFUSES - that is unchanged and
+      // correct - but it is not an operator decision and must not be reported as
+      // one (D-037).
+      const timer2=setTimeout(()=>settle('timeout'),Math.max(1000,Math.min(120000,remaining)));
       approvalBox.textContent='';
       approvalBox.append(el('b',`Approve ${request.verb}?`));
       approvalBox.append(el('p',request.target,'target'));
@@ -1015,6 +1046,29 @@
       deny.addEventListener('click',()=>settle('deny'));
       row.append(deny);
       approvalBox.append(row);
+      // D-036. The panel carrying Stop sits at the SAME coordinates as this
+      // dialog and is covered by it, so the operator's escape hatch was
+      // unreachable at exactly the moment it is wanted: a prompt they did not
+      // expect, or one that looks wrong. Deny is not a substitute - it refuses
+      // one action and leaves the session running - so the escape belongs here.
+      //
+      // Deliberately in its OWN row, below a rule, and not styled like the
+      // others: a mis-tap in this dialog is worse than anywhere else in the
+      // product, and the operator has already mis-tapped "Allow once" for
+      // "Deny" once on real hardware. It must be unmistakable, not merely
+      // present.
+      const escape=el('div',null,'escape');
+      const stopButton=el('button','Stop the agent and disconnect');
+      stopButton.id='approve-stop';stopButton.type='button';
+      stopButton.addEventListener('click',()=>{
+        // Settle FIRST, so stop() finds no pending approval and cannot overwrite
+        // the reason with a generic denial. The operator pressing Stop IS a
+        // decision, and is reported as one.
+        settle('stopped');
+        void stop();
+      });
+      escape.append(stopButton);
+      approvalBox.append(escape);
       approvalBox.hidden=false;
       once.focus();
     });
@@ -1078,9 +1132,11 @@
     // be answerable later. Without this the operator could switch away, let the
     // session follow to another tab (D-033), come back minutes afterwards and
     // approve a prompt for a command this tab no longer holds - which is the
-    // "two tabs acting on one command" case restated. Denying is also the only
+    // "two tabs acting on one command" case restated. Refusing is also the only
     // fail-closed answer: consent given to an off-screen page is not consent.
-    if(pendingApproval)pendingApproval('deny');
+    // Reported as 'hidden', not 'deny' - the operator made no decision here, and
+    // recording one they did not make is the D-037 defect.
+    if(pendingApproval)pendingApproval('hidden');
     show(PAUSED);
     // Best effort only: tells the gateway this tab is not a safe place to run.
     // Load-bearing for D-033 as well as for the pause itself - it is what lets
@@ -1094,10 +1150,12 @@
   window.addEventListener('pageshow',()=>{if(running&&paused&&document.visibilityState==='visible')onVisibilityChange();});
   async function stop(){
     running=false;paused=false;conflict=null;loopId++;clearTimeout(timer);
-    // Stop is the revocation of everything: an open dialog is answered "deny",
-    // every standing grant is dropped, and policy returns to read-only so a
-    // reconnect cannot inherit trust from the session being ended (D-021).
-    if(pendingApproval)pendingApproval('deny');
+    // Stop is the revocation of everything: an open dialog is refused, every
+    // standing grant is dropped, and policy returns to read-only so a reconnect
+    // cannot inherit trust from the session being ended (D-021). Reported as
+    // 'stopped' - unlike a timeout this IS a deliberate operator act, and the
+    // log should say which one it was.
+    if(pendingApproval)pendingApproval('stopped');
     revokeAllGrants();
     policy=SAFARI_CORE.normalizePolicy(null);
     renderGrants();
@@ -1122,6 +1180,8 @@
       .panel{position:fixed;bottom:112px;right:12px;width:min(360px,calc(100vw - 24px));background:white;color:#17283e;border:1px solid #b7c3d1;z-index:2147483647;padding:12px;box-sizing:border-box;border-radius:10px;font:13px system-ui;box-shadow:0 4px 20px #0004}
       .panel[hidden]{display:none}label{display:block;margin-top:8px}input{width:100%;box-sizing:border-box;padding:9px;border:1px solid #bbc6d8;border-radius:5px}
       .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.status{padding-top:9px;line-height:1.3;word-break:break-word}
+      .escape{margin-top:10px;padding-top:9px;border-top:1px solid #d9c3a0}
+      .escape button{width:100%;background:#7a1f1f;color:white;border:1px solid #5d1414;font-weight:600}
       .approval{position:fixed;bottom:112px;right:12px;width:min(360px,calc(100vw - 24px));background:#fffdf5;color:#17283e;border:2px solid #b8761a;z-index:2147483647;padding:12px;box-sizing:border-box;border-radius:10px;font:13px system-ui;box-shadow:0 4px 24px #0006}
       .approval[hidden]{display:none}
       .approval .target{font-weight:700;word-break:break-word;margin:6px 0}

@@ -152,11 +152,40 @@ export function classify(o) {
           ['Working as intended. If a control SHOULD have been offered for approval, that is a classifier-tuning question (see D-019), not a policy failure.',
            'Note the inverse risk: controls the classifier does not recognise fall through to an ordinary approval prompt.']);
       }
-      if (/User denied/i.test(text)) {
+      // D-037. These four were ONE code. An approval that expired untouched was
+      // logged as TOOL_DENIED_BY_OPERATOR at INFO, asserting "the operator
+      // declined" and "working as intended" — a decision nobody made, recorded
+      // in the direction that flatters us, at the severity least likely to be
+      // looked at. Order matters: the specific non-decisions are tested BEFORE
+      // the operator-decision case, which now matches only a real tap.
+      if (/Nobody answered the approval prompt/i.test(text)) {
+        return d('TOOL_APPROVAL_UNANSWERED', SEVERITY.WARN,
+          `${what} was offered for approval and NOBODY ANSWERED. This is not an operator decision.`,
+          ['The prompt may have appeared where the operator was not looking.',
+           'Or they were away, interrupted, or did not recognise it as needing an answer.'],
+          ['The action was refused, which is the safe outcome — nothing happened.',
+           'Do NOT treat this as a refusal by the operator: ask them to confirm the tab is visible, then retry.',
+           'Recurring unanswered prompts mean the approval UI is not being seen, which is a usability defect, not a user choice.']);
+      }
+      if (/went off screen while the approval/i.test(text)) {
+        return d('TOOL_APPROVAL_TAB_HIDDEN', SEVERITY.WARN,
+          `${what} was refused because the paired tab went off screen while the prompt was open.`,
+          ['The operator switched tab or app, or iPadOS suspended the tab (D-029).'],
+          ['Working as designed: consent given to a page the operator cannot see is not consent.',
+           'Bring the tab to the front — on iPadOS use Split View — and retry.']);
+      }
+      if (/pressed Stop while the approval/i.test(text)) {
+        return d('TOOL_STOPPED_BY_OPERATOR', SEVERITY.INFO,
+          `${what} was revoked because the operator pressed Stop while the prompt was open.`,
+          ['A deliberate operator act: Stop revokes everything and disconnects the tab, unlike Deny which refuses one action.'],
+          ['Working as intended. If this happens often, find out what the agent was about to do that prompted it.']);
+      }
+      if (/operator denied|User denied/i.test(text)) {
         return d('TOOL_DENIED_BY_OPERATOR', SEVERITY.INFO,
           `${what} was offered for approval and the operator declined.`,
-          ['The approval prompt was shown in the paired tab and dismissed.'],
-          ['Working as intended — this confirms the approval path is reachable and effective.']);
+          ['The approval prompt was shown in the paired tab and explicitly refused.'],
+          ['Working as intended — this confirms the approval path is reachable and effective.',
+           'Since D-037 this code means a REAL tap on Deny; an unanswered prompt is TOOL_APPROVAL_UNANSWERED.']);
       }
       if (/timed out/i.test(text)) {
         return d('TOOL_TIMED_OUT', SEVERITY.ERROR,

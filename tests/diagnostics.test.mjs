@@ -115,6 +115,48 @@ test('Diagnostics record credential shape but never credential values', async ()
   } finally { await g.close(); }
 });
 
+test('An unanswered approval is not classified as an operator decision', () => {
+  // D-037. These four outcomes shared one code. An approval that expired
+  // untouched was logged TOOL_DENIED_BY_OPERATOR at INFO, asserting "the
+  // operator declined" and "working as intended" — a decision nobody made,
+  // recorded in the flattering direction at the severity least likely to be
+  // read. Observed on device: the operator touched nothing, the log said they
+  // had. The severities matter as much as the codes: a real tap is INFO
+  // because it is the system working; a prompt nobody saw is WARN because it
+  // is a usability failure wearing the costume of a user choice.
+  const base = {method:'POST', path:'/mcp', status:200, rpcMethod:'tools/call',
+                toolName:'browser_click', isError:true, authScheme:'Bearer', authLength:71,
+                expectedMcpAuthLength:71, allowedOrigins:['https://example.org']};
+  const codeOf = toolError => classify({...base, toolError}).code;
+  const sevOf = toolError => classify({...base, toolError}).severity;
+
+  assert.equal(codeOf('The operator denied click in the paired tab.'), 'TOOL_DENIED_BY_OPERATOR');
+  assert.equal(sevOf('The operator denied click in the paired tab.'), SEVERITY.INFO);
+
+  const unanswered = 'Nobody answered the approval prompt for click in the paired tab, so it was refused. This is NOT an operator decision - the prompt may not have been seen.';
+  assert.equal(codeOf(unanswered), 'TOOL_APPROVAL_UNANSWERED');
+  assert.notEqual(sevOf(unanswered), SEVERITY.INFO, 'an unseen prompt must not be filed as routine');
+
+  const hidden = 'The paired tab went off screen while the approval for click was open, so it was refused.';
+  assert.equal(codeOf(hidden), 'TOOL_APPROVAL_TAB_HIDDEN');
+
+  const stopped = 'The operator pressed Stop while the approval for click was open, revoking it and disconnecting this tab.';
+  assert.equal(codeOf(stopped), 'TOOL_STOPPED_BY_OPERATOR');
+
+  // The three non-decisions must be distinct from each other AND from the
+  // decision, or the distinction exists in the message and not in the log.
+  const codes = new Set([codeOf('The operator denied click in the paired tab.'),
+                         codeOf(unanswered), codeOf(hidden), codeOf(stopped)]);
+  assert.equal(codes.size, 4);
+  // Every one of them must still carry an explanation and a suggested action;
+  // a new code with an empty body is worse than the old wrong one.
+  for (const text of [unanswered, hidden, stopped]) {
+    const diagnosis = classify({...base, toolError: text});
+    assert.ok(diagnosis.likelyCauses.length > 0, text);
+    assert.ok(diagnosis.suggestedActions.length > 0, text);
+  }
+});
+
 test('Device polls record which tab was talking and whether it was on screen', async () => {
   // A session handover (D-033) is invisible without these two fields: every
   // poll looks alike, so nothing can attribute a request to a tab or time a

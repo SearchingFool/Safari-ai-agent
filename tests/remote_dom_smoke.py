@@ -584,7 +584,10 @@ def main():
         denied = page.evaluate(
             "window.__mockResults.filter(r=>r.id==='00000000-0000-4000-8000-00000000d033')")
         assert denied and denied[0]['result']['success'] is False, denied
-        assert 'denied' in denied[0]['result']['error'], denied
+        # It REFUSES — unchanged. But it must not say the operator decided it:
+        # nobody did. The tab went off screen (D-037).
+        assert 'off screen' in denied[0]['result']['error'], denied
+        assert 'operator denied' not in denied[0]['result']['error'].lower(), denied
         # And the click never reached the page: the feedback element is whatever
         # the earlier approved click left, not a second dispatch.
         page.evaluate("window.__visibility='visible';document.dispatchEvent(new Event('visibilitychange'))")
@@ -788,6 +791,69 @@ def main():
         assert all('value' not in e for e in off_live['elements']), off_live['elements']
         assert 'FIELD VALUES' not in page.evaluate("window.__panel.querySelector('.mode').textContent")
         print('PASS: D-032 opt-in travels gateway -> bridge -> snapshot, and switching it off is immediate')
+
+        # --- D-037: a timeout is not a decision --------------------------------
+        # The dialog auto-denies before the gateway abandons the command, which
+        # is right: a clean refusal beats "outcome uncertain". But every refusal
+        # used to report the SAME string, 'User denied click', so an untouched
+        # prompt was logged as TOOL_DENIED_BY_OPERATOR at INFO, "the operator
+        # declined", "working as intended". Observed on an iPad: the operator
+        # touched nothing and the log said they had.
+        set_policy({'mode': 'trusted', 'grants': False, 'version': 'd037'})
+        refs = {item['label']: item['ref'] for item in command('browser_inspect')['data']['elements']}
+        page.evaluate('clearInterval(window.__autoAnswer)')
+        # expiresAt - 1500ms is when the dialog gives up, so this settles in ~1.1s.
+        page.evaluate('''(ref) => { window.__mockQueue.push({
+          id:'00000000-0000-4000-8000-00000000d037', action:'browser_click',
+          args:{ref}, origin:'null', expiresAt:Date.now()+2600}); }''',
+                      refs['Show confirmation'])
+        page.wait_for_function(
+            "window.__mockResults.some(r=>r.id==='00000000-0000-4000-8000-00000000d037')", timeout=12000)
+        timed = page.evaluate(
+            "window.__mockResults.filter(r=>r.id==='00000000-0000-4000-8000-00000000d037')")[0]
+        error = timed['result']['error']
+        assert timed['result']['success'] is False, timed
+        # Still refused — the safe outcome is unchanged.
+        assert 'Nobody answered' in error, error
+        # And it says so explicitly, because a model reading this must not
+        # conclude the human refused and stop asking.
+        assert 'NOT an operator decision' in error, error
+        assert 'denied' not in error.lower(), error
+        print('PASS: an unanswered approval refuses WITHOUT claiming the operator decided (D-037)')
+
+        # --- D-036: the escape hatch is reachable from the dialog --------------
+        # .panel and .approval declared the same position, width and z-index, so
+        # the dialog covered the panel and Stop — the only full escape — was
+        # unreachable at exactly the moment it is wanted. Found on device when
+        # the operator was asked to press Stop and could not find it.
+        page.evaluate('''(ref) => { window.__mockQueue.push({
+          id:'00000000-0000-4000-8000-00000000d036', action:'browser_click',
+          args:{ref}, origin:'null', expiresAt:Date.now()+60000}); }''',
+                      refs['Show confirmation'])
+        page.wait_for_function(
+            "window.__panel.querySelector('.approval').hidden===false", timeout=8000)
+        offered = page.evaluate(
+            "[...window.__panel.querySelectorAll('.approval button')].map(b=>b.id)")
+        assert 'approve-stop' in offered, offered
+        # In its own row, not the Allow/Deny row: a mis-tap here is worse than
+        # anywhere else in the product, and one has already happened on device.
+        assert page.evaluate(
+            "window.__panel.querySelector('.approval .escape #approve-stop')!==null")
+        assert page.evaluate(
+            "window.__panel.querySelector('.approval .actions #approve-stop')===null")
+        page.evaluate("window.__panel.querySelector('#approve-stop').click()")
+        page.wait_for_function(
+            "window.__mockResults.some(r=>r.id==='00000000-0000-4000-8000-00000000d036')", timeout=8000)
+        stopped = page.evaluate(
+            "window.__mockResults.filter(r=>r.id==='00000000-0000-4000-8000-00000000d036')")[0]
+        assert stopped['result']['success'] is False, stopped
+        # Attributed correctly: pressing Stop IS a decision, unlike a timeout.
+        assert 'pressed Stop' in stopped['result']['error'], stopped
+        # And it really stopped, rather than merely refusing the one action.
+        page.wait_for_function(
+            "/Stopped|Disconnected|Stopping/.test(window.__panel.querySelector('.status').textContent)",
+            timeout=8000)
+        print('PASS: Stop is reachable from the approval dialog and revokes the session (D-036)')
 
         page.evaluate("window.__settings['safari-agent:enabled:null']=false")
         print('PASS: remote script mock-GM inspect/fill/constraints/approval/click/verify')

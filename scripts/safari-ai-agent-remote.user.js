@@ -660,6 +660,7 @@
   // so the gateway does not see our own next page as a rival tab.
   // Not a secret and never sent to a model - the device token stays in GM storage.
   const K_INSTANCE = 'safari-agent:instance';
+  const K_SEQ = 'safari-agent:seq';
   const INSTANCE_ID = /^[A-Za-z0-9_-]{8,64}$/;
   const MAX_WAIT = 8000;
   let running = false;
@@ -723,9 +724,38 @@
     return fresh;
   })();
 
+  // Monotonic per-tab request counter (D-035). visibilityState is read when a
+  // request is BUILT, but the request is then awaited, so a poll built while
+  // visible can still be in flight when the tab goes hidden. It then races the
+  // out-of-band "I am hidden" notification fired by visibilitychange, and if
+  // the stale one lands second the gateway - last-writer-wins - records a
+  // suspended tab as visible. Nothing corrects it, because the tab has stopped
+  // polling. That blocks sessionFollows (D-033) for the full 45s freshness
+  // window and forces a manual Take over.
+  //
+  // Observed on an iPad 2026-10-11: once in eight visibility transitions, with
+  // the two requests one millisecond apart. It cannot be reproduced off-device
+  // because headless browsers do not suspend tabs, so the gateway-side ordering
+  // rule is what the tests pin.
+  //
+  // The counter lives in sessionStorage beside the instance id deliberately:
+  // the two must share a lifetime. A reload keeps the instance id, so a
+  // counter that reset on reload would make every subsequent poll look stale
+  // and freeze the gateway's view of this tab permanently - a worse bug than
+  // the one being fixed.
+  let seq = (() => {
+    try { return Math.max(0, parseInt(window.sessionStorage.getItem(K_SEQ) || '0', 10) || 0); }
+    catch { return 0; }
+  })();
+  function nextSeq() {
+    seq += 1;
+    try { window.sessionStorage.setItem(K_SEQ, String(seq)); } catch { /* memory-only, still monotonic in-tab */ }
+    return seq;
+  }
+
   // Identity sent on every device call. visibilityState is part of it because
   // the gateway refuses to hand a command to a tab the operator cannot see.
-  const identity = () => ({origin: location.origin, instanceId, visibility: document.visibilityState});
+  const identity = () => ({origin: location.origin, instanceId, visibility: document.visibilityState, seq: nextSeq()});
 
   // The native Userscripts API bridges to Safari's extension, bypassing page CORS.
   async function request(path, payload) {

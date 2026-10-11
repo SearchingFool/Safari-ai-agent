@@ -510,6 +510,77 @@ test('A VISIBLE owner is never displaced automatically; that still needs Take ov
   assert.equal(await activeInstance(rpc),second);
 }));
 
+// D-035. Found on an iPad 2026-10-11, once in eight visibility transitions,
+// with the two requests a millisecond apart. visibility is read when a poll is
+// BUILT, so a poll built while visible can still be in flight when the tab goes
+// hidden; it then races the out-of-band hidden notification. Arrival order is
+// not send order, and the tab stops polling once hidden, so a stale arrival
+// would pin the gateway's view at 'visible' for the whole freshness window -
+// blocking sessionFollows and forcing a manual Take over.
+//
+// Headless browsers do not suspend tabs, so the race cannot be reproduced in
+// the browser suites. These tests pin the GATEWAY's ordering rule instead,
+// which is where the guarantee actually lives.
+const activeVisibility=async rpc=>output(await payload(await rpc('tools/call',call('browser_status')))).activeVisibility;
+
+test('A stale poll cannot rewrite a tab visibility that a newer poll already set',()=>testGateway(async({device,rpc})=>{
+  assert.equal((await device('poll',{origin,visibility:'visible',seq:4})).status,200);
+  // The tab goes hidden and says so.
+  assert.equal((await device('poll',{origin,visibility:'hidden',seq:5})).status,200);
+  assert.equal(await activeVisibility(rpc),'hidden');
+  // Now the overtaken request lands. It is a legitimate request - merely older.
+  const late=await device('poll',{origin,visibility:'visible',seq:4});
+  assert.equal(late.status,200,'a stale poll is still a valid request and must be answered');
+  assert.equal(await activeVisibility(rpc),'hidden','a lower sequence must not resurrect "visible"');
+  // And the safety gate must follow the same truth: a stale 'visible' poll is
+  // told there is nothing to do, exactly as the hidden tab it really comes from
+  // would be. Without this the gate would hand work to a tab now off screen.
+  assert.equal((await payload(await device('poll',{origin,visibility:'visible',seq:3}))).paused,'hidden');
+  // Once the tab genuinely returns - a NEWER sequence - everything resumes.
+  await device('poll',{origin,visibility:'visible',seq:6});
+  assert.equal(await activeVisibility(rpc),'visible');
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),9));
+  const cmd=await awaitCommand(device,origin,{visibility:'visible',seq:7});
+  assert.equal(cmd.action,'browser_inspect');
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{url:origin}}});
+  await inflight;
+}));
+
+test('Sequence ordering is per tab, and a bridge that sends none still works',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin,visibility:'visible',seq:9});
+  await device('poll',{origin,visibility:'hidden',seq:10});
+  // A DIFFERENT tab's counter means nothing here: counters are per tab, so a
+  // low number from a new claimant must not read as stale and be ignored.
+  assert.equal((await device('poll',{origin,instanceId:second,visibility:'visible',seq:1})).status,200);
+  assert.equal(await activeInstance(rpc),second);
+  assert.equal(await activeVisibility(rpc),'visible');
+  // An older bridge sends no counter at all. It gets the previous
+  // last-writer-wins behaviour rather than being frozen out entirely.
+  await device('poll',{origin,instanceId:second,visibility:'hidden'});
+  assert.equal(await activeVisibility(rpc),'hidden');
+  await device('poll',{origin,instanceId:second,visibility:'visible'});
+  assert.equal(await activeVisibility(rpc),'visible');
+  // A malformed counter is ignored rather than trusted, and cannot freeze the
+  // record: these must still update, not be treated as stale.
+  for(const bad of [0,-1,1.5,'7',null,{}]){
+    await device('poll',{origin,instanceId:second,visibility:'hidden',seq:bad});
+    assert.equal(await activeVisibility(rpc),'hidden',`seq ${JSON.stringify(bad)} must not be trusted as ordering`);
+    await device('poll',{origin,instanceId:second,visibility:'visible',seq:bad});
+    assert.equal(await activeVisibility(rpc),'visible',`seq ${JSON.stringify(bad)} must not freeze the record`);
+  }
+}));
+
+test('A stale poll still proves the tab is alive',()=>testGateway(async({device,rpc})=>{
+  // Liveness and visibility are different claims. A stale request cannot say
+  // where the tab is NOW, but it does prove it was alive when it was sent, so
+  // it must still refresh the session rather than let it age out.
+  await device('poll',{origin,visibility:'visible',seq:2});
+  await device('poll',{origin,visibility:'visible',seq:3});
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).connected,true);
+  assert.equal((await device('poll',{origin,visibility:'visible',seq:2})).status,200);
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).connected,true);
+}));
+
 test('A hidden tab never takes the session, even from another hidden tab',()=>testGateway(async({device,rpc})=>{
   await device('poll',{origin});
   await device('poll',{origin,visibility:'hidden'});

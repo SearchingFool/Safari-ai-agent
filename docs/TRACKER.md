@@ -130,6 +130,19 @@ Search → navigate → fill text/time/select → click → verify, with **no co
 
 **Still outstanding for D2-01:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, independent security review.
 
+## 2026-10-11 second iPad session — D-033 confirmed on hardware, D-035 found
+
+Measured on the **iPad Pro** (the M4 was excluded: it is being set up for another person, so neither the device token nor the tailnet belongs on it).
+
+- **Warm tab switch: 1.25 / 1.27 / 1.27 s — three for three.** Exactly one poll interval. Every switch went claimant-refused-409 → incumbent reports hidden → claimant served. **The gateway never displaced a visible tab**, observed in the wild rather than argued from code.
+- **The D-033 risk does not materialise.** The leaving tab's best-effort `hidden` poll — previously cosmetic, now load-bearing — **reached the gateway before iPadOS suspended the tab**, on tab switches *and* on two full app-backgroundings. The 45 s slow path was never taken. This is the one thing macOS could never have told us (D-029).
+- **Resume from suspension is instant.** After 143 s suspended, the tab was served on its **first** poll back. No re-pairing, no stale-session wait.
+- **Cold start of a new tab: 14.3 s** (page load + script boot + connect). Real, not a defect.
+- **While backgrounded:** `browser_inspect` refused in **54 ms** with an accurate message — not the 25 s "outcome uncertain" timeout, which is the failure mode that actually hurts.
+- **D-035 found** — a stale poll can record a suspended tab as visible, blocking the automatic handover and forcing a manual Take over. **Once in eight transitions, one millisecond apart.** See D-035. Fixed and pinned; **end-to-end confirmation still needs an iPad run.**
+
+**Methodology note.** The handover was *unmeasurable* until `deviceInstance`/`deviceVisibility` were added to the poll log an hour earlier — without them every poll looks alike and this would have been an argument about whether the operator "waited long enough". **The operator's report that it had hung was correct and the obvious explanation was wrong.** Two defects (D-034, D-035) have now been found by device testing that no off-device suite could have produced; treat that as the standing argument for more device runs, not fewer.
+
 ## 2026-10-11 D-033 and D-034 closed; a latent test hole found and fixed
 
 - **D-034 fixed and pinned.** `browser_click`'s description no longer claims submits are blocked. A regression test in `tests/gateway.test.mjs` asserts the specific false claim cannot return and that the three replacing facts stay present. Mutation-verified: restoring the old string fails the gate.

@@ -36,6 +36,19 @@ def main():
           // property and listens for exactly this event.
           Object.defineProperty(Document.prototype,'visibilityState',
             {configurable:true,get:()=>window.__visibility||'visible'});
+          // D-039. Stubbed so the test can observe what was played, and so the
+          // "audio is broken" case can be forced - the prompt must still appear.
+          window.__tones=[]; window.__audioThrows=false; window.__ctxState='suspended';
+          window.AudioContext=function(){
+            if(window.__audioThrows)throw new Error('audio unavailable');
+            this.currentTime=0;
+            Object.defineProperty(this,'state',{get:()=>window.__ctxState});
+            this.resume=()=>{window.__ctxState='running';return Promise.resolve();};
+            this.destination={};
+            this.createGain=()=>({gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}});
+            this.createOscillator=()=>{const o={type:'',frequency:{value:0},connect(){},
+              start(){window.__tones.push(o.frequency.value);},stop(){}};return o;};
+          };
           window.__conflict=null;
           // The gateway delivers only the TUNABLE half of policy. The test
           // drives it directly so each mode can be exercised, and so the
@@ -68,6 +81,12 @@ def main():
         page.add_script_tag(content=core)
         page.add_script_tag(content=remote)
         assert page.locator('[data-safari-ai-remote-host]').count() == 1
+        # D-039. Nothing may touch audio on load: no context, no sound, no
+        # autoplay attempt. Safari only permits it after a real gesture, and
+        # a script that reaches for it unprompted is the kind that gets a
+        # userscript distrusted.
+        assert page.evaluate('window.__ctxState') == 'suspended'
+        assert page.evaluate('window.__tones') == []
         # window.confirm cannot express allow-once / allow-always / deny, so the
         # prompt is now a three-way dialog inside the panel's closed shadow
         # root. This stands in for the operator: it answers whatever
@@ -791,6 +810,54 @@ def main():
         assert all('value' not in e for e in off_live['elements']), off_live['elements']
         assert 'FIELD VALUES' not in page.evaluate("window.__panel.querySelector('.mode').textContent")
         print('PASS: D-032 opt-in travels gateway -> bridge -> snapshot, and switching it off is immediate')
+
+        # --- D-039: the prompt is audible, and audio can never gate it --------
+        # The whole safety model rests on a human NOTICING the prompt. Observed
+        # twice in five minutes on device: the dialog opened, the operator was
+        # reading something else, it timed out unanswered. A gate nobody sees is
+        # not a gate.
+        set_policy({'mode': 'trusted', 'grants': False, 'version': 'd039'})
+        refs39 = {item['label']: item['ref'] for item in command('browser_inspect')['data']['elements']}
+        page.evaluate('clearInterval(window.__autoAnswer)')
+
+        def raise_prompt(suffix):
+            page.evaluate('''([ref,id]) => { window.__mockQueue.push({
+              id, action:'browser_click', args:{ref}, origin:'null',
+              expiresAt:Date.now()+600000}); }''', [refs39['Show confirmation'], suffix])
+            page.wait_for_function(
+                "window.__panel.querySelector('.approval').hidden===false", timeout=8000)
+
+        # The operator has tapped the panel by now - as they must, to connect at
+        # all - so audio is unlocked and the context resumed out of Safari's
+        # suspended state. The locked-on-load case is asserted at load, above.
+        page.evaluate("window.__panel.querySelector('.toggle').click()")
+        assert page.evaluate('window.__ctxState') == 'running', page.evaluate('window.__ctxState')
+        page.evaluate('window.__tones=[]')
+        raise_prompt('00000000-0000-4000-8000-00000000390b')
+        tones = page.evaluate('window.__tones')
+        assert tones == [880, 1320], tones
+        page.evaluate("window.__panel.querySelector('#approve-deny').click()")
+        page.wait_for_function("window.__panel.querySelector('.approval').hidden===true", timeout=5000)
+
+        # Switched off, it stays silent - and still prompts.
+        page.evaluate("const b=window.__panel.querySelector('#sound');b.checked=false;b.dispatchEvent(new Event('change'))")
+        page.evaluate('window.__tones=[]')
+        raise_prompt('00000000-0000-4000-8000-00000000390c')
+        assert page.evaluate('window.__tones') == [], page.evaluate('window.__tones')
+        assert page.evaluate("window.__settings['safari-agent:approval-sound']") is False
+        page.evaluate("window.__panel.querySelector('#approve-deny').click()")
+        page.wait_for_function("window.__panel.querySelector('.approval').hidden===true", timeout=5000)
+
+        # THE ONE THAT MATTERS. Audio throwing outright must not stop the dialog
+        # appearing: a silent alert is degraded, a missing dialog is a defect.
+        page.evaluate("const b=window.__panel.querySelector('#sound');b.checked=true;b.dispatchEvent(new Event('change'))")
+        page.evaluate('window.__audioThrows=true;window.__tones=[];')
+        raise_prompt('00000000-0000-4000-8000-00000000390d')
+        assert page.evaluate("window.__panel.querySelector('#approve-stop')!==null")
+        page.evaluate("window.__panel.querySelector('#approve-deny').click()")
+        page.wait_for_function("window.__panel.querySelector('.approval').hidden===true", timeout=5000)
+        page.evaluate('window.__audioThrows=false')
+        print('PASS: the approval prompt is audible once unlocked, silenceable, and never gated by audio (D-039)')
 
         # --- D-037: a timeout is not a decision --------------------------------
         # The dialog auto-denies before the gateway abandons the command, which

@@ -18,6 +18,9 @@
   // Not a secret and never sent to a model - the device token stays in GM storage.
   const K_INSTANCE = 'safari-agent:instance';
   const K_SEQ = 'safari-agent:seq';
+  // Global, not per-origin: this is a property of the device and the person
+  // holding it, not of the site being automated.
+  const K_SOUND = 'safari-agent:approval-sound';
   const INSTANCE_ID = /^[A-Za-z0-9_-]{8,64}$/;
   const MAX_WAIT = 8000;
   let running = false;
@@ -330,6 +333,60 @@
     if(className)node.className=className;
     return node;
   }
+  // ---------------------------------------------------------------------------
+  // AUDIBLE ALERT (D-039)
+  //
+  // The whole safety model rests on a human NOTICING the prompt. A gate nobody
+  // sees is not a gate. Observed twice within five minutes on 2026-10-11: the
+  // dialog opened, the operator was reading something else, and it timed out
+  // unanswered - which the diagnostics correctly calls a usability defect
+  // rather than a user choice (D-037).
+  //
+  // Sound is the only channel available here. iOS Safari has no
+  // navigator.vibrate, and Web Push needs a home-screen web app. Web Audio must
+  // be unlocked by a real user gesture, so it is unlocked on the operator's own
+  // taps in the panel - toggle, Save, Connect - which always happen before any
+  // approval can arrive. Nothing touches audio on load.
+  //
+  // Synthesised rather than a bundled file on purpose: no network fetch, and no
+  // base64 blob inside a userscript that has to stay auditable by eye.
+  //
+  // This must NEVER be able to block or delay the prompt. If audio is
+  // unavailable, denied, or throws, the dialog still appears: a silent alert is
+  // degraded, a missing dialog is a defect.
+  let audioContext = null;
+  let soundEnabled = true;
+  function unlockSound(){
+    if(audioContext || !soundEnabled)return;
+    try{
+      const Ctor = window.AudioContext || window.webkitAudioContext;
+      if(!Ctor)return;
+      audioContext = new Ctor();
+      if(audioContext.state === 'suspended' && typeof audioContext.resume === 'function')void audioContext.resume();
+    }catch{ audioContext = null; }
+  }
+  function alertSound(){
+    if(!soundEnabled)return;
+    try{
+      if(!audioContext)return;
+      if(audioContext.state === 'suspended' && typeof audioContext.resume === 'function')void audioContext.resume();
+      const now = audioContext.currentTime;
+      // Rising two-tone: short, quiet, and not a lookalike of a system sound.
+      for(const [at, hz] of [[0, 880], [0.16, 1320]]){
+        const osc = audioContext.createOscillator();
+        const gain = audioContext.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = hz;
+        // Ramped rather than switched; an abrupt gain change clicks.
+        gain.gain.setValueAtTime(0.0001, now + at);
+        gain.gain.exponentialRampToValueAtTime(0.18, now + at + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + at + 0.14);
+        osc.connect(gain); gain.connect(audioContext.destination);
+        osc.start(now + at); osc.stop(now + at + 0.16);
+      }
+    }catch{ /* audio is a courtesy; it must never affect the gate */ }
+  }
+
   // The answers that MEAN CONSENT. Everything else refuses, including any value
   // added later. This is an allowlist on purpose: the previous code refused only
   // the literal string 'deny' and returned success for anything else, so adding
@@ -427,6 +484,9 @@
       escape.append(stopButton);
       approvalBox.append(escape);
       approvalBox.hidden=false;
+      // After the dialog is built and shown, never before: if anything in here
+      // throws, the operator still has a prompt to answer (D-039).
+      alertSound();
       once.focus();
     });
   }
@@ -544,6 +604,8 @@
          viewports and fails below the minimum. This is the one dialog in
          the product where a mis-tap is a safety event, so it gets the
          floor rather than the default padding. */
+      .soundrow{display:flex;align-items:center;gap:8px;margin-top:10px;font:13px system-ui}
+      .soundrow input{width:auto;min-width:22px;min-height:22px}
       .approval button{min-height:44px}
       .escape{margin-top:10px;padding-top:9px;border-top:1px solid #d9c3a0}
       .escape button{width:100%;min-height:48px;background:#7a1f1f;color:white;border:1px solid #5d1414;font-weight:600}
@@ -565,12 +627,27 @@
       <div class="actions"><button id="save" type="button">Save</button><button id="connect" type="button">Connect</button><button id="stop" type="button">Stop</button><button id="takeover" type="button" hidden>Take over</button></div>
       <div class="mode">Site mode: read-only</div>
       <div class="status" role="status">Disabled on this site</div>
+      <label class="soundrow"><input id="sound" type="checkbox" checked> Sound when approval is needed</label>
       <div class="grants"></div></section>
       <section class="approval" role="alertdialog" aria-modal="true" aria-label="Browser agent approval" hidden></section>`;
     shadow.append(style,root);document.documentElement.appendChild(host);
     const panel=root.querySelector('.panel');status=root.querySelector('.status');takeover=root.querySelector('#takeover');
     approvalBox=root.querySelector('.approval');grantList=root.querySelector('.grants');modeLine=root.querySelector('.mode');
     renderGrants();
+    const soundBox=root.querySelector('#sound');
+    // Default ON. An approval nobody notices is the failure this exists to
+    // prevent, so the quiet default is the unsafe one.
+    void GM.getValue(K_SOUND,true).then(value=>{soundEnabled=value!==false;soundBox.checked=soundEnabled;});
+    soundBox.addEventListener('change',()=>{
+      soundEnabled=soundBox.checked;
+      void GM.setValue(K_SOUND,soundEnabled);
+      if(soundEnabled){unlockSound();alertSound();}   // confirm audibly, here and now
+    });
+    // Web Audio needs a real user gesture before it will ever make sound.
+    // Capture-phase on the shadow root catches every tap in the panel - toggle,
+    // Save, Connect - so by the time any approval can arrive, audio has been
+    // unlocked by the operator's own actions (D-039).
+    root.addEventListener('click',unlockSound,true);
     root.querySelector('.toggle').addEventListener('click',()=>{panel.hidden=!panel.hidden;});
     root.querySelector('#save').addEventListener('click',async()=>{
       try{const u=root.querySelector('#gateway').value.trim().replace(/\/$/,'');const t=root.querySelector('#secret').value.trim();

@@ -6,6 +6,9 @@ test-results/
 # Diagnostics logs may contain request metadata from live test sessions
 logs/
 
+# Per-session agent scaffolding (deferred command queue, checkpoints)
+.agent/
+
 # Local credentials and deployment environment files
 .env
 .env.*

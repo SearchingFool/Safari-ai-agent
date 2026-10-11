@@ -1006,14 +1006,45 @@
       if(!Ctor)return;
       audioContext = new Ctor();
       if(audioContext.state === 'suspended' && typeof audioContext.resume === 'function')void audioContext.resume();
+      // D-040. Creating and resuming a context is NOT enough on iOS: Safari
+      // only fully unlocks audio once a buffer has actually been PLAYED inside
+      // a user gesture. Skipping this half is why the first version was silent
+      // on a device with the volume up and the ringer on, while YouTube played
+      // normally in the same browser at the same moment.
+      //
+      // A one-frame silent buffer is the standard way to do it. Inaudible, but
+      // it must be started synchronously, here, inside the tap.
+      if(typeof audioContext.createBuffer === 'function'){
+        const buffer = audioContext.createBuffer(1, 1, audioContext.sampleRate || 22050);
+        const source = audioContext.createBufferSource();
+        source.buffer = buffer;
+        source.connect(audioContext.destination);
+        if(typeof source.start === 'function')source.start(0);
+      }
     }catch{ audioContext = null; }
   }
   function alertSound(){
     if(!soundEnabled)return;
     try{
       if(!audioContext)return;
-      if(audioContext.state === 'suspended' && typeof audioContext.resume === 'function')void audioContext.resume();
-      const now = audioContext.currentTime;
+      // D-040. resume() is ASYNCHRONOUS. Scheduling against currentTime while
+      // the context is still suspended puts both notes in the past by the time
+      // audio actually starts, and the hardware drops them - silently, with no
+      // error, which from outside is indistinguishable from a muted device.
+      // So: resume first, schedule only once it is actually running.
+      if(audioContext.state === 'suspended' && typeof audioContext.resume === 'function'){
+        const resumed = audioContext.resume();
+        if(resumed && typeof resumed.then === 'function'){ void resumed.then(playTones, () => {}); return; }
+      }
+      playTones();
+    }catch{ /* audio is a courtesy; it must never affect the gate */ }
+  }
+  function playTones(){
+    try{
+      if(!audioContext)return;
+      // A small lead, so a note is never scheduled at a moment that has already
+      // passed by the time the hardware starts.
+      const now = audioContext.currentTime + 0.02;
       // Rising two-tone: short, quiet, and not a lookalike of a system sound.
       for(const [at, hz] of [[0, 880], [0.16, 1320]]){
         const osc = audioContext.createOscillator();
@@ -1028,6 +1059,28 @@
         osc.start(now + at); osc.stop(now + at + 0.16);
       }
     }catch{ /* audio is a courtesy; it must never affect the gate */ }
+  }
+
+  // D-040. The alert must NOT depend on audio. The first version did - having
+  // already recorded that iOS might refuse to play it - and was then silent on
+  // a device with the volume up and the ringer on. Sound can fail for reasons
+  // no code here can see or fix: the ringer switch, an audio session policy,
+  // headphones elsewhere, a future Safari change.
+  //
+  // So the visual cue always runs and sound is the bonus, not the other way
+  // round. A pulse on the dialog border is visible across a desk, costs
+  // nothing, and cannot be refused by a platform policy.
+  function alertAttention(){
+    try{
+      if(approvalBox){
+        approvalBox.classList.remove('pulse');
+        // Reading offsetWidth restarts the animation; without it a second
+        // prompt in the same session would not re-trigger it.
+        void approvalBox.offsetWidth;
+        approvalBox.classList.add('pulse');
+      }
+    }catch{ /* never let a cosmetic cue break the prompt */ }
+    alertSound();
   }
 
   // The answers that MEAN CONSENT. Everything else refuses, including any value
@@ -1129,7 +1182,7 @@
       approvalBox.hidden=false;
       // After the dialog is built and shown, never before: if anything in here
       // throws, the operator still has a prompt to answer (D-039).
-      alertSound();
+      alertAttention();
       once.focus();
     });
   }
@@ -1247,6 +1300,12 @@
          viewports and fails below the minimum. This is the one dialog in
          the product where a mis-tap is a safety event, so it gets the
          floor rather than the default padding. */
+      @keyframes agentpulse{
+        0%,100%{border-color:#b8761a;box-shadow:0 4px 24px #0006}
+        50%{border-color:#e8912a;box-shadow:0 0 0 6px #e8912a66,0 4px 24px #0006}
+      }
+      .approval.pulse{animation:agentpulse 0.7s ease-in-out 3}
+      @media (prefers-reduced-motion:reduce){.approval.pulse{animation:none;border-color:#e8912a}}
       .soundrow{display:flex;align-items:center;gap:8px;margin-top:10px;font:13px system-ui}
       .soundrow input{width:auto;min-width:22px;min-height:22px}
       .approval button{min-height:44px}

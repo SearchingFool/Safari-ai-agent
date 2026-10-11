@@ -853,7 +853,16 @@ def main():
         # all - so audio is unlocked and the context resumed out of Safari's
         # suspended state. The locked-on-load case is asserted at load, above.
         page.evaluate("window.__panel.querySelector('.toggle').click()")
-        assert page.evaluate('window.__ctxState') == 'running', page.evaluate('window.__ctxState')
+        # resume() is async on Safari, so the context is not running the instant
+        # the tap returns. Asserting it synchronously was my own flake.
+        try:
+            page.wait_for_function("window.__ctxState==='running'", timeout=4000)
+        except Exception:
+            print("  DEBUG ctxState:", page.evaluate("window.__ctxState"))
+            print("  DEBUG unlockedByBuffer:", page.evaluate("window.__unlockedByBuffer"))
+            print("  DEBUG soundBox checked:", page.evaluate("window.__panel.querySelector('#sound').checked"))
+            print("  DEBUG stored pref:", page.evaluate("window.__settings['safari-agent:approval-sound']"))
+            raise
         # The buffer-play inside the gesture is what actually unlocks iOS audio.
         assert page.evaluate('window.__unlockedByBuffer') is True, 'no buffer was played inside the gesture (D-040)'
         page.evaluate('window.__tones=[];window.__dropped=0')

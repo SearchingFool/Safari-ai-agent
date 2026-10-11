@@ -62,6 +62,17 @@ test('MCP handshake, available browser tools, notification and unknown method',(
   assert.ok(init.result.capabilities.tools);
   const list=await payload(await rpc('tools/list'));
   assert.deepEqual(list.result.tools.map(t=>t.name),['browser_inspect','browser_fill','browser_click','browser_navigate','browser_verify','browser_status','browser_cancel']);
+  // D-034. The click description is the only prose the MODEL reads about what
+  // is and is not guarded, and it stayed wrong for a release after D-019
+  // narrowed the hard ceilings, which made a model report a false defect on
+  // device. The truth of English cannot be asserted, but drift back to the
+  // specific false claim can be, and so can the three facts that replaced it.
+  const click=list.result.tools.find(t=>t.name==='browser_click');
+  assert.doesNotMatch(click.description,/submission is blocked/i,
+    'browser_click must not claim submits are blocked; since D-019 a submit is ELEVATED, not ceilinged');
+  assert.match(click.description,/trusted/i);
+  for(const ceiling of ['ayment','ccount-deletion','redential'])assert.match(click.description,new RegExp(ceiling));
+  assert.equal(click.annotations.destructiveHint,true);
   const notice=await post('/mcp',{jsonrpc:'2.0',method:'notifications/initialized'});
   assert.equal(notice.status,202);
   assert.equal((await payload(await rpc('unrecognized'))).error.code,-32601);

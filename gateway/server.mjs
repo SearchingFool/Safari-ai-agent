@@ -27,7 +27,13 @@ const TOOL_DEFS = [
   {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false},
    annotations:{title:'Fill a field',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
   // The only tool that can cause an irreversible side effect on the page.
-  {name:'browser_click',description:'Click a referenced control; requires explicit local confirmation on iPad. Submission is blocked by default.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
+  // This description is read by the MODEL and shapes how it reasons about what
+  // is guarded, so a stale safety claim here is worse than a stale comment: it
+  // can make a model treat an unguarded action as guarded. It said "Submission
+  // is blocked by default" for one release after D-019 narrowed the hard
+  // ceilings and that stopped being true (D-034). Keep it matched to
+  // src/core.js; tests/gateway.test.mjs pins it against drifting back.
+  {name:'browser_click',description:'Click a referenced control. Every click needs explicit operator confirmation in the iPad tab, and is refused outright unless the operator has nominated this site as trusted. Payment, account-deletion and credential or security controls are refused on every site, trusted ones included. A form submit is NOT blocked: on a trusted site it proceeds once the operator confirms it, and it always needs its own confirmation - a standing approval can never cover it.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
    annotations:{title:'Click a control',readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:true}},
   {name:'browser_navigate',description:'Navigate only to an approved same-origin HTTP(S) URL; verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false},
    annotations:{title:'Navigate same-origin',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},

@@ -1180,8 +1180,16 @@
       .panel{position:fixed;bottom:112px;right:12px;width:min(360px,calc(100vw - 24px));background:white;color:#17283e;border:1px solid #b7c3d1;z-index:2147483647;padding:12px;box-sizing:border-box;border-radius:10px;font:13px system-ui;box-shadow:0 4px 20px #0004}
       .panel[hidden]{display:none}label{display:block;margin-top:8px}input{width:100%;box-sizing:border-box;padding:9px;border:1px solid #bbc6d8;border-radius:5px}
       .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}.status{padding-top:9px;line-height:1.3;word-break:break-word}
+      /* D-038. Apple's HIG minimum touch target is 44x44pt. Every button in
+         this dialog rendered 37px tall - including the Deny the operator
+         mis-tapped for Allow once on real hardware. Measured, not guessed:
+         tests/approval_layout.py renders the real dialog at four iPad
+         viewports and fails below the minimum. This is the one dialog in
+         the product where a mis-tap is a safety event, so it gets the
+         floor rather than the default padding. */
+      .approval button{min-height:44px}
       .escape{margin-top:10px;padding-top:9px;border-top:1px solid #d9c3a0}
-      .escape button{width:100%;background:#7a1f1f;color:white;border:1px solid #5d1414;font-weight:600}
+      .escape button{width:100%;min-height:48px;background:#7a1f1f;color:white;border:1px solid #5d1414;font-weight:600}
       .approval{position:fixed;bottom:112px;right:12px;width:min(360px,calc(100vw - 24px));background:#fffdf5;color:#17283e;border:2px solid #b8761a;z-index:2147483647;padding:12px;box-sizing:border-box;border-radius:10px;font:13px system-ui;box-shadow:0 4px 24px #0006}
       .approval[hidden]{display:none}
       .approval .target{font-weight:700;word-break:break-word;margin:6px 0}

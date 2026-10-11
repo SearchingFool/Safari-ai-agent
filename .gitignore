@@ -9,6 +9,9 @@ logs/
 # Per-session agent scaffolding (deferred command queue, checkpoints)
 .agent/
 
+# Claude Code's native ephemeral subagent worktrees (auto-cleaned)
+.claude/worktrees/
+
 # Local credentials and deployment environment files
 .env
 .env.*

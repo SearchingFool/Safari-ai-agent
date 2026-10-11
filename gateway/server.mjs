@@ -16,14 +16,29 @@ import {createDiagnostics} from './diagnostics.mjs';
 const MAX_REQUEST_BYTES = 65536;
 const PROTOCOL = '2025-11-25'; // Broadly implemented compatibility target.
 const METHODS = ['browser_inspect','browser_fill','browser_click','browser_navigate','browser_verify','browser_status','browser_cancel'];
+// MCP ToolAnnotations (2025-06-18). The spec's defaults are deliberately
+// fail-closed - readOnlyHint false, destructiveHint TRUE, openWorldHint TRUE -
+// so an undeclared tool is advertised as maximally dangerous. Declaring these
+// lets a client tier its own prompts instead of treating every call alike.
+// openWorldHint is true throughout: the target is the open web.
 const TOOL_DEFS = [
-  {name:'browser_inspect',description:'Inspect visible page content and controls in the paired iPad Safari tab.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
-  {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false}},
-  {name:'browser_click',description:'Click a referenced control; requires explicit local confirmation on iPad. Submission is blocked by default.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false}},
-  {name:'browser_navigate',description:'Navigate only to an approved same-origin HTTP(S) URL; verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false}},
-  {name:'browser_verify',description:'Verify visible page text or URL contains expected substring.',inputSchema:{type:'object',properties:{textIncludes:{type:'string'},urlIncludes:{type:'string'}},additionalProperties:false}},
-  {name:'browser_status',description:'Get iPad connection and gateway queue status.',inputSchema:{type:'object',properties:{},additionalProperties:false}},
-  {name:'browser_cancel',description:'Cancel queued browser actions; an action already running may not be reversible.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
+  {name:'browser_inspect',description:'Inspect visible page content and controls in the paired iPad Safari tab.',inputSchema:{type:'object',properties:{},additionalProperties:false},
+   annotations:{title:'Inspect page',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
+  {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false},
+   annotations:{title:'Fill a field',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
+  // The only tool that can cause an irreversible side effect on the page.
+  {name:'browser_click',description:'Click a referenced control; requires explicit local confirmation on iPad. Submission is blocked by default.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
+   annotations:{title:'Click a control',readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:true}},
+  {name:'browser_navigate',description:'Navigate only to an approved same-origin HTTP(S) URL; verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false},
+   annotations:{title:'Navigate same-origin',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
+  {name:'browser_verify',description:'Verify visible page text or URL contains expected substring.',inputSchema:{type:'object',properties:{textIncludes:{type:'string'},urlIncludes:{type:'string'}},additionalProperties:false},
+   annotations:{title:'Verify page state',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
+  // Status reads only gateway state, never the page: closed world.
+  {name:'browser_status',description:'Get iPad connection and gateway queue status.',inputSchema:{type:'object',properties:{},additionalProperties:false},
+   annotations:{title:'Connection status',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:false}},
+  // Cancel only revokes queued commands; it cannot undo an action already run.
+  {name:'browser_cancel',description:'Cancel queued browser actions; an action already running may not be reversible.',inputSchema:{type:'object',properties:{},additionalProperties:false},
+   annotations:{title:'Cancel queued actions',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:false}}
 ];
 const json = (res,code,value) => {res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
 // Error bodies carry the request id so a user can quote it and it can be found
@@ -146,6 +161,14 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           const name=b.params?.name;
           if(!METHODS.includes(name))out=toolError('Unknown tool');
           else out=await call(name,b.params?.arguments||{});
+          // Record the TOOL-level outcome. HTTP 200 only means the exchange
+          // completed; it says nothing about whether the action was refused,
+          // denied or timed out. Only the error text is captured, never a
+          // success payload, because success payloads contain page content.
+          trace.isError=out?.isError===true;
+          if(trace.isError){
+            try{trace.toolError=String(JSON.parse(out.content[0].text).error||'').slice(0,160);}catch{/* leave unset */}
+          }
         }else return json(res,200,{jsonrpc:'2.0',id:b.id??null,error:{code:-32601,message:'Unsupported MCP method'}});
         return json(res,200,{jsonrpc:'2.0',id:b.id,result:out});
       }

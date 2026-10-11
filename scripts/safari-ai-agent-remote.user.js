@@ -142,10 +142,68 @@
       return null;
     }
 
+    // Describe a control in terms a HUMAN can consent to. The approval prompt
+    // previously said only "click e37", which asks the operator to authorise an
+    // opaque reference: they could not tell "Next page" from "Delete account".
+    // Enforcement decides; description is what makes the decision informed.
+    // Signals here are structural, so they survive translation and icon-only
+    // buttons where a label-only check sees nothing.
+    function describeControl(el) {
+      const tag = el.tagName.toLowerCase();
+      const name = getLabel(el);
+      const inForm = Boolean(el.closest('form'));
+      const type = (el.getAttribute('type') || (tag === 'button' ? 'submit' : '') || '').toLowerCase();
+      const isSubmit = (tag === 'button' && inForm && type === 'submit') ||
+                       (tag === 'input' && ['submit', 'image'].includes(type));
+      // aria-pressed/aria-checked identify state toggles (like, follow, bookmark,
+      // mute) in any language, even with no visible text at all.
+      const toggle = el.getAttribute('aria-pressed') ?? el.getAttribute('aria-checked');
+      const rawHref = tag === 'a' ? el.getAttribute('href') : null;
+      let href = null, external = false;
+      if (rawHref) {
+        try {
+          const u = new URL(rawHref, doc.baseURI);
+          href = u.href;
+          external = u.origin !== win.location.origin;
+        } catch { href = rawHref; }
+      }
+      return {
+        name: name || null,
+        // An empty accessible name means we are acting blind. Report it rather
+        // than letting it silently read as "nothing risky here".
+        unnamed: !name,
+        tag, type: type || null, inForm, isSubmit,
+        isToggle: toggle !== null && toggle !== undefined,
+        togglePressed: toggle === 'true' ? true : toggle === 'false' ? false : null,
+        // An <a> with no usable href is a scripted action, not navigation.
+        isPseudoLink: tag === 'a' && (!rawHref || rawHref === '#' || /^javascript:/i.test(rawHref)),
+        href, external,
+        disabled: Boolean(el.disabled)
+      };
+    }
+
+    /** One-line human sentence for an approval prompt. Never includes page body text. */
+    function describeForPrompt(d) {
+      const what = d.name ? `"${d.name}"` : `an UNLABELLED ${d.tag}`;
+      const bits = [];
+      if (d.isSubmit) bits.push('submits a form');
+      if (d.isToggle) bits.push(`toggle, currently ${d.togglePressed ? 'on' : 'off'}`);
+      if (d.isPseudoLink) bits.push('scripted link, not navigation');
+      if (d.href && d.external) bits.push(`goes to ${d.href}`);
+      else if (d.href) bits.push(`goes to ${d.href}`);
+      if (d.unnamed) bits.push('NO accessible name - cannot be identified');
+      return `${what}${bits.length ? ' (' + bits.join('; ') + ')' : ''}`;
+    }
+
     function previewClick(ref) {
       const el = resolve(ref);
-      const href = el.tagName.toLowerCase() === 'a' ? new URL(el.getAttribute('href') || '', doc.baseURI).href : null;
-      return {ref, risk: riskOfClick(el), href, tag: el.tagName.toLowerCase()};
+      const detail = describeControl(el);
+      return {
+        ref, risk: riskOfClick(el), tag: detail.tag,
+        href: detail.href,
+        control: detail,
+        summary: describeForPrompt(detail)
+      };
     }
 
     function click(ref, approved = false) {
@@ -243,7 +301,9 @@
         const preview=core.previewClick(a.ref);
         if(preview.risk)throw new Error(`High-impact control blocked: ${preview.risk}; use the webpage manually`);
         if(preview.href && new URL(preview.href).origin!==location.origin)throw new Error('Cross-site link blocked');
-        if(!window.confirm(`Allow AI browser agent to click ${a.ref} on ${location.origin}?`))throw new Error('User denied click');
+        // Name the control, not the opaque ref. The operator is the enforcement
+        // layer here, so approving "e37" is the security control failing.
+        if(!window.confirm(`Allow AI browser agent to click ${preview.summary||a.ref}\n\non ${location.origin}?`))throw new Error('User denied click');
         // Links may cause a page unload. Caller must inspect again to verify.
         return {success:true,dispatched:true,verified:false,action:'click'};
       }

@@ -50,7 +50,9 @@
         const preview=core.previewClick(a.ref);
         if(preview.risk)throw new Error(`High-impact control blocked: ${preview.risk}; use the webpage manually`);
         if(preview.href && new URL(preview.href).origin!==location.origin)throw new Error('Cross-site link blocked');
-        if(!window.confirm(`Allow AI browser agent to click ${a.ref} on ${location.origin}?`))throw new Error('User denied click');
+        // Name the control, not the opaque ref. The operator is the enforcement
+        // layer here, so approving "e37" is the security control failing.
+        if(!window.confirm(`Allow AI browser agent to click ${preview.summary||a.ref}\n\non ${location.origin}?`))throw new Error('User denied click');
         // Links may cause a page unload. Caller must inspect again to verify.
         return {success:true,dispatched:true,verified:false,action:'click'};
       }

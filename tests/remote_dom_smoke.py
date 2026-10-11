@@ -69,8 +69,44 @@ def main():
         page.wait_for_function("document.querySelector('#feedback').textContent === 'Button clicked'")
         result=command('browser_verify',{'textIncludes':'Button clicked'})
         assert result['success']
+        # describeControl must identify a control well enough for a human to
+        # consent to it. These are exactly the cases a label-only regex misses:
+        # icon-only buttons, non-English labels, and aria-pressed toggles.
+        described = page.evaluate('''() => {
+          const host = document.createElement('div');
+          host.innerHTML = `
+            <button id="t_icon" aria-label=""><svg></svg></button>
+            <button id="t_follow" aria-pressed="false">Suivre</button>
+            <form><button id="t_save">Save</button></form>
+            <a id="t_pseudo" href="#">Open panel</a>
+            <a id="t_ext" href="https://elsewhere.example/x">Elsewhere</a>`;
+          document.body.appendChild(host);
+          const core = globalThis.SafariAIAgentCore.createAgentCore(document, window);
+          const snap = core.inspect();
+          const byLabel = {};
+          for (const e of snap.elements) byLabel[e.label] = e.ref;
+          const out = {};
+          for (const [key, label] of [['follow','Suivre'],['save','Save'],
+                                      ['pseudo','Open panel'],['ext','Elsewhere']]) {
+            if (byLabel[label]) out[key] = core.previewClick(byLabel[label]);
+          }
+          return out;
+        }''')
+        # A toggle is recognised structurally, so translation does not defeat it.
+        assert described['follow']['control']['isToggle'] is True, described['follow']
+        assert described['follow']['control']['togglePressed'] is False
+        # A bare <button> inside a <form> is a submit regardless of its label.
+        assert described['save']['control']['isSubmit'] is True, described['save']
+        assert 'submits a form' in described['save']['summary']
+        # href="#" is a scripted action, not navigation.
+        assert described['pseudo']['control']['isPseudoLink'] is True, described['pseudo']
+        # Off-origin destinations are surfaced in the human summary.
+        assert described['ext']['control']['external'] is True
+        assert 'elsewhere.example' in described['ext']['summary']
+
         page.evaluate("window.__settings['safari-agent:enabled:null']=false")
         print('PASS: remote script mock-GM inspect/fill/constraints/approval/click/verify')
+        print('PASS: describeControl identifies toggles, form submits, pseudo-links and external targets')
         browser.close()
 
 if __name__=='__main__':main()

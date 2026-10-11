@@ -322,6 +322,12 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         // client that predates tab-scoped sessions; accepting it would restore
         // the exact ambiguity D-023 describes, so it is refused outright.
         if(typeof b.instanceId!=='string'||!INSTANCE_ID.test(b.instanceId))return fail(res,400,'A per-tab instanceId is required');
+        // Record WHICH tab is talking and whether it is on screen. A session
+        // handover is otherwise invisible in the log - every poll looks the
+        // same - so there is no way to attribute a request to a tab or to time
+        // a transfer. tools/analyze-handover.mjs reads exactly these two.
+        trace.deviceInstance=b.instanceId;
+        trace.deviceVisibility=b.visibility==='visible'?'visible':'hidden';
         const owns=current && current.origin===b.origin && current.instanceId===b.instanceId;
         if(url.pathname==='/device/disconnect'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');

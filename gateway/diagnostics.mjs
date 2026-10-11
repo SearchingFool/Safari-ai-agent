@@ -287,7 +287,15 @@ export function createDiagnostics(cfg) {
     enabled,
     /** Attach to a request; returns a setter for details only known mid-handling. */
     attach(req, res, requestId, correlationId) {
-      const extra = {rpcMethod: null, toolName: null, deviceOrigin: null, isError: false, toolError: null};
+      // deviceInstance is the per-tab session identity (D-017/D-023). It is a
+      // random opaque id minted in the tab's sessionStorage, carries no user
+      // data and is not a credential, so it is recorded whole - a truncated one
+      // could not distinguish two tabs, which is the only reason it is here.
+      // Without it a session handover (D-033) is invisible in the log: every
+      // poll looks alike, so there is no way to tell which tab was serving at
+      // any moment, or how long a transfer actually took.
+      const extra = {rpcMethod: null, toolName: null, deviceOrigin: null,
+                     deviceInstance: null, deviceVisibility: null, isError: false, toolError: null};
       if (!enabled) return extra;
       const started = Date.now();
       const auth = req.headers.authorization;
@@ -307,6 +315,8 @@ export function createDiagnostics(cfg) {
           origin: req.headers.origin || null,
           rpcMethod: extra.rpcMethod,
           deviceOrigin: extra.deviceOrigin,
+          deviceInstance: extra.deviceInstance,
+          deviceVisibility: extra.deviceVisibility,
           allowedOrigins: cfg.allowedOrigins || [],
           toolName: extra.toolName,
           isError: extra.isError,

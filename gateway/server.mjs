@@ -8,7 +8,10 @@
  */
 import {createServer} from 'node:http';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
+import {appendFileSync, mkdirSync} from 'node:fs';
+import {dirname} from 'node:path';
 import {serveDemo} from './demo-pages.mjs';
+import {createDiagnostics} from './diagnostics.mjs';
 
 const MAX_REQUEST_BYTES = 65536;
 const PROTOCOL = '2025-11-25'; // Broadly implemented compatibility target.
@@ -23,7 +26,9 @@ const TOOL_DEFS = [
   {name:'browser_cancel',description:'Cancel queued browser actions; an action already running may not be reversible.',inputSchema:{type:'object',properties:{},additionalProperties:false}}
 ];
 const json = (res,code,value) => {res.writeHead(code,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));};
-const fail = (res,code,message)=>json(res,code,{error:message});
+// Error bodies carry the request id so a user can quote it and it can be found
+// in the diagnostics log without guessing which request they mean.
+const fail = (res,code,message)=>json(res,code,{error:message,requestId:res.getHeader('X-Request-Id')||null});
 // Demo Basic authentication is distinct from the MCP and device bearer tokens.
 const DEMO_USER='safari-demo';
 function demoMatches(header,password){
@@ -63,10 +68,15 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now()}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
+  // Diagnostics are injectable so tests can capture events without touching disk.
+  const diag = diagnostics || createDiagnostics({
+    enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
+    allowedOrigins:[...allowed]
+  });
   const pending=new Map(); let current=null;let lastPoll=0;let generation=0;
   const status=()=>({connected:clock()-lastPoll<deviceFreshMs,activeOrigin:current?.origin||null,queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
@@ -87,6 +97,15 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     });
   }
   async function router(req,res){
+    const requestId=randomUUID().slice(0,8);
+    // Honour a caller-supplied correlation id so one logical operation can be
+    // traced across the MCP call and the device round trip it triggers.
+    const correlationId=(typeof req.headers['x-correlation-id']==='string'
+      && /^[\w.-]{1,64}$/.test(req.headers['x-correlation-id']))
+      ? req.headers['x-correlation-id'] : requestId;
+    res.setHeader('X-Request-Id',requestId);
+    res.setHeader('X-Correlation-Id',correlationId);
+    const trace=diag.attach(req,res,requestId,correlationId);
     try{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/health'&&req.method==='GET')return json(res,200,{ok:true});
@@ -101,7 +120,12 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
       }
       if(url.pathname==='/mcp'){
         if(req.headers.origin)return fail(res,403,'Browser Origin not accepted for MCP');
-        if(!tokenMatches(req.headers.authorization,clientToken))return fail(res,401,'Unauthorized MCP caller');
+        if(!tokenMatches(req.headers.authorization,clientToken)){
+          // RFC 6750: a bearer-protected resource must say so on 401. Without this
+          // a client cannot distinguish "wrong credential" from "unreachable".
+          res.setHeader('WWW-Authenticate','Bearer realm="safari-ai-agent"');
+          return fail(res,401,'Unauthorized MCP caller');
+        }
         if(req.method!=='POST'){res.setHeader('Allow','POST');return fail(res,405,'POST only');}
         // Enforce the legacy Streamable HTTP version advertised by initialize.
         // No protocol-level session header is issued: each authenticated request is independent.
@@ -111,6 +135,8 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         if(contentType!=='application/json')return fail(res,415,'Expected application/json');
         const b=await readBody(req);
         if(b.jsonrpc!=='2.0'||typeof b.method!=='string')return fail(res,400,'Invalid JSON-RPC');
+        trace.rpcMethod=b.method;
+        if(b.method==='tools/call'&&typeof b.params?.name==='string')trace.toolName=b.params.name;
         if(b.method==='notifications/initialized'){res.writeHead(202);return res.end();}
         let out;
         if(b.method==='initialize')out={protocolVersion:PROTOCOL,capabilities:{tools:{}},serverInfo:{name:'safari-ai-agent',version:'0.2.0'}};
@@ -127,6 +153,7 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         if(!tokenMatches(req.headers.authorization,deviceToken))return fail(res,401,'Unauthorized device');
         if(req.method!=='POST')return fail(res,405,'POST only');
         const b=await readBody(req);
+        if(typeof b.origin==='string')trace.deviceOrigin=b.origin;
         if(url.pathname==='/device/disconnect'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
           if(current && current.origin!==b.origin)return fail(res,409,'Different active origin');
@@ -168,7 +195,33 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
 
 if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
   const origins=(process.env.SAFARI_ALLOWED_ORIGINS||'').split(',').map(x=>x.trim()).filter(Boolean);
-  const g=createGateway({clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,demoPassword:process.env.DEMO_PASSWORD,allowedOrigins:origins});
+  // Diagnostics default ON for the local test launcher: the whole point of this
+  // deployment is to find out why a client cannot connect. SAFARI_LOG_REQUESTS=0
+  // turns it off. Credential values are never recorded (see diagnostics.mjs).
+  const diagEnabled=process.env.SAFARI_LOG_REQUESTS!=='0';
+  const logFile=process.env.SAFARI_DIAGNOSTICS_FILE||'logs/gateway-diagnostics.jsonl';
+  let appendLine=null;
+  if(diagEnabled){
+    try{
+      mkdirSync(dirname(logFile),{recursive:true});
+      appendLine=line=>appendFileSync(logFile,line,{mode:0o600});
+    }catch(e){
+      console.warn(`Diagnostics file disabled (${e.message}); console output only.`);
+    }
+  }
+  const g=createGateway({
+    clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,
+    demoPassword:process.env.DEMO_PASSWORD,allowedOrigins:origins,
+    diagnostics:createDiagnostics({
+      enabled:diagEnabled,
+      clientTokenLength:(process.env.MCP_CLIENT_TOKEN||'').length,
+      deviceTokenLength:(process.env.DEVICE_TOKEN||'').length,
+      allowedOrigins:origins,
+      write:line=>console.log(line),
+      append:appendLine
+    })
+  });
+  if(diagEnabled)console.log(`Diagnostics ON -> ${appendLine?logFile:'console only'}  (npm run diagnose for a report)`);
   const port=Number(process.env.PORT||8787);
   const host=process.env.BIND_ADDRESS||'127.0.0.1';
   if(host!=='127.0.0.1'&&process.env.ALLOW_PROXY_BIND!=='true')throw Error('Nonloopback bind needs explicit ALLOW_PROXY_BIND=true; deploy behind HTTPS proxy');

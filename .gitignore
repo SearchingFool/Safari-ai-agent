@@ -3,6 +3,9 @@ node_modules/
 playwright-report/
 test-results/
 
+# Diagnostics logs may contain request metadata from live test sessions
+logs/
+
 # Local credentials and deployment environment files
 .env
 .env.*

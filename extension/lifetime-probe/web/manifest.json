@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "SWLifetimeProbe TEST ONLY",
+  "version": "0.0.1",
+  "description": "TEST-ONLY instrumentation harness. Measures how long a Safari MV3 background service worker survives. Not part of the shipped Safari AI Agent extension. Do not install for any other purpose.",
+  "action": {
+    "default_title": "SW Lifetime Probe (TEST ONLY)",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "probe.js"
+  },
+  "permissions": [
+    "storage",
+    "alarms"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*", "http://localhost/*"],
+      "js": ["wake-content.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
+  ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  }
+}

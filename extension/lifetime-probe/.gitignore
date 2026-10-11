@@ -1,0 +1,6 @@
+# Generated build artifacts and measurement output for the TEST-ONLY lifetime probe.
+# The sources (web/, collector.mjs, wk-host/main.swift, the two build scripts) are
+# committed; everything these produce is not.
+xcode/
+wk-host/build/
+out/

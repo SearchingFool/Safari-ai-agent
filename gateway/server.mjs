@@ -360,7 +360,31 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
               ? 'Device session followed the visible tab'
               : 'Device session taken over by another tab');
           }
-          current={origin:b.origin,instanceId:b.instanceId,visibility};lastPoll=clock();
+          // D-035. Requests from one tab can arrive out of order: visibility is
+          // read when a poll is BUILT, and that poll may still be in flight when
+          // the tab goes hidden and fires its out-of-band notification. Taking
+          // the last arrival would then record a suspended tab as visible, and
+          // nothing would correct it because the tab has stopped polling.
+          //
+          // So ordering is by the tab's own monotonic counter, not by arrival:
+          // a poll that is OLDER than what this same tab has already told us
+          // cannot rewrite its visibility. It is still answered normally - it is
+          // a legitimate request, merely stale - and it still refreshes
+          // liveness, because it does prove the tab was alive when it was sent.
+          //
+          // Scoped to the same instanceId on purpose. Counters are per tab and
+          // say nothing across tabs, so comparing them between tabs would be
+          // meaningless; a different tab taking the session resets the baseline.
+          const seq=Number.isSafeInteger(b.seq)&&b.seq>0?b.seq:null;
+          const sameTab=current&&current.origin===b.origin&&current.instanceId===b.instanceId;
+          // A bridge that sends no counter (an older script) gets the previous
+          // last-writer-wins behaviour rather than being locked out: null never
+          // compares as stale. That is the weaker guarantee, not a broken one.
+          const stale=sameTab&&seq!==null&&current.seq!==null&&current.seq!==undefined&&seq<=current.seq;
+          current=stale
+            ? {...current,seq:current.seq}
+            : {origin:b.origin,instanceId:b.instanceId,visibility,seq};
+          lastPoll=clock();
           // Policy rides on EVERY poll, including the idle and paused ones, so
           // revoking trust takes effect within one poll interval rather than at
           // the bridge's next connect. It is always the policy for the origin
@@ -372,7 +396,15 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           // here would raise window.confirm() in a tab the operator cannot see,
           // so they would either never answer it or approve the visible tab's
           // page while a different page acted.
-          if(visibility!=='visible')return json(res,200,{command:null,generation,policy,paused:'hidden'});
+          // Gate on the tab's MOST RECENT truth, not on what this particular
+          // request says. They differ only when this request is stale (D-035):
+          // a poll built while visible, overtaken by the hidden notification.
+          // Handing that one a command would deliver work to a tab that has
+          // since gone off screen - the bridge's own post-await guard would
+          // refuse to run it, but a safety gate that relies on the client
+          // re-checking is not a gate. When nothing is stale these are equal,
+          // so this is strictly more conservative and never less.
+          if(current.visibility!=='visible')return json(res,200,{command:null,generation,policy,paused:'hidden'});
           for(const p of pending.values()){
             if(!p.claimed && p.origin===b.origin && p.instanceId===b.instanceId && p.expiresAt>clock()){
               p.claimed=true;

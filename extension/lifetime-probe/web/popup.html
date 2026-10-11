@@ -1,0 +1,27 @@
+<!doctype html>
+<!--
+  File: extension/lifetime-probe/web/popup.html
+  Description: TEST-ONLY popup. Exists so the extension has a toolbar item and so
+    the stored journal can be dumped by hand if the collector was not running.
+  Author: safari-ai-agent-sw-lifetime (Claude Code, Opus 5)
+  Created: 2026-10-11
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SW Lifetime Probe (TEST ONLY)</title>
+  <style>
+    body { font: 12px/1.4 -apple-system, sans-serif; width: 420px; margin: 0; padding: 10px; }
+    h1 { font-size: 13px; margin: 0 0 6px; }
+    .warn { background: #fde7e7; border: 1px solid #c33; padding: 6px; margin-bottom: 8px; }
+    pre { background: #f4f4f4; padding: 6px; max-height: 320px; overflow: auto; font-size: 10px; }
+  </style>
+</head>
+<body>
+  <div class="warn"><strong>TEST ONLY.</strong> This extension measures service-worker
+    lifetime. It is not part of the Safari AI Agent product.</div>
+  <h1>Stored journal</h1>
+  <pre id="out">loading...</pre>
+  <script src="popup.js"></script>
+</body>
+</html>

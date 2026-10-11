@@ -138,9 +138,49 @@ export function classify(o) {
         ['Body was truncated, empty, or not JSON.'],
         ['Check for a proxy or size limit between the client and this gateway.']);
     }
+    // HTTP 200 only means the exchange completed. The ACTION may still have been
+    // refused by the bridge, denied by the operator, or timed out. Those are
+    // different events with different meanings and must not all read as "OK".
+    if ((o.status === 200 || o.status === 202) && o.isError) {
+      const text = o.toolError || '';
+      const what = o.toolName || o.rpcMethod || 'action';
+      if (/High-impact control blocked/i.test(text)) {
+        return d('TOOL_BLOCKED_HIGH_IMPACT', SEVERITY.INFO,
+          `${what} refused by the bridge as a high-impact control: ${text}`,
+          ['The control matched the high-impact classifier in src/core.js, which refuses BEFORE any approval prompt.',
+           'This is a hard ceiling: such controls are never offered for approval, by design.'],
+          ['Working as intended. If a control SHOULD have been offered for approval, that is a classifier-tuning question (see D-019), not a policy failure.',
+           'Note the inverse risk: controls the classifier does not recognise fall through to an ordinary approval prompt.']);
+      }
+      if (/User denied/i.test(text)) {
+        return d('TOOL_DENIED_BY_OPERATOR', SEVERITY.INFO,
+          `${what} was offered for approval and the operator declined.`,
+          ['The approval prompt was shown in the paired tab and dismissed.'],
+          ['Working as intended — this confirms the approval path is reachable and effective.']);
+      }
+      if (/timed out/i.test(text)) {
+        return d('TOOL_TIMED_OUT', SEVERITY.ERROR,
+          `${what} timed out; the outcome is UNCERTAIN and must not be retried blindly.`,
+          ['The operator did not answer the approval prompt within the command timeout.',
+           'Or the prompt appeared in a tab that is not visible (see D-023).',
+           'Or the device lost connectivity mid-command.'],
+          ['Re-inspect the page to establish actual state before any further action.',
+           'If this recurs, the approval window is too short relative to human latency (D-016).']);
+      }
+      if (/not allowed|blocked|Origin/i.test(text)) {
+        return d('TOOL_REFUSED_BY_POLICY', SEVERITY.INFO,
+          `${what} refused: ${text}`,
+          ['An origin, scope or schema rule rejected the request.'],
+          ['Expected when testing boundaries. Confirm the refusal matches the rule you meant to test.']);
+      }
+      return d('TOOL_ERROR', SEVERITY.WARN,
+        `${what} returned an error: ${text || '(no message)'}`,
+        ['The action reached the device but did not complete.'],
+        ['Re-inspect to confirm actual page state.']);
+    }
     if (o.status === 200 || o.status === 202) {
       return d('MCP_OK', SEVERITY.OK,
-        `MCP ${o.rpcMethod || 'request'} succeeded.`, [], []);
+        `MCP ${o.rpcMethod || 'request'}${o.toolName ? ' (' + o.toolName + ')' : ''} succeeded.`, [], []);
     }
   }
 
@@ -247,7 +287,7 @@ export function createDiagnostics(cfg) {
     enabled,
     /** Attach to a request; returns a setter for details only known mid-handling. */
     attach(req, res, requestId, correlationId) {
-      const extra = {rpcMethod: null, toolName: null, deviceOrigin: null};
+      const extra = {rpcMethod: null, toolName: null, deviceOrigin: null, isError: false, toolError: null};
       if (!enabled) return extra;
       const started = Date.now();
       const auth = req.headers.authorization;
@@ -267,7 +307,10 @@ export function createDiagnostics(cfg) {
           origin: req.headers.origin || null,
           rpcMethod: extra.rpcMethod,
           deviceOrigin: extra.deviceOrigin,
-          allowedOrigins: cfg.allowedOrigins || []
+          allowedOrigins: cfg.allowedOrigins || [],
+          toolName: extra.toolName,
+          isError: extra.isError,
+          toolError: extra.toolError
         };
         const event = {
           ts: new Date().toISOString(),

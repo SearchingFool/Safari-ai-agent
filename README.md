@@ -4,8 +4,57 @@
 
 An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
+## Risks you must understand before you start
+
+This software lets an AI assistant click and type inside a browser where **you are already logged in**. Read this section in full. It is not boilerplate.
+
+### 1. Web pages you inspect are sent to the AI provider
+
+When the agent looks at a page, that page's visible text goes to the AI company's servers. If you are signed in, that can include your name, your email address, your feed, your messages, your documents. Input values and password fields are deliberately excluded, but **everything else you can see, it can see**.
+
+**Only use this on pages you would be comfortable pasting into a chat window.**
+
+### 2. The agent acts as you, and the website cannot tell
+
+It uses your existing browser session — your cookies, your login. The website has no idea an agent is involved; it sees you. There is no server-side permission check anywhere, and the site's audit log will record your name, not the agent's.
+
+This differs fundamentally from a normal integration, where a service checks a token it issued and can refuse. **Here, the only thing standing between the AI and your account is you clicking "allow".**
+
+### 3. Web pages can try to hijack the agent
+
+A malicious page can embed instructions aimed at the AI rather than at you — "prompt injection". The agent reads the page, and the page tries to give it orders.
+
+This is the single biggest unsolved risk for every AI browser agent, including well-funded commercial ones. In March 2026 a zero-click vulnerability was found in Anthropic's own Chrome extension that let a visited page take control. It was patched — but **assume this project has undiscovered holes too.** It has had no security review.
+
+### 4. Approval fatigue is a real failure mode
+
+You approve each click. After the twentieth prompt, people stop reading them. The prompt now names the control — *"Delete account" (submits a form)* rather than *"click e37"* — specifically so a glance is enough. **Still read them.**
+
+### 5. Some actions cannot be undone
+
+Sending, posting, publishing, purchasing, deleting. Certain controls are refused outright and are never offered for approval. But that protection is a work in progress: it is known to be **too strict in places** (it blocks some harmless navigation) and **not strict enough in others** (Like, Follow and Subscribe currently pass through to an ordinary prompt). See `docs/DECISIONS.md` D-019.
+
+### 6. Running the Mac gateway exposes a public web address
+
+The Tailscale Funnel setup makes your Mac reachable from the internet. Both entrances require passwords, and the demo pages are inert — but it is public while it runs. **Stop it when you finish.**
+
+### 7. Known gaps, stated plainly
+
+| | |
+|---|---|
+| **D-017** | Two connected tabs deadlock with no way out from the interface |
+| **D-019** | The blocked-actions list is a keyword match; it misses non-English labels and icon-only buttons |
+| **D-023** | A permission prompt can appear in a tab you are not looking at |
+| **D-014** | Depends on Userscripts, an App Store-only app with effectively one maintainer |
+| — | No security review. No injection defences. Not audited by anyone |
+
+### 8. What this is for
+
+A **prototype for supervised use on pages you trust**, by the person who set it up. It is not a product, not multi-user, and not suitable for anything sensitive, financial or irreversible. Use the bundled `/demo` pages until you understand how it behaves.
+
 ## Where to start
 
+- **[Setup guide](docs/SETUP-GUIDE.md) — step-by-step instructions, written for non-technical users. Start here if you just want to use it.**
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md) — definitive product MVP acceptance criteria.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md) — phases B1–D, dependencies and release gates.
 - [Decision log](docs/DECISIONS.md) — architecture and decisions still requiring real evidence.

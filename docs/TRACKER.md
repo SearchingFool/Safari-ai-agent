@@ -2,7 +2,7 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** Test the prepared Mac + Tailscale Funnel gateway using [MAC_TAILSCALE_TEST.md](MAC_TAILSCALE_TEST.md), connect an eligible Claude account, and complete real iPad Safari device acceptance. Gateway and browser bridge merged on `main`; Mac Funnel launcher added as an optional test deployment path; live B1/B2/D acceptance **not confirmed**. Do not count synthetic Chromium and mock-GM tests as actual iPad or subscription validation.
+**Current focus:** Repeat the 2026-10-11 workflow on the **physical iPad**. The Mac + Tailscale Funnel gateway, the Claude remote MCP connector and the full observe/act/verify workflow are now demonstrated live, but **on macOS Safari**. B1-01 is closed; B2-01 and D2-01 remain open and require the actual device. Do not count the macOS rehearsal, synthetic Chromium runs or mock-GM tests as iPad acceptance.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -19,23 +19,25 @@ Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 | A-01 | Page snapshots, references and actions | Done in 0.1.1 | None | Existing merged code and Chromium tests |
 | A-02 | Time inputs and field constraints | Done in 0.1.1 | A-01 | Browser regression tests; user retest recommended |
 | A-03 | iPad Safari acceptance checklist | Partially observed, open | A-01/A-02 | Recorded inspect/fill/click/navigate/permission tests on actual iPad |
-| B1-01 | Supported AI-client custom-tool/MCP feasibility | **Next** | None | Actual tool invocation from user's eligible iPad AI account |
-| B1-02 | Subscription entitlement, terms and costs | Open | B1-01 | Verified supported subscription or approved alternative; no guessed billing |
-| B2-01 | Foreground iPad outbound transport and lifecycle | Open | A-03; initial tool contract | Command response, navigation, suspend and resume results |
-| C1-01 | Versioned browser tool contract and errors | Open | B1/B2 findings | Schemas and contract tests |
-| C2-01 | Authenticated MCP gateway/session routing | Open | B1-01, C1-01 | Tool-call round-trip through approved gateway |
-| C3-01 | Userscripts transport adapter | Open | B2-01, C1-01, C2-01 | Pairing and authorized observation/action in Safari |
-| C4-01 | **Minimum MVP safety gate**, not full harness | Open | C1-01, C3-01 | Allowlisted origins/actions; expiring, replay-safe requests; submission confirmation |
-| D1-01 | Model-driven observe/act/verify and navigation recovery | Open | C2, C3, C4 | End-to-end safe multi-page task without manual copy/paste |
+| B1-01 | Supported AI-client custom-tool/MCP feasibility | **Closed 2026-10-11** | None | Live Claude custom remote MCP connector: `initialize`, `tools/list` and 10 `tools/call` round trips, all HTTP 200. See 2026-10-11 entry |
+| B1-02 | Subscription entitlement, terms and costs | **Closed 2026-10-11** | B1-01 | Existing Claude subscription, static bearer header accepted; no API billing incurred; Funnel adds no cost |
+| B2-01 | Foreground iPad outbound transport and lifecycle | **Open — macOS rehearsal only** | A-03 | macOS Safari + Userscripts verified 2026-10-11. **iPad** suspend/resume/permission behaviour still unrecorded |
+| C1-01 | Versioned browser tool contract and errors | **Closed 2026-10-11** | — | Seven tools exercised live; stale-ref reassignment handled correctly across navigation |
+| C2-01 | Authenticated MCP gateway/session routing | **Closed 2026-10-11** | B1-01, C1-01 | Public HTTPS tool-call round trip, 2–1191 ms; `check:deployment` reports `transport: PASS` |
+| C3-01 | Userscripts transport adapter | **Open — macOS rehearsal only** | B2-01 | Real Userscripts extension paired and polled on macOS Safari; iPadOS runtime unverified |
+| C4-01 | **Minimum MVP safety gate**, not full harness | Partially closed | C1-01, C3-01 | Origin allowlist and approval prompts verified live. Submission block and Stop revocation **not yet exercised against the live rig** |
+| D1-01 | Model-driven observe/act/verify and navigation recovery | **Closed on macOS 2026-10-11** | C2, C3, C4 | Full multi-page workflow with no copy/paste: search, navigate, fill text/time/select, click, verify, stop without submitting |
 | D2-01 | Device acceptance, regression, documented limits | Open | D1-01 | All MVP release criteria in PRODUCT_REQUIREMENTS met |
 | E-01 | **Separate post-MVP governance harness** | Deferred | MVP acceptance | Independently specified policy and capability-lease milestone |
 | F-01 | Additional provider adapters and native packaging | Future | MVP acceptance | Independently verified adapters and Safari packaging |
 
 ## Current blockers and decisions to close
 
-1. Is a supported custom MCP/tool caller available in at least **one** of the user's actual subscription-backed iPad AI clients? This has not been demonstrated yet.
-2. Is a secure remotely reachable gateway required, and what does it cost? Need proof, not assumption.
-3. What can a foreground Userscripts page reliably send/receive across navigation and Safari suspension? Requires device tests.
+1. ~~Is a supported custom MCP/tool caller available?~~ **Closed 2026-10-11:** yes — Claude custom remote MCP connector with a static `Authorization: Bearer` header.
+2. ~~Is a secure remotely reachable gateway required, and what does it cost?~~ **Closed 2026-10-11:** required, and free — Tailscale Funnel over a loopback-bound gateway.
+3. What can a foreground Userscripts page reliably send/receive across navigation and Safari suspension? **Still open.** macOS Safari handled navigation and ref reassignment correctly; iPadOS suspension and backgrounding are untested.
+4. **New:** does human approval latency fit the command timeout on iPad? Measured 3.2–14.9 s on Mac against a 25 s timeout (D-016).
+5. **New:** should the MCP protocol target move from `2025-11-25`? Claude requested `2026-07-28` (D-015).
 
 If B1 fails, record a decision and seek approval for one alternative: supported API billing, a different tool client, an optional Mac-hosted agent, or an adjusted requirement. **Do not quietly redefine the MVP as manual copy/paste.**
 
@@ -76,6 +78,35 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 - Tailscale already installed on the user's Mac and iPad; no Verpex server is required for the initial test.
 - Mac launcher and [instructions](MAC_TAILSCALE_TEST.md) are committed. It binds the gateway to localhost, generates separate local secrets and uses Tailscale Funnel to expose HTTPS for remote MCP.
 - Actual Mac launch, public HTTPS endpoint, Claude account connector and device acceptance are **not yet completed**. Do not mark B1/D2 as accepted until demonstrated.
+
+## 2026-10-11 LIVE RUN — Claude connector and full workflow on macOS Safari
+
+**First end-to-end execution with a real AI client driving a real browser.** All timings from `logs/gateway-diagnostics.jsonl`.
+
+**Deployment.** Mac launcher + Tailscale Funnel; gateway bound to `127.0.0.1:8787`, public HTTPS at `https://libors-macbook-pro-2.tail1447fc.ts.net`. Public reachability confirmed by forcing resolution to Tailscale's ingress (`185.40.234.198`), bypassing MagicDNS — an earlier in-tailnet curl had **not** proven this. `npm run check:deployment` → `transport: PASS`, 7 tools.
+
+**B1 — Claude connector (closed).** Three failed attempts all sent `Authorization` of length 25: the literal placeholder `Bearer <MCP_CLIENT_TOKEN>` from the setup docs, never substituted. The connector had no edit affordance, so it was deleted and re-created with the real 71-character value. Handshake then succeeded: `initialize` → 200, `notifications/initialized` → 202, `tools/list` → 200. **Claude's connector does support static header auth on this account.**
+
+**D1 — workflow (closed on macOS).** 10 `tools/call` round trips, **all HTTP 200**:
+
+| Tool | ms | Note |
+|---|---|---|
+| `browser_status` | 2 | `connected: true`, origin matched allowlist |
+| `browser_inspect` | 159 | hidden `never-share-me` field correctly omitted |
+| `browser_fill` | 169 | search term |
+| `browser_click` | 14915 | **approval dialog wait** |
+| `browser_inspect` | 607 | confirmed navigation to `/demo/product` |
+| `browser_fill` ×3 | 528 / 841 / 1027 | text, time, select |
+| `browser_click` | 3227 | **approval dialog wait** |
+| `browser_inspect` | 1191 | verified `Preview ready` |
+
+Search → navigate → fill text/time/select → click → verify, with **no copy/paste of tool calls**, stopping without submitting. Click returned `dispatched: true, verified: false` and the client re-inspected rather than assuming success — the navigation-uncertainty contract behaved as designed. Element refs were reassigned across navigation and the client used the new snapshot.
+
+**Device bridge.** Real Userscripts extension on **macOS Safari** (not iPad), polling `/device/poll` ~1/s, every response `DEVICE_OK`, origin matching the allowlist exactly.
+
+**Findings recorded as decisions:** D-015 (Claude requested MCP protocol `2026-07-28`; gateway advertises `2025-11-25`, returned 400, client renegotiated). D-016 (approval latency 3.2–14.9 s against a 25 s timeout — the worst case used 60% of the budget). D-014 (Userscripts is App Store-only, effectively single-maintainer, in beta since 2026-01 — a single point of failure for the iPad path).
+
+**NOT established.** This was **macOS Safari, not the iPad**. No iPadOS extension runtime, tab suspension, backgrounding or device-specific permission behaviour was exercised. Submission blocking and Stop revocation were **not** run against the live rig. No ten-run reliability measurement, no security review. **B2-01 and D2-01 remain open; the MVP is not accepted.**
 
 ## 2026-10-11 test-suite determinism correction
 

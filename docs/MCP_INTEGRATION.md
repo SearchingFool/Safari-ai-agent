@@ -49,7 +49,9 @@ For Claude mobile: deploy to a trusted public **HTTPS endpoint** with the applic
 Anthropic's official custom remote MCP connectors can be added from Claude's `Customize > Connectors` settings, typically via Claude's web interface. Remote connectors configured on the account can be used by supported Claude mobile apps. Connector availability must be checked with the actual subscription.
 
 1. Add a custom web connector named `Safari AI Agent` pointing to `https://your-gateway.example/mcp`.
-2. Choose `No sign in` **only when also configuring an authentication request header**. Set fixed header `Authorization: Bearer <MCP_CLIENT_TOKEN>` as supported by Claude's custom header configuration. Do not publish the secret or put it in the user's prompt.
+2. Choose `No sign in` **only when also configuring an authentication request header**. Header name `Authorization`; header value is `Bearer`, one space, then the real 64-hex-character token — **71 characters total**. Do not publish the secret or put it in the user's prompt.
+
+   > **The placeholder is not the value.** Pasting the literal text `Bearer <MCP_CLIENT_TOKEN>` sends 25 characters and fails with a bare 401, which clients may report as "can't reach the server" rather than an auth error. Verified failure mode, 2026-10-11. Compose the full value locally and paste it once; if the saved connector cannot be edited, delete and recreate it.
 3. Enable that connector in the chosen Claude conversation on iPad.
 4. Ask Claude to use `browser_status`, then `browser_inspect`. Once a real page snapshot is returned, request a harmless fill and a locally approved click. Finish with `browser_verify`.
 5. If the actual Claude client does not accept or send fixed authorization headers, stop and document the problem rather than weakening authentication. OAuth would be the preferred replacement.

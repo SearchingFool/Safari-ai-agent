@@ -38,7 +38,17 @@ If the Mac already serves another application on port 8787 or the Funnel's publi
 The launcher prints the **Claude MCP URL**, ending in `/mcp`. On your own Claude account (web settings for custom connectors):
 
 1. Add a custom connector called **Safari AI Agent** with the printed MCP URL.
-2. If supported on your account, choose no interactive sign-in **with** fixed request-header authentication: `Authorization: Bearer <MCP_CLIENT_TOKEN>`. Retrieve the actual token **locally on your Mac** from the credentials file; never paste it into chat.
+2. If supported on your account, choose no interactive sign-in **with** fixed request-header authentication. Header name `Authorization`; header value is the word `Bearer`, one space, then your real 64-hex-character token — **71 characters in total**.
+
+   > **Do not paste the text `Bearer <MCP_CLIENT_TOKEN>` literally.** On 2026-10-11 this exact mistake cost three failed connection attempts: the placeholder is 25 characters, the gateway expects 71, and Claude reported only "can't reach the server". Build the full value on the Mac and paste it in one go:
+   >
+   > ```sh
+   > printf 'Bearer %s' "$(awk -F= '/^MCP_CLIENT_TOKEN=/{printf "%s",$2}' .env.mac-tailscale)" | pbcopy
+   > ```
+   >
+   > Then paste with ⌘V and type nothing around it — no quotes, no trailing space. Never paste the token into chat.
+   >
+   > If the connector has no edit affordance after saving, **delete it and create it again**; there may be no way to correct a stored header value in place.
 3. Enable the connector in Claude on iPad; call **browser_status** as an initial non-destructive test.
 
 If your Claude account does not support custom MCP tools or fixed authentication headers, stop and report that capability blocker; do not disable authentication or purchase API access without separate approval.

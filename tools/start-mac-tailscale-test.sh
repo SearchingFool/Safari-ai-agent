@@ -76,7 +76,24 @@ if ! node -e 'const s=require("node:net").createServer();s.on("error",()=>proces
   exit 1
 fi
 export MCP_CLIENT_TOKEN DEVICE_TOKEN DEMO_PASSWORD
-export PORT=8787 BIND_ADDRESS=127.0.0.1 SAFARI_ALLOWED_ORIGINS="https://$host"
+# The demo origin is always allowed. SAFARI_EXTRA_ORIGINS deliberately widens the
+# allowlist to real third-party sites for generality testing. Every added origin is
+# a site whose rendered text browser_inspect will send to the model provider, so
+# this is an explicit, logged opt-in and never a default.
+allowed_origins="https://$host"
+if [[ -n "${SAFARI_EXTRA_ORIGINS:-}" ]]; then
+  for extra in ${SAFARI_EXTRA_ORIGINS//,/ }; do
+    if [[ ! "$extra" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+      echo "Refusing malformed extra origin: $extra (expected https://host with no path)" >&2
+      exit 1
+    fi
+  done
+  allowed_origins="$allowed_origins,$SAFARI_EXTRA_ORIGINS"
+  echo "WARNING: allowlist widened beyond the demo to: $SAFARI_EXTRA_ORIGINS"
+  echo "WARNING: page text from those sites will be sent to the AI provider when inspected."
+  echo "WARNING: do not use this on authenticated, private or sensitive pages."
+fi
+export PORT=8787 BIND_ADDRESS=127.0.0.1 SAFARI_ALLOWED_ORIGINS="$allowed_origins"
 
 gateway_pid=""
 cleanup() {

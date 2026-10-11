@@ -126,6 +126,21 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
 
 # Part 3 — The iPad
 
+> ### Already set up the Mac and Claude? Start here.
+>
+> You need exactly four things from the Mac, all printed by the launcher in Step 1.3 and none of them secret enough to write down anywhere shared:
+>
+> | | |
+> |---|---|
+> | **Demo page** | your `https://<mac>.ts.net/demo` address |
+> | **Base URL** | the same address with **nothing after it** — no `/demo`, no `/mcp` |
+> | **Demo login** | username `safari-demo`, password = `DEMO_PASSWORD` |
+> | **Device token** | `DEVICE_TOKEN` — **a different secret** from the one Claude uses |
+>
+> Both secrets live only in `.env.mac-tailscale` on the Mac. Copy them across with Universal Clipboard (Step 3.3); never type them into a chat, email or message.
+>
+> The Mac launcher must be **running** in a Terminal window the whole time, and the Mac must stay awake.
+
 ### Step 3.1 — Install Userscripts
 
 1. Open the **App Store** on the iPad
@@ -167,7 +182,9 @@ If both devices use the same Apple account with Handoff on, **Universal Clipboar
 
 The status should read `Connected`.
 
-> **Only one tab may be connected at a time.** If a second tab tries, it is locked out and will appear stuck. Press **Stop** in the other tab first. (Known problem, tracked as D-017.)
+> **Only one tab may be connected at a time.** If a second tab tries to connect, it is refused — but it now tells you **which page currently holds the session** and offers a **Take over** button. Use that, or press **Stop** in the other tab. (Previously this was a silent hang; D-017/D-023.)
+
+> **If the tab is not in front, the agent is paused — deliberately.** The panel shows *"Paused — tab not visible"*, and the gateway will **refuse** to hand it a command rather than letting an approval prompt appear where you cannot see it. Claude will be told the tab is not visible. Bring the tab forward and it resumes on its own.
 
 ### Step 3.5 — Try it
 
@@ -225,7 +242,8 @@ It prints what happened in plain language, with likely causes and suggested fixe
 | `MCP_NO_CREDENTIAL` | Claude's connector has no password saved |
 | `MCP_TOKEN_LENGTH_MISMATCH` | Wrong or truncated paste — it tells you by how many characters |
 | `DEVICE_ORIGIN_NOT_ALLOWED` | The iPad is on a page the gateway does not permit |
-| `DEVICE_SESSION_CONFLICT` | Two tabs connected — press Stop in the other one |
+| `DEVICE_SESSION_CONFLICT` | Another tab holds the session. The panel names it — use **Take over**, or press Stop there |
+| `paused: hidden` on a poll | The connected tab is not in front. Expected, not an error — bring it forward |
 | `TOOL_BLOCKED_HIGH_IMPACT` | The agent tried something it is not allowed to do. Working as designed |
 | `TOOL_TIMED_OUT` | Nobody answered the permission prompt. **The result is uncertain** — check the page yourself |
 | No events at all | Claude never reached your Mac. Check the address, and that the Terminal is still running |

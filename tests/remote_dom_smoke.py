@@ -38,16 +38,38 @@ def main():
             {configurable:true,get:()=>window.__visibility||'visible'});
           // D-039. Stubbed so the test can observe what was played, and so the
           // "audio is broken" case can be forced - the prompt must still appear.
+          // D-040. This stub models SAFARI, not an easier world. The first
+          // version resumed instantly and accepted notes whatever the context
+          // state, so it could not catch either real fault: that iOS needs a
+          // buffer actually PLAYED inside a gesture before audio unlocks, and
+          // that resume() is async so notes scheduled immediately after it are
+          // dropped. Both shipped green.
           window.__tones=[]; window.__audioThrows=false; window.__ctxState='suspended';
+          window.__unlockedByBuffer=false; window.__dropped=0;
           window.AudioContext=function(){
             if(window.__audioThrows)throw new Error('audio unavailable');
             this.currentTime=0;
+            this.sampleRate=44100;
             Object.defineProperty(this,'state',{get:()=>window.__ctxState});
-            this.resume=()=>{window.__ctxState='running';return Promise.resolve();};
+            // Asynchronous, as it really is. Anything scheduled before this
+            // settles would be scheduled against a stopped clock.
+            this.resume=()=>new Promise(res=>setTimeout(()=>{
+              if(window.__unlockedByBuffer)window.__ctxState='running';
+              res();
+            },10));
             this.destination={};
+            this.createBuffer=()=>({});
+            this.createBufferSource=()=>({buffer:null,connect(){},
+              // Playing a buffer inside a gesture is what actually unlocks iOS.
+              start(){window.__unlockedByBuffer=true;}});
             this.createGain=()=>({gain:{setValueAtTime(){},exponentialRampToValueAtTime(){}},connect(){}});
             this.createOscillator=()=>{const o={type:'',frequency:{value:0},connect(){},
-              start(){window.__tones.push(o.frequency.value);},stop(){}};return o;};
+              start(){
+                // A note scheduled while the context is still suspended is
+                // dropped by the hardware, silently. Count it, do not play it.
+                if(window.__ctxState!=='running'){window.__dropped++;return;}
+                window.__tones.push(o.frequency.value);
+              },stop(){}};return o;};
           };
           window.__conflict=null;
           // The gateway delivers only the TUNABLE half of policy. The test
@@ -831,11 +853,27 @@ def main():
         # all - so audio is unlocked and the context resumed out of Safari's
         # suspended state. The locked-on-load case is asserted at load, above.
         page.evaluate("window.__panel.querySelector('.toggle').click()")
-        assert page.evaluate('window.__ctxState') == 'running', page.evaluate('window.__ctxState')
-        page.evaluate('window.__tones=[]')
+        # resume() is async on Safari, so the context is not running the instant
+        # the tap returns. Asserting it synchronously was my own flake.
+        try:
+            page.wait_for_function("window.__ctxState==='running'", timeout=4000)
+        except Exception:
+            print("  DEBUG ctxState:", page.evaluate("window.__ctxState"))
+            print("  DEBUG unlockedByBuffer:", page.evaluate("window.__unlockedByBuffer"))
+            print("  DEBUG soundBox checked:", page.evaluate("window.__panel.querySelector('#sound').checked"))
+            print("  DEBUG stored pref:", page.evaluate("window.__settings['safari-agent:approval-sound']"))
+            raise
+        # The buffer-play inside the gesture is what actually unlocks iOS audio.
+        assert page.evaluate('window.__unlockedByBuffer') is True, 'no buffer was played inside the gesture (D-040)'
+        page.evaluate('window.__tones=[];window.__dropped=0')
         raise_prompt('00000000-0000-4000-8000-00000000390b')
+        # resume() is async, so the notes arrive slightly after the dialog.
+        page.wait_for_function('window.__tones.length>=2', timeout=4000)
         tones = page.evaluate('window.__tones')
         assert tones == [880, 1320], tones
+        # And nothing was scheduled against a still-suspended clock, which is
+        # the failure that is silent and leaves no error behind (D-040).
+        assert page.evaluate('window.__dropped') == 0, page.evaluate('window.__dropped')
         page.evaluate("window.__panel.querySelector('#approve-deny').click()")
         page.wait_for_function("window.__panel.querySelector('.approval').hidden===true", timeout=5000)
 

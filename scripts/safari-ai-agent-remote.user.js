@@ -262,14 +262,42 @@
   const K_URL = 'safari-agent:gateway-url';
   const K_TOKEN = 'safari-agent:device-token';
   const K_SITE = `safari-agent:enabled:${location.origin}`;
+  // Per-TAB identity. sessionStorage is scoped to one tab and survives
+  // same-tab navigation and reload, which is exactly the lifetime of a paired
+  // session: a new tab gets a new id, but navigating within this tab keeps it,
+  // so the gateway does not see our own next page as a rival tab.
+  // Not a secret and never sent to a model - the device token stays in GM storage.
+  const K_INSTANCE = 'safari-agent:instance';
+  const INSTANCE_ID = /^[A-Za-z0-9_-]{8,64}$/;
   const MAX_WAIT = 8000;
   let running = false;
+  let paused = false;
   let timer = null;
+  let loopId = 0;
   let lastCommand = '';
   let lastSnapshot = null;
+  let takeoverRequested = false;
   const core = globalThis.SafariAIAgentCore.createAgentCore(document, window);
   let url = '';
   let token = '';
+
+  const instanceId = (() => {
+    let existing = '';
+    // Opaque origins (and Private Browsing) throw on sessionStorage access.
+    // Falling back to a memory-only id is correct: no storage means no tab
+    // continuity to preserve anyway.
+    try { existing = String(window.sessionStorage.getItem(K_INSTANCE) || ''); } catch { existing = ''; }
+    if (INSTANCE_ID.test(existing)) return existing;
+    const fresh = (typeof crypto === 'object' && typeof crypto.randomUUID === 'function')
+      ? crypto.randomUUID()
+      : `t${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
+    try { window.sessionStorage.setItem(K_INSTANCE, fresh); } catch { /* memory-only id */ }
+    return fresh;
+  })();
+
+  // Identity sent on every device call. visibilityState is part of it because
+  // the gateway refuses to hand a command to a tab the operator cannot see.
+  const identity = () => ({origin: location.origin, instanceId, visibility: document.visibilityState});
 
   // The native Userscripts API bridges to Safari's extension, bypassing page CORS.
   async function request(path, payload) {
@@ -278,8 +306,17 @@
       method:'POST', url:url + path, headers:{'Authorization':`Bearer ${token}`,'Content-Type':'application/json'},
       data:JSON.stringify(payload), timeout:MAX_WAIT, responseType:'text'
     });
-    if(response.status!==200) throw new Error(`Gateway HTTP ${response.status}`);
-    try{return JSON.parse(response.responseText);}catch{throw new Error('Gateway returned invalid JSON');}
+    let body = null;
+    try{ body = JSON.parse(response.responseText); }catch{ body = null; }
+    if(response.status!==200){
+      // Carry the parsed body on the error. A bare "HTTP 409" is what made the
+      // two-tab deadlock undiagnosable from the panel (D-017).
+      const error = new Error(body && body.error ? `Gateway HTTP ${response.status}: ${body.error}` : `Gateway HTTP ${response.status}`);
+      error.status = response.status; error.payload = body;
+      throw error;
+    }
+    if(!body) throw new Error('Gateway returned invalid JSON');
+    return body;
   }
   function execute(command){
     if(!command || typeof command!=='object' || command.origin!==location.origin) throw new Error('Wrong session origin');
@@ -317,11 +354,38 @@
     }
   }
   const sleep=ms=>new Promise(resolve=>{timer=setTimeout(resolve,ms);});
+  // A target="_blank" link opens a NEW tab, which would strand the paired
+  // session in the tab the operator is still looking at and start an unpaired
+  // instance elsewhere. Rewrite to _self in the capture phase: the target
+  // attribute is read when the default action runs, after dispatch, so this
+  // takes effect for the click we are about to make. It is not restored
+  // afterwards - the page is navigating away, and keeping the agent's work in
+  // the paired tab is the intended behaviour, not a temporary override.
+  function keepNavigationInThisTab(event){
+    const link = event.target && typeof event.target.closest==='function' ? event.target.closest('a[target]') : null;
+    if(!link) return;
+    const requested = link.getAttribute('target');
+    if(!requested || requested==='_self') return;
+    try{
+      if(new URL(link.getAttribute('href')||'',document.baseURI).origin!==location.origin) return;
+    }catch{ return; }
+    link.setAttribute('target','_self');
+  }
+  function clickInThisTab(ref){
+    document.addEventListener('click',keepNavigationInThisTab,true);
+    try{ return core.click(ref); }
+    finally{ document.removeEventListener('click',keepNavigationInThisTab,true); }
+  }
   async function pump(){
-    while(running){
+    const mine=++loopId; // Retires any older loop; prevents two pumps after a resume.
+    while(running && !paused && loopId===mine){
       try {
-        const p=await request('/device/poll',{origin:location.origin});
-        if(!running) break; // Stop during an in-flight network request must prevent execution.
+        const poll={...identity()};
+        if(takeoverRequested)poll.takeover=true;
+        const p=await request('/device/poll',poll);
+        takeoverRequested=false;
+        conflict=null;
+        if(!running||paused||loopId!==mine) break; // Stop/pause during an in-flight request must prevent execution.
         if(p.command){
           const command=p.command;
           lastCommand=command.action;
@@ -329,11 +393,11 @@
           try{outcome=execute(command);}catch(e){outcome={success:false,error:String(e.message||e)};}
           // Acknowledge before unload for click/navigation. This is a dispatch
           // acknowledgement ONLY, not confirmation that navigation succeeded.
-          const a=await request('/device/result',{id:command.id,origin:location.origin,result:outcome});
+          const a=await request('/device/result',{id:command.id,...identity(),result:outcome});
           if(!a.accepted)throw new Error('Gateway rejected result');
           // Stop while the request was in flight must prevent further local actions.
           // An already-acknowledged navigation/click is still unverified remotely.
-          if(!running) return;
+          if(!running||paused||loopId!==mine) return;
           if(outcome.success && outcome.dispatched && command.action==='browser_navigate'){
             running=false;
             location.assign(outcome.url);
@@ -341,32 +405,72 @@
           }
           if(outcome.success && outcome.dispatched && command.action==='browser_click'){
             // Re-check element/reference after user's confirmation, then click.
-            const result=core.click(command.args.ref);
+            const result=clickInThisTab(command.args.ref);
             if(result.requiresApproval)throw new Error('Unexpected high-impact control on recheck');
             lastSnapshot=null;
           }
         }
         show(running?`Connected · ${lastCommand||'ready'}`:'Stopped');
-      } catch(e){show(`Connection/action error: ${String(e.message||e)}`);}
-      if(running)await sleep(1200);
+      } catch(e){
+        if(e.status===409 && e.payload && e.payload.code==='DEVICE_SESSION_CONFLICT')showConflict(e.payload);
+        else show(`Connection/action error: ${String(e.message||e)}`);
+      }
+      if(running && !paused && loopId===mine)await sleep(1200);
     }
   }
-  function show(message){ if(status)status.textContent=message; }
+  function show(message){ if(status)status.textContent=message; if(takeover)takeover.hidden=!conflict; }
+  // Name the tab that actually holds the session and offer a way out. Before
+  // this the losing panel showed a bare HTTP error and polled forever (D-017).
+  function showConflict(payload){
+    conflict=payload;
+    const who=payload.sameOrigin
+      ? 'Another tab of this same site'
+      : `${payload.activeOrigin||'Another site'}`;
+    const seconds=Math.ceil((payload.staleAfterMs||0)/1000);
+    show(`${who} is connected and owns the device session. Stop it there, or press "Take over" to move the session to this tab. ${seconds>0?`It frees itself in about ${seconds}s if that tab is gone.`:''}`);
+  }
   let status=null;
+  let takeover=null;
+  let conflict=null;
   async function start(){
     if(running)return;
     url=String(await GM.getValue(K_URL,'')).replace(/\/$/,'');
     token=String(await GM.getValue(K_TOKEN,''));
     if(!url.startsWith('https://')||token.length<24)throw Error('Configure HTTPS gateway and 24+ character device token first');
-    running=true; await GM.setValue(K_SITE,true);show('Connecting...');void pump();
+    running=true;
+    paused=document.visibilityState!=='visible';
+    await GM.setValue(K_SITE,true);
+    if(paused){show(PAUSED);return;}
+    show('Connecting...');void pump();
   }
+  const PAUSED='Paused - tab not visible. Nothing will run until you return to this tab.';
+  // Safari throttles background timers well past the gateway's 45s freshness
+  // window, so an unhandled hidden tab used to look dead. Pausing explicitly
+  // makes the state legible AND tells the gateway, so a queued command fails
+  // fast with a clear reason instead of timing out as "outcome uncertain".
+  function onVisibilityChange(){
+    if(!running)return;
+    if(document.visibilityState==='visible'){
+      if(!paused)return;
+      paused=false;conflict=null;clearTimeout(timer);show('Resuming...');void pump();
+      return;
+    }
+    if(paused)return;
+    paused=true;loopId++;clearTimeout(timer);show(PAUSED);
+    // Best effort only: tells the gateway this tab is not a safe place to run.
+    if(url&&token)void request('/device/poll',identity()).catch(()=>{});
+  }
+  document.addEventListener('visibilitychange',onVisibilityChange);
+  // bfcache/unload: retire the loop so a restored page starts one pump, not two.
+  window.addEventListener('pagehide',()=>{if(running&&!paused){paused=true;loopId++;clearTimeout(timer);}});
+  window.addEventListener('pageshow',()=>{if(running&&paused&&document.visibilityState==='visible')onVisibilityChange();});
   async function stop(){
-    running=false;clearTimeout(timer);
+    running=false;paused=false;conflict=null;loopId++;clearTimeout(timer);
     // Persist the explicit stop before asking the gateway to revoke this device.
     await GM.setValue(K_SITE,false);
     show('Stopping and revoking queued commands...');
     try {
-      if(url && token) await request('/device/disconnect',{origin:location.origin});
+      if(url && token) await request('/device/disconnect',identity());
       show('Disconnected; queued commands revoked.');
     } catch (error) {
       // Local stop always wins. If offline, the gateway may retain an in-flight
@@ -389,10 +493,10 @@
       <b>Safari AI Agent Remote</b><p>This page can be read by a connected AI. For testing, use only a non-sensitive website. Every click requires permission; form submission is blocked.</p>
       <label>Gateway HTTPS URL</label><input id="gateway" autocomplete="off" placeholder="https://your-domain.example" />
       <label>Device token (never share with an AI)</label><input id="secret" type="password" autocomplete="off" />
-      <div class="actions"><button id="save" type="button">Save</button><button id="connect" type="button">Connect</button><button id="stop" type="button">Stop</button></div>
+      <div class="actions"><button id="save" type="button">Save</button><button id="connect" type="button">Connect</button><button id="stop" type="button">Stop</button><button id="takeover" type="button" hidden>Take over</button></div>
       <div class="status" role="status">Disabled on this site</div></section>`;
     shadow.append(style,root);document.documentElement.appendChild(host);
-    const panel=root.querySelector('.panel');status=root.querySelector('.status');
+    const panel=root.querySelector('.panel');status=root.querySelector('.status');takeover=root.querySelector('#takeover');
     root.querySelector('.toggle').addEventListener('click',()=>{panel.hidden=!panel.hidden;});
     root.querySelector('#save').addEventListener('click',async()=>{
       try{const u=root.querySelector('#gateway').value.trim().replace(/\/$/,'');const t=root.querySelector('#secret').value.trim();
@@ -403,6 +507,13 @@
     });
     root.querySelector('#connect').addEventListener('click',async()=>{try{await start()}catch(e){show(String(e.message||e))}});
     root.querySelector('#stop').addEventListener('click',()=>void stop());
+    // Takeover is deliberately operator-driven: the gateway will never move a
+    // session between tabs on its own, because the moving tab may be one the
+    // operator is not looking at.
+    takeover.addEventListener('click',async()=>{
+      takeoverRequested=true;conflict=null;show('Taking over the device session...');
+      if(!running){try{await start()}catch(e){show(String(e.message||e))}}
+    });
     void (async()=>{try{
       root.querySelector('#gateway').value=String(await GM.getValue(K_URL,''));
       if(await GM.getValue(K_SITE,false))await start();

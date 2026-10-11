@@ -92,21 +92,52 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
     allowedOrigins:[...allowed]
   });
+  // The device session is keyed on {origin, instanceId}, NOT on origin alone.
+  // Origin-only keying (D-023) let two tabs of the same site both hold the
+  // session, so a queued command was claimed by whichever tab polled first.
+  // That is non-deterministic AND unsafe: the approval prompt could appear in
+  // a tab the operator cannot see.
+  const INSTANCE_ID=/^[A-Za-z0-9_-]{8,64}$/;
   const pending=new Map(); let current=null;let lastPoll=0;let generation=0;
-  const status=()=>({connected:clock()-lastPoll<deviceFreshMs,activeOrigin:current?.origin||null,queueDepth:pending.size,generation});
+  const sessionFresh=()=>Boolean(current)&&clock()-lastPoll<deviceFreshMs;
+  const status=()=>({
+    connected:clock()-lastPoll<deviceFreshMs,
+    activeOrigin:current?.origin||null,
+    activeInstanceId:current?.instanceId||null,
+    // Last visibility the paired tab reported. A session can be fresh and still
+    // unusable because the tab is backgrounded.
+    activeVisibility:current?.visibility||null,
+    queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
   function cancelAll(reason='Cancelled'){
     for(const [id,p] of pending){p.resolve(toolError(reason));dispose(id);}generation++;
+  }
+  // Everything a losing tab needs to explain itself and offer a way out. The
+  // caller is already device-token authenticated, so naming the owning origin
+  // discloses nothing it could not learn by holding the session itself.
+  function conflictBody(b){
+    return {
+      activeOrigin:current?.origin||null,
+      activeInstanceId:current?.instanceId||null,
+      sameOrigin:current?.origin===b.origin,
+      staleAfterMs:Math.max(0,deviceFreshMs-(clock()-lastPoll)),
+      canTakeOver:true
+    };
   }
   async function call(tool,args){
     if(tool==='browser_status')return toolOK(status());
     if(tool==='browser_cancel'){cancelAll();return toolOK({success:true,cancelled:true});}
     const err=validate(args,tool,allowed);if(err)return toolError(err);
     if(!status().connected)return toolError('No active iPad Safari device. Open the test tab and enable Remote Control.');
+    // Fail fast rather than queueing for a tab that is not on screen. Without
+    // this the command sits unclaimed for the full commandTimeoutMs and comes
+    // back as "outcome may be uncertain" - the one class of failure a caller
+    // cannot safely retry. A hidden tab is a known, certain refusal.
+    if(current.visibility!=='visible')return toolError('The paired Safari tab is not visible. Bring it to the front, then retry.');
     if(pending.size>=1)return toolError('Only one in-flight action allowed');
     const id=randomUUID();
     return await new Promise(resolve=>{
-      const item={id,action:tool,args,origin:current.origin,issuedAt:clock(),expiresAt:clock()+commandTimeoutMs,claimed:false,resolve,timer:null};
+      const item={id,action:tool,args,origin:current.origin,instanceId:current.instanceId,issuedAt:clock(),expiresAt:clock()+commandTimeoutMs,claimed:false,resolve,timer:null};
       item.timer=setTimeout(()=>{resolve(toolError('Device command timed out; action outcome may be uncertain. Inspect again.'));dispose(id);},commandTimeoutMs);
       pending.set(id,item);
     });
@@ -177,9 +208,16 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         if(req.method!=='POST')return fail(res,405,'POST only');
         const b=await readBody(req);
         if(typeof b.origin==='string')trace.deviceOrigin=b.origin;
+        // Every device call must name the tab it comes from. Omitting it is a
+        // client that predates tab-scoped sessions; accepting it would restore
+        // the exact ambiguity D-023 describes, so it is refused outright.
+        if(typeof b.instanceId!=='string'||!INSTANCE_ID.test(b.instanceId))return fail(res,400,'A per-tab instanceId is required');
+        const owns=current && current.origin===b.origin && current.instanceId===b.instanceId;
         if(url.pathname==='/device/disconnect'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
-          if(current && current.origin!==b.origin)return fail(res,409,'Different active origin');
+          // A tab may only revoke its own session, never another tab's - even
+          // one on the same origin. Takeover is an explicit, separate act.
+          if(sessionFresh() && !owns)return json(res,409,{error:'A different tab owns the device session',code:'DEVICE_SESSION_CONFLICT',...conflictBody(b),requestId});
           // Stop is a server-side revocation, not just a paused client poller.
           // Cancelling a claimed command invalidates subsequent result submissions.
           current=null;lastPoll=0;cancelAll('Device explicitly disconnected');
@@ -187,10 +225,26 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         }
         if(url.pathname==='/device/poll'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
-          if(current && current.origin!==b.origin && clock()-lastPoll<deviceFreshMs)return fail(res,409,'Another site already owns the device session');
-          current={origin:b.origin};lastPoll=clock();
+          if(sessionFresh() && !owns){
+            // The losing tab previously got a bare 409 forever with no way out
+            // (D-017). Name the owner so the panel can say WHICH tab holds the
+            // session, and accept an explicit operator-driven takeover.
+            if(b.takeover!==true)return json(res,409,{error:'Another tab already owns the device session',code:'DEVICE_SESSION_CONFLICT',...conflictBody(b),requestId});
+            // Takeover invalidates everything the previous tab might still act
+            // on. Queued commands were issued against a page the operator is no
+            // longer looking at, so they must not survive the handover.
+            cancelAll('Device session taken over by another tab');
+          }
+          const visibility=b.visibility==='visible'?'visible':'hidden';
+          current={origin:b.origin,instanceId:b.instanceId,visibility};lastPoll=clock();
+          // SAFETY GATE. A hidden tab is told "nothing to do", not given an
+          // error: it is a healthy session that simply must not act. Delivering
+          // here would raise window.confirm() in a tab the operator cannot see,
+          // so they would either never answer it or approve the visible tab's
+          // page while a different page acted.
+          if(visibility!=='visible')return json(res,200,{command:null,generation,paused:'hidden'});
           for(const p of pending.values()){
-            if(!p.claimed && p.origin===b.origin && p.expiresAt>clock()){
+            if(!p.claimed && p.origin===b.origin && p.instanceId===b.instanceId && p.expiresAt>clock()){
               p.claimed=true;
               return json(res,200,{command:{id:p.id,action:p.action,args:p.args,origin:p.origin,expiresAt:p.expiresAt,generation}});
             }
@@ -201,6 +255,9 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           const p=pending.get(b.id);
           if(!p||!p.claimed||p.expiresAt<=clock())return fail(res,409,'Unknown, expired or duplicate command');
           if(b.origin!==p.origin)return fail(res,403,'Origin mismatch');
+          // A result is only accepted from the exact tab the command was issued
+          // to, so a sibling tab cannot answer for work it did not perform.
+          if(b.instanceId!==p.instanceId)return fail(res,403,'Instance mismatch');
           const response=b.result;
           if(!response||typeof response!=='object'||Array.isArray(response)||JSON.stringify(response).length>50000)return fail(res,400,'Invalid result');
           if(response.requiresApproval && !response.approved)return fail(res,400,'Approval not granted');

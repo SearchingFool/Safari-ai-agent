@@ -9,7 +9,10 @@ async function testGateway(fn, options={}) {
   const base=`http://127.0.0.1:${g.server.address().port}`;
   const post=(path,body,token=mcpToken,headers={})=>fetch(base+path,{method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json',...headers},body:JSON.stringify(body)});
   const rpc=(method,params={},id=1)=>post('/mcp',{jsonrpc:'2.0',id,method,params});
-  const device=(name,body,token=deviceToken)=>post('/device/'+name,body,token);
+  // Every device call now carries tab identity and visibility. The helper
+  // supplies the common case so each test states only what it is varying;
+  // tests that exercise a second tab or a hidden tab pass them explicitly.
+  const device=(name,body,token=deviceToken)=>post('/device/'+name,{instanceId:'tab-primary-1',visibility:'visible',...body},token);
   try{return await fn({g,base,post,rpc,device})}finally{await g.close()}
 }
 const call=(name,args={})=>({name,arguments:args});
@@ -23,9 +26,9 @@ const output=x=>JSON.parse(x.result.content[0].text);
 // roughly half the time. The real bridge re-polls every 1200ms (src/remote.js)
 // and treats an empty answer as the ordinary idle case, so the tests do the
 // same with a tighter interval instead of assuming the first poll wins.
-async function awaitCommand(device,origin,{attempts=100,intervalMs=5}={}){
+async function awaitCommand(device,origin,{attempts=100,intervalMs=5,...body}={}){
   for(let i=0;i<attempts;i++){
-    const {command}=await payload(await device('poll',{origin}));
+    const {command}=await payload(await device('poll',{origin,...body}));
     if(command)return command;
     await new Promise(resolve=>setTimeout(resolve,intervalMs));
   }
@@ -163,3 +166,124 @@ test('Demo endpoints challenge unauthenticated callers without leaking page cont
 test('Demo is hidden when demo password is not configured',()=>testGateway(async({base})=>{
   assert.equal((await fetch(base+'/demo')).status,404);
 },{demoPassword:undefined}));
+
+// --- Tab-scoped device sessions (D-017, D-023) --------------------------------
+// The session used to be keyed on origin alone, so two tabs of one site both
+// held it and either could claim a queued command. These tests pin the three
+// properties that fix depends on: identity is required, a command reaches only
+// the tab it was issued to, and a hidden tab is never given work.
+const second='tab-second-2';
+
+test('Device calls without a per-tab instanceId are refused',()=>testGateway(async({post})=>{
+  const raw=(name,body)=>post('/device/'+name,body,deviceToken);
+  assert.equal((await raw('poll',{origin})).status,400);
+  assert.equal((await raw('disconnect',{origin})).status,400);
+  assert.equal((await raw('result',{id:'x',origin,result:{success:true}})).status,400);
+  // A syntactically impossible id is refused as firmly as a missing one.
+  assert.equal((await raw('poll',{origin,instanceId:'short'})).status,400);
+  assert.equal((await raw('poll',{origin,instanceId:'bad id with spaces'})).status,400);
+}));
+
+test('Same-origin second tab is refused, told who owns the session, and cannot claim the command',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),20));
+  const rejected=await device('poll',{origin,instanceId:second});
+  assert.equal(rejected.status,409);
+  const body=await payload(rejected);
+  // D-017: the losing panel must be able to name the owner and see a way out.
+  assert.equal(body.code,'DEVICE_SESSION_CONFLICT');
+  assert.equal(body.activeOrigin,origin);
+  assert.equal(body.activeInstanceId,'tab-primary-1');
+  assert.equal(body.sameOrigin,true);
+  assert.equal(body.canTakeOver,true);
+  assert.ok(body.staleAfterMs>0);
+  // D-023: the command belongs to the tab it was issued to, not to whichever
+  // tab polls first. The rival tab cannot claim it even by racing.
+  const cmd=await awaitCommand(device,origin);
+  assert.equal(cmd.action,'browser_inspect');
+  assert.equal((await device('result',{id:cmd.id,origin,instanceId:second,result:{success:true}})).status,403);
+  assert.equal((await device('result',{id:cmd.id,origin,result:{success:true,data:{ok:true}}})).status,200);
+  assert.equal(output(await payload(await inflight)).data.ok,true);
+}));
+
+test('Conflicting different-origin tab is named so the user can find it',()=>testGateway(async({device})=>{
+  await device('poll',{origin});
+  const body=await payload(await device('poll',{origin:'https://other.example',instanceId:second}));
+  assert.equal(body.activeOrigin,origin);
+  assert.equal(body.sameOrigin,false);
+},{allowedOrigins:[origin,'https://other.example']}));
+
+test('Explicit takeover moves the session and revokes the previous tab work',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const abandoned=inFlight(rpc('tools/call',call('browser_click',{ref:'e1'}),21));
+  const cmd=await awaitCommand(device,origin);
+  // Takeover is operator-driven and explicit; an ordinary poll still conflicts.
+  assert.equal((await device('poll',{origin,instanceId:second})).status,409);
+  const taken=await payload(await device('poll',{origin,instanceId:second,takeover:true}));
+  assert.equal(taken.command,null);
+  // Work queued for the tab the operator walked away from must not survive the
+  // handover - it was approved, if at all, against a page they are not seeing.
+  assert.match(output(await payload(await abandoned)).error,/taken over/);
+  assert.equal((await device('result',{id:cmd.id,origin,instanceId:second,result:{success:true}})).status,409);
+  const status=output(await payload(await rpc('tools/call',call('browser_status'),22)));
+  assert.equal(status.activeInstanceId,second);
+  // Roles are now reversed: the original tab is the one that must take over.
+  assert.equal((await device('poll',{origin})).status,409);
+}));
+
+test('A hidden tab is never given a command and the caller fails fast',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const idle=await payload(await device('poll',{origin,visibility:'hidden'}));
+  // command:null, not an error: the session is healthy, it just must not act.
+  assert.equal(idle.command,null);
+  assert.equal(idle.paused,'hidden');
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status'),30))).connected,true);
+  // SAFETY: approval must never be requested in a tab the operator cannot see,
+  // so the call is refused outright rather than queued to time out as
+  // "outcome may be uncertain" - the one failure class that cannot be retried.
+  const refused=await payload(await rpc('tools/call',call('browser_click',{ref:'e1'}),31));
+  assert.equal(refused.result.isError,true);
+  assert.match(output(refused).error,/not visible/);
+  // Returning to the tab restores normal operation immediately.
+  await device('poll',{origin});
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),32));
+  const cmd=await awaitCommand(device,origin);
+  assert.equal(cmd.action,'browser_inspect');
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{ok:true}}});
+  assert.equal(output(await payload(await inflight)).data.ok,true);
+}));
+
+test('A command already queued is withheld while the tab is hidden, then delivered on return',()=>testGateway(async({rpc,device})=>{
+  await device('poll',{origin});
+  const waiting=inFlight(rpc('tools/call',call('browser_inspect'),40));
+  // Poll repeatedly as hidden: the queued command must stay unclaimed however
+  // many times a backgrounded tab asks for it.
+  for(let i=0;i<5;i++){
+    const idle=await payload(await device('poll',{origin,visibility:'hidden'}));
+    assert.equal(idle.command,null,'hidden tab must never receive a command');
+    await new Promise(resolve=>setTimeout(resolve,5));
+  }
+  const cmd=await awaitCommand(device,origin);
+  assert.equal(cmd.action,'browser_inspect');
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{ok:true}}});
+  assert.equal(output(await payload(await waiting)).data.ok,true);
+},{commandTimeoutMs:5000}));
+
+test('One tab cannot disconnect another tab session',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  const foreign=await device('disconnect',{origin,instanceId:second});
+  assert.equal(foreign.status,409);
+  assert.equal((await payload(foreign)).activeInstanceId,'tab-primary-1');
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).connected,true);
+  assert.equal((await payload(await device('disconnect',{origin}))).disconnected,true);
+}));
+
+test('A stale session is replaced without takeover once it ages out',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  await new Promise(resolve=>setTimeout(resolve,80));
+  // No takeover flag. An abandoned or suspended tab must not hold the device
+  // for ever; staleness is the automatic release the operator never has to ask for.
+  const body=await payload(await device('poll',{origin,instanceId:second}));
+  assert.equal(body.command,null);
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).activeInstanceId,second);
+},{deviceFreshMs:40}));

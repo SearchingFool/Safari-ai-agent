@@ -77,7 +77,9 @@ def main():
           window.__answer='once';
           window.__offered=[];
           window.__dialogSeen=0;
-          setInterval(()=>{
+          // Kept on window so the D-033 test can switch the stand-in operator
+          // off and leave a dialog genuinely unanswered.
+          window.__autoAnswer=setInterval(()=>{
             const box=window.__panel && window.__panel.querySelector('.approval');
             if(!box || box.hidden) return;
             window.__dialogSeen++;
@@ -244,6 +246,92 @@ def main():
         assert tier_of('Results')['tier'] == 'routine'
         assert tier_of('Next page')['tier'] == 'routine'
         print('PASS: tiering is fail-closed - unknown, unnamed and non-English controls all elevate')
+
+        # --- ELEVATED is never grantable (D-031) ------------------------------
+        # elevatedCategory() is coarse: ANYTHING with a form owner is
+        # `form-submit`, so a type="button" preview and the real submit beside
+        # it share one action class. Standing grants key on origin + class, so
+        # that would be exploitable - one "Always allow" on a harmless preview
+        # would cover the submit - EXCEPT that a grant is only ever offered for
+        # ROUTINE. That invariant is the only thing holding the shared class
+        # safe, and nothing else in the codebase states it, so it is pinned
+        # here over a RANGE of controls rather than a single case.
+        page.evaluate('''() => {
+          const host = document.createElement('div');
+          // The first two reproduce the exact /demo/product pair the model
+          // raised on the iPad. The rest spread across every elevated category
+          // elevatedCategory() can return, plus the routine controls that are
+          // the deliberate exception.
+          host.innerHTML = `
+            <form id="g_form">
+              <input name="qty" />
+              <button id="g_preview" type="button">Preview selection</button>
+              <button id="g_submit" type="submit">Submit demo form</button>
+              <a id="g_informlink" href="/terms">Read the terms</a>
+            </form>
+            <button id="g_toggle" aria-pressed="false">Follow</button>
+            <button id="g_mystery" type="button">Flurb</button>
+            <button id="g_blank" type="button" aria-label=""><svg></svg></button>
+            <a id="g_offsite" href="https://elsewhere.example/x">Elsewhere</a>
+            <a id="g_js" href="#">Open panel</a>
+            <button id="g_expand" type="button" aria-expanded="false">More detail</button>
+            <button id="g_tabctl" role="tab">Second tab</button>
+            <a id="g_next" href="/page-three">Page three</a>`;
+          document.body.appendChild(host);
+        }''')
+        invariant = page.evaluate('''() => {
+          const core = globalThis.SafariAIAgentCore.createAgentCore(document, window);
+          const snap = core.inspect();
+          // The most permissive policy any gateway could ever send. If the
+          // invariant holds here it holds everywhere, because decideClick can
+          // only ever narrow from this.
+          const permissive = {mode: 'trusted', grants: true, version: 'x'};
+          const rows = [];
+          for (const e of snap.elements) {
+            const c = core.classify(e.ref);
+            rows.push({label: e.label, tier: c.tier, category: c.category,
+                       classifyGrantable: c.grantable,
+                       decideGrantable: core.decideClick(c, permissive).grantable === true});
+          }
+          return rows;
+        }''')
+        assert invariant, 'nothing was inspected, so the invariant was not exercised'
+        elevated = [r for r in invariant if r['tier'] == 'elevated']
+        assert len(elevated) >= 6, f'too few elevated controls to call this a range: {elevated}'
+        for row in invariant:
+            if row['tier'] != 'routine':
+                # THE INVARIANT. Holds for BLOCKED too; relaxing it for either
+                # is what would make the shared form-submit class exploitable.
+                assert row['classifyGrantable'] is False, row
+                assert row['decideGrantable'] is False, row
+            else:
+                # Stated as an equality, not a one-way check, so this test also
+                # fails if someone makes ROUTINE un-grantable and quietly moves
+                # the grant path somewhere this assertion does not watch.
+                assert row['decideGrantable'] is True, row
+        by_name = {r['label']: r for r in invariant}
+        preview, submit = by_name['Preview selection'], by_name['Submit demo form']
+        # The defect this guards is precisely that these two are indistinguishable
+        # by class. Assert the shared class explicitly, so a future change that
+        # splits them makes this line fail loudly and get re-read rather than
+        # leaving a stale comment behind.
+        assert preview['category'] == submit['category'] == 'form-submit', (preview, submit)
+        assert preview['tier'] == submit['tier'] == 'elevated', (preview, submit)
+        assert not preview['decideGrantable'] and not submit['decideGrantable'], (preview, submit)
+        # The class is broader still than the Preview/Submit pair: an ordinary
+        # same-origin link is ROUTINE anywhere else on the page, but inside a
+        # form it is `form-submit` too, because inertCategory() refuses to call
+        # ANY control with a form owner inert. That is the fail-closed choice
+        # and it is correct - but it widens what a single grant on this class
+        # would have covered, which is the reason the invariant has to hold
+        # rather than merely being likely to.
+        assert by_name['Read the terms']['tier'] == 'elevated', by_name['Read the terms']
+        assert by_name['Read the terms']['category'] == 'form-submit', by_name['Read the terms']
+        assert by_name['Read the terms']['decideGrantable'] is False, by_name['Read the terms']
+        # The identical link OUTSIDE a form is routine, so this is form
+        # membership doing the work and not a broken link classifier.
+        assert by_name['Page three']['tier'] == 'routine', by_name['Page three']
+        print('PASS: ELEVATED is never grantable, so Preview and Submit cannot share a standing grant (D-031)')
 
         # --- A hard ceiling is not reachable by any policy (D-025) ------------
         # The gateway is on the network. These are the values a hostile one
@@ -415,7 +503,9 @@ def main():
             return page.evaluate("window.__panel.querySelector('#takeover').hidden")
         before = page.evaluate('window.__mockPolls.length')
         page.evaluate("window.__visibility='hidden';document.dispatchEvent(new Event('visibilitychange'))")
-        page.wait_for_function("window.__panel.querySelector('.status').textContent.startsWith('Paused')", timeout=5000)
+        # The status line is prefixed with a live/idle marker (D-033), so match on
+        # the word rather than the start of the string.
+        page.wait_for_function("window.__panel.querySelector('.status').textContent.includes('Paused')", timeout=5000)
         # One final poll tells the gateway this tab cannot act, so a queued
         # command is refused immediately rather than timing out as uncertain.
         page.wait_for_function('(n)=>window.__mockPolls.length>n', arg=before, timeout=5000)
@@ -423,7 +513,7 @@ def main():
         paused_at = page.evaluate('window.__mockPolls.length')
         page.wait_for_timeout(2600)   # more than two poll intervals
         assert page.evaluate('window.__mockPolls.length') == paused_at, 'a hidden tab must stop polling'
-        assert status_text().startswith('Paused')
+        assert 'Paused' in status_text()
         page.evaluate("window.__visibility='visible';document.dispatchEvent(new Event('visibilitychange'))")
         page.wait_for_function('(n)=>window.__mockPolls.length>n', arg=paused_at, timeout=5000)
         assert page.evaluate('window.__mockPolls[window.__mockPolls.length-1].visibility') == 'visible'
@@ -444,6 +534,61 @@ def main():
         assert any(p.get('takeover') is True for p in page.evaluate('window.__mockPolls')), 'takeover must be sent explicitly'
         page.wait_for_function('window.__panel.querySelector("#takeover").hidden', timeout=8000)
         print('PASS: a session conflict names the owning origin and offers an explicit takeover')
+
+        # --- The panel says which tab is live (D-033) -------------------------
+        # With the session following the visible tab, several tabs of one site
+        # are normal and only one of them is live. A panel reading "Connected"
+        # in all of them would be wrong in all but one.
+        page.wait_for_function(
+            "window.__panel.querySelector('.status').textContent.includes('Live in this tab')", timeout=8000)
+        # A SAME-ORIGIN conflict is the tab-switch case, not a fault. The gateway
+        # hands the session over automatically the moment the other tab stops
+        # being visible, so the panel must say "you are next" rather than
+        # presenting a bare error - while still offering Take over for the one
+        # case the gateway cannot decide: two tabs visible at once.
+        page.evaluate('''() => { window.__conflict={
+          error:'Another tab already owns the device session',
+          code:'DEVICE_SESSION_CONFLICT', activeOrigin:window.location.origin,
+          activeInstanceId:'tab-sibling', activeVisibility:'visible',
+          sameOrigin:true, staleAfterMs:30000, canTakeOver:true}; }''')
+        page.wait_for_function(
+            "window.__panel.querySelector('.status').textContent.includes('Standing by')", timeout=8000)
+        assert 'automatically' in status_text(), status_text()
+        assert 'Live in this tab' not in status_text(), status_text()
+        assert takeover_hidden() is False, 'Take over must stay available when both tabs are on screen'
+        page.evaluate('window.__conflict=null')
+        page.wait_for_function(
+            "window.__panel.querySelector('.status').textContent.includes('Live in this tab')", timeout=8000)
+        print('PASS: the panel distinguishes the live tab from one standing by (D-033)')
+
+        # --- An open approval cannot be answered after the tab goes hidden ----
+        # This is the "two tabs acting on one command" case restated. If the
+        # dialog survived backgrounding, the operator could switch away, let the
+        # session follow to another tab, come back and approve a command this
+        # tab no longer holds. Denying on hide is the only fail-closed answer:
+        # consent given to an off-screen page is not consent.
+        set_policy({'mode': 'trusted', 'grants': True, 'version': 'd033'})
+        live_refs = {item['label']: item['ref'] for item in command('browser_inspect')['data']['elements']}
+        # Switch the stand-in operator off so the dialog is left genuinely open,
+        # the way a real one is while the human is reading it.
+        page.evaluate('clearInterval(window.__autoAnswer)')
+        page.evaluate('''(ref) => { window.__mockQueue.push({
+          id:'00000000-0000-4000-8000-00000000d033', action:'browser_click',
+          args:{ref}, origin:'null', expiresAt:Date.now()+60000}); }''',
+                      live_refs['Show confirmation'])
+        page.wait_for_function(
+            "window.__panel.querySelector('.approval').hidden===false", timeout=8000)
+        page.evaluate("window.__visibility='hidden';document.dispatchEvent(new Event('visibilitychange'))")
+        page.wait_for_function(
+            "window.__panel.querySelector('.approval').hidden===true", timeout=5000)
+        denied = page.evaluate(
+            "window.__mockResults.filter(r=>r.id==='00000000-0000-4000-8000-00000000d033')")
+        assert denied and denied[0]['result']['success'] is False, denied
+        assert 'denied' in denied[0]['result']['error'], denied
+        # And the click never reached the page: the feedback element is whatever
+        # the earlier approved click left, not a second dispatch.
+        page.evaluate("window.__visibility='visible';document.dispatchEvent(new Event('visibilitychange'))")
+        print('PASS: an approval left open in a tab that backgrounds is denied, never answerable later')
 
         page.evaluate("window.__settings['safari-agent:enabled:null']=false")
         print('PASS: remote script mock-GM inspect/fill/constraints/approval/click/verify')

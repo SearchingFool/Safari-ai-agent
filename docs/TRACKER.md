@@ -2,7 +2,7 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** Finish D2-01. The full workflow and the core negative cases are now **evidenced on the physical iPad** (2026-10-11): B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device. **Remaining for D2-01:** network loss mid-command, Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an independent security review. Also open and blocking wider use: **D-034** (the `browser_click` description states a safety guarantee that no longer exists), **D-033** (session should follow the visible tab — agent in flight), **D-032** (snapshot omits field values, so *updating* a form is blind). Do not read demo-page results as proof that submissions are prevented — see D-034.
+**Current focus:** Finish D2-01. The full workflow and the core negative cases are now **evidenced on the physical iPad** (2026-10-11): B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device. **Remaining for D2-01:** network loss mid-command, Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an independent security review. **D-034 and D-033 are now closed and merged** (the `browser_click` description is corrected and pinned by test; the session follows the visible tab), so the next device session should also **measure the two-tab handover latency on the iPad** — see D-033, where it may be ~1 s or the full 45 s and only a device can tell. Still open and blocking wider use: **D-032** (snapshot omits field values, so *updating* a form is blind). Do not read demo-page results as proof that submissions are prevented — see D-034.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -129,6 +129,15 @@ Search → navigate → fill text/time/select → click → verify, with **no co
 **D-034, a defect this session exposed.** There is **no blanket submit ceiling any more** — hard ceilings are payment, account-deletion and credentials-security only, so a generic submit on a `trusted` origin is ELEVATED: prompt, approve, dispatch. That is D-026 (C) as specified. **But `browser_click` still advertises "Submission is blocked by default".** The model read that, saw a submit dispatch, and reported a connector failure — correctly. **The submit WAS dispatched;** nothing happened only because the demo page blocks itself with `preventDefault`. On a real trusted site that approval would have submitted. **Demo-page evidence must not be read as proof that submissions are prevented.**
 
 **Still outstanding for D2-01:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, independent security review.
+
+## 2026-10-11 D-033 and D-034 closed; a latent test hole found and fixed
+
+- **D-034 fixed and pinned.** `browser_click`'s description no longer claims submits are blocked. A regression test in `tests/gateway.test.mjs` asserts the specific false claim cannot return and that the three replacing facts stay present. Mutation-verified: restoring the old string fails the gate.
+- **D-033 built and merged.** One predicate in `gateway/server.mjs`; all three of its conjuncts mutation-tested by the lead and each independently caught. A **visible** incumbent is never displaced — Split View is precisely the case that stays a manual Take over.
+- **D-031 closed, and the invariant is wider than D-031 recorded.** `inertCategory()` refuses to call any control with a form owner inert, so an ordinary same-origin `<a href>` *inside* a form is ELEVATED too; the identical link outside one is ROUTINE. Form membership does the work, not button-ness. Fail-closed and correct, but a single grant on this class would have covered more than "a preview and the submit beside it". Corrected in D-031.
+- **A latent hole in `tests/remote_browser_e2e.py`.** Its mock GM bridge used `urllib.request.urlopen`, which **raises** on non-200, so a `409 DEVICE_SESSION_CONFLICT` — an ordinary answer the bridge is built to read and explain — never reached the bridge. Every multi-tab path was untestable in the integrated suite, which is why D-017/D-023 multi-tab behaviour had only ever been exercised against a mock. Status and body now pass through.
+- **Gate now:** `npm run check` **59** Node tests (was 52), 0 fail; `npm run test:browser` **4** suites, **18** PASS lines (was 15). Build output verified deterministic (`git diff --exit-code` clean after rebuild).
+- **Methodology note worth keeping:** every claim above was re-verified by the lead on the **merge result**, not read from the worker's report, and the safety-critical ones were mutation-tested — break the guard deliberately, confirm the gate goes red. Four separate mutations, four catches.
 
 ## 2026-10-11 test-suite determinism correction
 

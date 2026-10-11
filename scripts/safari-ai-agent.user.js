@@ -278,6 +278,31 @@
       return null;
     }
 
+    /**
+     * Name the ELEVATED class. This is deliberately COARSE: `inertCategory`
+     * above refuses to call ANY control with a form owner inert, so everything
+     * inside a form lands here as `form-submit` - the real submit, a
+     * `type="button"` preview beside it, and even an ordinary same-origin link
+     * that would be ROUTINE anywhere else on the page (D-031).
+     *
+     * WHY THAT IS TOLERABLE - AND THE INVARIANT IT DEPENDS ON.
+     * The operator-facing prompt names the control itself ("Preview selection"
+     * vs "Submit demo form"), so the coarse class is never what the human is
+     * shown. The class matters in exactly one place: standing grants, which key
+     * on origin + category. And `decideClick` makes a grant possible only when
+     * `tier === ROUTINE`, so an ELEVATED classification is ALWAYS
+     * `grantable: false` and no amount of approving the preview can ever
+     * authorise the submit.
+     *
+     * That invariant is load-bearing, not incidental. Relaxing it - the obvious
+     * "let the operator say Always allow on elevated too, to cut approval
+     * fatigue" change under D-021 - would make this immediately exploitable:
+     * one "Always allow" on a harmless preview button would silently cover
+     * every submit in the same form. If you ever want grantable ELEVATED
+     * classes, SPLIT THIS FUNCTION FIRST so a preview and a submit stop sharing
+     * a category. The regression test pinning `ELEVATED => !grantable` is in
+     * tests/remote_dom_smoke.py.
+     */
     function elevatedCategory(el, d) {
       if (d.isSubmit || formOwner(el)) return 'form-submit';
       if (d.isToggle) return 'state-toggle';

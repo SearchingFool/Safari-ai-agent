@@ -237,7 +237,13 @@
             lastSnapshot=null;
           }
         }
-        show(running?`Connected · ${lastCommand||'ready'}`:'Stopped');
+        // A successful poll means the gateway considers THIS tab the owner, so
+        // the panel can say so without guessing. With the session now following
+        // the visible tab (D-033) the operator may have several tabs of one
+        // site open, and "Connected" in all of them would be a lie in all but
+        // one - so the live tab says "LIVE in this tab" and every other tab
+        // says standing by or paused.
+        show(running?`${LIVE} Live in this tab · ${lastCommand||'ready'}`:'Stopped');
       } catch(e){
         if(e.status===409 && e.payload && e.payload.code==='DEVICE_SESSION_CONFLICT')showConflict(e.payload);
         else show(`Connection/action error: ${String(e.message||e)}`);
@@ -245,16 +251,25 @@
       if(running && !paused && loopId===mine)await sleep(1200);
     }
   }
+  const LIVE='●';   // filled dot: this tab holds the session
+  const IDLE='○';   // hollow dot: this tab is connected but not the live one
   function show(message){ if(status)status.textContent=message; if(takeover)takeover.hidden=!conflict; }
   // Name the tab that actually holds the session and offer a way out. Before
   // this the losing panel showed a bare HTTP error and polled forever (D-017).
   function showConflict(payload){
     conflict=payload;
-    const who=payload.sameOrigin
-      ? 'Another tab of this same site'
-      : `${payload.activeOrigin||'Another site'}`;
     const seconds=Math.ceil((payload.staleAfterMs||0)/1000);
-    show(`${who} is connected and owns the device session. Stop it there, or press "Take over" to move the session to this tab. ${seconds>0?`It frees itself in about ${seconds}s if that tab is gone.`:''}`);
+    if(payload.sameOrigin){
+      // Same origin is the D-033 case. A 409 here means the other tab is
+      // currently VISIBLE, because the gateway hands the session over
+      // automatically as soon as it is not - so the honest message is "you are
+      // next", not "something is broken". Take over stays available for the
+      // genuinely ambiguous case of two tabs visible at once (Split View or a
+      // second window), which is the one thing the gateway cannot decide.
+      show(`${IDLE} Standing by — another tab of this site is live. This tab becomes live automatically as soon as it is the one you are looking at. Press "Take over" only if both tabs are on screen at once.`);
+      return;
+    }
+    show(`${IDLE} ${payload.activeOrigin||'Another site'} is connected and owns the device session. Stop it there, or press "Take over" to move the session to this tab. ${seconds>0?`It frees itself in about ${seconds}s if that tab is gone.`:''}`);
   }
   let status=null;
   let takeover=null;
@@ -363,7 +378,7 @@
     if(paused){show(PAUSED);return;}
     show('Connecting...');void pump();
   }
-  const PAUSED='Paused - tab not visible. Nothing will run until you return to this tab.';
+  const PAUSED=`${IDLE} Paused - tab not visible. Nothing will run until you return to this tab.`;
   // Safari throttles background timers well past the gateway's 45s freshness
   // window, so an unhandled hidden tab used to look dead. Pausing explicitly
   // makes the state legible AND tells the gateway, so a queued command fails
@@ -376,8 +391,19 @@
       return;
     }
     if(paused)return;
-    paused=true;loopId++;clearTimeout(timer);show(PAUSED);
+    paused=true;loopId++;clearTimeout(timer);
+    // An approval dialog left open in a tab that just went off screen must not
+    // be answerable later. Without this the operator could switch away, let the
+    // session follow to another tab (D-033), come back minutes afterwards and
+    // approve a prompt for a command this tab no longer holds - which is the
+    // "two tabs acting on one command" case restated. Denying is also the only
+    // fail-closed answer: consent given to an off-screen page is not consent.
+    if(pendingApproval)pendingApproval('deny');
+    show(PAUSED);
     // Best effort only: tells the gateway this tab is not a safe place to run.
+    // Load-bearing for D-033 as well as for the pause itself - it is what lets
+    // the next visible tab take the session immediately instead of waiting out
+    // the 45s freshness window.
     if(url&&token)void request('/device/poll',identity()).catch(()=>{});
   }
   document.addEventListener('visibilitychange',onVisibilityChange);

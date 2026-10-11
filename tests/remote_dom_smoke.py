@@ -590,6 +590,205 @@ def main():
         page.evaluate("window.__visibility='visible';document.dispatchEvent(new Event('visibilitychange'))")
         print('PASS: an approval left open in a tab that backgrounds is denied, never answerable later')
 
+        # --- D-032: field values are opt-in, trusted-only, and bounded --------
+        # The snapshot used to omit every field value, which made UPDATING a
+        # form blind. Values can now be reported, but only on a trusted origin
+        # the operator opted in, and never for the categories below whatever
+        # policy says. Every secret planted here is a distinct marker so a leak
+        # names itself.
+        page.evaluate('''() => {
+          const host=document.createElement('div');
+          host.innerHTML = `
+            <form id="v_plain">
+              <input id="v_city" aria-label="City field" value="Praha" />
+              <textarea id="v_note" aria-label="Note field">existing note</textarea>
+              <select id="v_kind" aria-label="Kind field">
+                <option value="alpha">Alpha</option>
+                <option value="beta" selected>Beta</option></select>
+              <div id="v_rich" contenteditable="true" aria-label="Rich field">rich existing text</div>
+              <input id="v_empty" aria-label="Empty field" value="" />
+              <input id="v_long" aria-label="Long field" value="${'L'.repeat(400)}" />
+              <input id="v_colour" type="color" aria-label="Colour field" value="#123456" />
+              <!-- Sensitive autofill tokens, in a form that is otherwise ordinary,
+                   so ONLY the token check can be what excludes them. The second
+                   is a token LIST and does not match the cc- prefix selector. -->
+              <input id="v_otp" autocomplete="one-time-code" aria-label="Code field" value="OTPSECRET9" />
+              <input id="v_csc" autocomplete="shipping cc-csc" aria-label="Csc field" value="CSCSECRET9" />
+              <input id="v_newpw" autocomplete="new-password" aria-label="Newpw field" value="NEWPWSECRET9" />
+              <input id="v_hidden" type="hidden" name="csrf" value="HIDDENSECRET9" />
+            </form>
+            <!-- Deliberately OUTSIDE any form, so no form-level rule can be what
+                 excludes these and each element-level guard is on its own.
+                 "transaction-amount" matches the CC_AUTOFILL selector but is
+                 neither a cc- prefix nor a sensitive token, so it isolates the
+                 selector; the lone password isolates the type check. -->
+            <input id="v_loose" autocomplete="cc-number" aria-label="Loose card field" value="LOOSESECRET9" />
+            <input id="v_amount" autocomplete="transaction-amount" aria-label="Amount field" value="AMOUNTSECRET9" />
+            <input id="v_lonepw" type="password" aria-label="Lone pass field" value="LONEPASSSECRET9" />
+            <form id="v_pwform">
+              <input id="v_user" aria-label="Account field" value="USERSECRET9" />
+              <input id="v_pass" type="password" aria-label="Pass field" value="PASSSECRET9" />
+            </form>
+            <form id="v_ccform">
+              <input id="v_ccname" aria-label="Cardholder field" value="HOLDERSECRET9" />
+              <input id="v_ccnum" autocomplete="cc-number" aria-label="Cardnum field" value="CCNUMSECRET9" />
+            </form>`;
+          document.body.appendChild(host);
+        }''')
+        SECRETS = ['PASSSECRET9', 'USERSECRET9', 'HOLDERSECRET9', 'CCNUMSECRET9',
+                   'OTPSECRET9', 'CSCSECRET9', 'NEWPWSECRET9', 'HIDDENSECRET9',
+                   'LOOSESECRET9', 'AMOUNTSECRET9', 'LONEPASSSECRET9']
+
+        def values_by_label(policy):
+            """Snapshot through core directly so a policy shape no gateway would
+            ever send can still be tried."""
+            return page.evaluate('''(policy) => {
+              const core = globalThis.SafariAIAgentCore.createAgentCore(document, window);
+              const snap = core.inspect(policy);
+              const out = {fieldValues: snap.fieldValues === true, raw: JSON.stringify(snap),
+                           hidden: snap.elements.filter(e => e.type === 'hidden').length, byLabel: {}};
+              for (const e of snap.elements) {
+                out.byLabel[e.label] = Object.hasOwn(e, 'value')
+                  ? {value: e.value, truncated: e.valueTruncated === true} : null;
+              }
+              return out;
+            }''', policy)
+
+        on = {'mode': 'trusted', 'grants': True, 'values': True, 'version': 'd032-on'}
+        got = values_by_label(on)
+        assert got['fieldValues'] is True, got['fieldValues']
+        # Ordinary text, textarea, select and contenteditable all read back.
+        assert got['byLabel']['City field']['value'] == 'Praha', got['byLabel']['City field']
+        assert got['byLabel']['Note field']['value'] == 'existing note'
+        assert got['byLabel']['Kind field']['value'] == 'beta'
+        assert got['byLabel']['Rich field']['value'] == 'rich existing text'
+        # An empty field reports "" rather than nothing. `value` absent and
+        # `value: ""` mean different things and the agent must be able to tell
+        # "nobody filled this in" from "this was not disclosed".
+        assert got['byLabel']['Empty field'] == {'value': '', 'truncated': False}, got['byLabel']['Empty field']
+        # Bounded, and it says so, so a caller comparing a fill against the
+        # readback can tell a truncation from a mismatch.
+        assert len(got['byLabel']['Long field']['value']) == 200, got['byLabel']['Long field']
+        assert got['byLabel']['Long field']['truncated'] is True
+        # Value reporting is ALLOWLISTED by control kind: an input type nobody
+        # enumerated reports nothing even with values fully on.
+        assert got['byLabel']['Colour field'] is None, got['byLabel']['Colour field']
+        # Snapshot size stays bounded: 100 elements x 200 chars is the ceiling.
+        assert len(got['raw']) < 50000, len(got['raw'])
+        # EVERY hard exclusion, each pinned on its own label so a broken guard
+        # names itself rather than failing as one anonymous blob.
+        for label in ['Pass field',        # input[type=password]
+                      'Account field',     # sibling of a password in one form
+                      'Cardholder field',  # sibling of a cc-* field in one form
+                      'Cardnum field',     # matches CC_AUTOFILL itself
+                      'Loose card field',  # matches CC_AUTOFILL with no form at all
+                      'Amount field',      # CC_AUTOFILL selector only, no cc- token
+                      'Lone pass field',   # a password field with no form at all
+                      'Code field',        # autocomplete=one-time-code
+                      'Csc field',         # "shipping cc-csc" - a token LIST
+                      'Newpw field']:      # autocomplete=new-password
+            assert got['byLabel'].get(label) is None, (label, got['byLabel'].get(label))
+        for secret in SECRETS:
+            assert secret not in got['raw'], secret
+        # The hidden input is excluded twice over: inspect() drops type=hidden
+        # before describe() runs, and valueExcluded refuses it again. Only the
+        # first of those two is observable from outside, so this pins the
+        # OUTCOME (no hidden field, with or without its value, ever appears).
+        assert got['hidden'] == 0, got['hidden']
+        print('PASS: D-032 values report ordinary fields, bounded, with every hard exclusion silent')
+
+        # Opt-in means opt-in. `trusted` on its own discloses nothing new, which
+        # is the property that makes this a FLAG and not a fourth mode.
+        for policy in [{'mode': 'trusted', 'grants': True, 'version': 'd032-off'},
+                       {'mode': 'trusted', 'grants': True, 'values': False, 'version': 'x'},
+                       {'mode': 'fill-only', 'grants': True, 'values': True, 'version': 'x'},
+                       {'mode': 'read-only', 'grants': True, 'values': True, 'version': 'x'},
+                       # An origin absent from the gateway's policy map arrives
+                       # as nothing at all and normalises to read-only.
+                       None, {}, {'values': True}]:
+            quiet = values_by_label(policy)
+            assert quiet['fieldValues'] is False, (policy, quiet['fieldValues'])
+            assert 'Praha' not in quiet['raw'], policy
+            assert all(v is None for v in quiet['byLabel'].values()), (policy, quiet['byLabel'])
+        print('PASS: no value is reported without opt-in, and never on a read-only or fill-only origin')
+
+        # --- A hostile gateway cannot reach a value exclusion (D-032/D-025) ---
+        # The same discipline as the hard-ceiling probe above: these are the
+        # values a compromised or confused gateway would send. None of them may
+        # widen anything, and several are the obvious shapes of an attempt to
+        # name a field or switch an exclusion off.
+        hostile_values = page.evaluate('''(secrets) => {
+          const core = globalThis.SafariAIAgentCore.createAgentCore(document, window);
+          const shapes = [
+            {mode:'trusted',values:true,includePasswords:true},
+            {mode:'trusted',values:true,exclusions:[]},
+            {mode:'trusted',values:true,fields:['v_pass','v_user','v_ccnum']},
+            {mode:'trusted',values:'all'},
+            {mode:'trusted',values:1},
+            {mode:'trusted',values:['everything']},
+            {mode:'trusted',values:{all:true}},
+            {mode:'god-mode',values:true},
+            {mode:'trusted',values:true,maxValue:100000},
+            {mode:'read-only',values:true,trustMe:true},
+            {mode:'fill-only',values:true},
+            {values:true},
+            'trusted', ['trusted'], true, 42, null, undefined
+          ];
+          // A <select>'s option list has always carried option VALUES, so a
+          // substring search for "value" matches every snapshot. Count the
+          // field-value property itself instead.
+          const reports = snap => snap.elements.some(e => Object.hasOwn(e, 'value'));
+          const leaks = [];
+          let reported = 0;
+          for (const shape of shapes) {
+            const snap = core.inspect(shape);
+            const raw = JSON.stringify(snap);
+            for (const secret of secrets) if (raw.includes(secret)) leaks.push([JSON.stringify(shape), secret]);
+            if (reports(snap)) reported++;
+          }
+          // Four of these ARE legitimate opt-ins carrying extra junk keys
+          // (includePasswords, exclusions, fields, maxValue). They are in the
+          // list precisely because the junk must change nothing: the shape is
+          // read for mode and a strictly-true `values` and for nothing else.
+          const legitimate = shapes.filter(s => s && s.mode === 'trusted' && s.values === true).length;
+          return {leaks, reported, legitimate, shapes: shapes.length,
+                  // A truthy-but-not-true `values` must read as OFF, so these
+                  // are a proper subset of "reported nothing".
+                  truthy: reports(core.inspect({mode:'trusted',values:'yes'}))};
+        }''', SECRETS)
+        assert hostile_values['leaks'] == [], hostile_values['leaks']
+        # Only the legitimate opt-ins report anything at all, and the count is
+        # derived from the shapes rather than hardcoded, so adding a hostile
+        # shape to the list cannot quietly raise the bar it is measured against.
+        assert hostile_values['legitimate'] == 4, hostile_values
+        assert hostile_values['reported'] == hostile_values['legitimate'], hostile_values
+        assert hostile_values['truthy'] is False, hostile_values
+        print('PASS: no gateway-supplied policy value reports an excluded field, or opts in by accident')
+
+        # --- End to end through the bridge, not just through core -------------
+        # core.inspect() is where the rule lives, but the path that matters is
+        # the one a command actually travels: gateway policy -> applyPolicy ->
+        # execute('browser_inspect').
+        set_policy({'mode': 'trusted', 'grants': True, 'values': True, 'version': 'd032-live'})
+        live = command('browser_inspect')['data']
+        live_by_label = {e['label']: e for e in live['elements']}
+        assert live.get('fieldValues') is True, live.get('fieldValues')
+        assert live_by_label['City field']['value'] == 'Praha'
+        assert 'never-share-me' not in json.dumps(live), 'the fixture password must never be reported'
+        for secret in SECRETS:
+            assert secret not in json.dumps(live), secret
+        # The demo fixture's whole form carries a password field, so every field
+        # in it - Name, Email, Category, delivery, Note - is excluded with it.
+        assert 'value' not in live_by_label['Name'], live_by_label['Name']
+        # The panel says so in the tab where the disclosure happens.
+        assert 'FIELD VALUES' in page.evaluate("window.__panel.querySelector('.mode').textContent")
+        set_policy({'mode': 'trusted', 'grants': True, 'version': 'd032-live-off'})
+        off_live = command('browser_inspect')['data']
+        assert 'fieldValues' not in off_live, off_live.get('fieldValues')
+        assert all('value' not in e for e in off_live['elements']), off_live['elements']
+        assert 'FIELD VALUES' not in page.evaluate("window.__panel.querySelector('.mode').textContent")
+        print('PASS: D-032 opt-in travels gateway -> bridge -> snapshot, and switching it off is immediate')
+
         page.evaluate("window.__settings['safari-agent:enabled:null']=false")
         print('PASS: remote script mock-GM inspect/fill/constraints/approval/click/verify')
         print('PASS: describeControl identifies toggles, form submits, pseudo-links and external targets')

@@ -22,7 +22,12 @@ const METHODS = ['browser_inspect','browser_fill','browser_click','browser_navig
 // lets a client tier its own prompts instead of treating every call alike.
 // openWorldHint is true throughout: the target is the open web.
 const TOOL_DEFS = [
-  {name:'browser_inspect',description:'Inspect visible page content and controls in the paired iPad Safari tab.',inputSchema:{type:'object',properties:{},additionalProperties:false},
+  // D-034's lesson applies here too: this text is read by the MODEL, so it must
+  // describe what the snapshot actually contains. A field's current value is
+  // included ONLY on an origin the operator opted in, and never for passwords,
+  // payment fields, hidden inputs or their form siblings - so an absent value
+  // means "not disclosed", never "the field is empty".
+  {name:'browser_inspect',description:'Inspect visible page content and controls in the paired iPad Safari tab. A control carries its current value only if the operator enabled field values for that site and nominated the site as trusted; password, payment-card, hidden and one-time-code fields never report a value, and nor does any field sharing a form with one. When values are reported the snapshot sets fieldValues:true, so a missing value then means the field was excluded rather than empty.',inputSchema:{type:'object',properties:{},additionalProperties:false},
    annotations:{title:'Inspect page',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
   {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false},
    annotations:{title:'Fill a field',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
@@ -82,6 +87,37 @@ function parseSitePolicy(raw){
   }
   return out;
 }
+// D-032 FIELD VALUES. An ORTHOGONAL per-origin flag, deliberately NOT a fourth
+// mode. The three modes are a ladder of what the agent may DO (observe, fill,
+// click) and each step contains the one below it. "May the agent read back what
+// a field currently contains" is a DISCLOSURE question and does not order
+// against that ladder: a fourth rung would either force acting rights on an
+// operator who only wants to read values, or silently drop value reporting when
+// an origin is promoted to trusted. So it is a separate list, intersected with
+// the mode: an origin must be named here AND be `trusted`.
+//
+// Validation mirrors parseSitePolicy and is just as unforgiving - a malformed
+// origin or a non-trusted one is a configuration error that stops the gateway
+// starting, not something to be quietly dropped. Silently ignoring it is the
+// worse failure: the operator believes values are off on a site where they are
+// on, or on where they are off, and nothing says which.
+function parseValueOrigins(raw,modes){
+  const out=new Set();
+  if(raw===undefined||raw===null||raw==='')return out;
+  if(typeof raw!=='string'&&!Array.isArray(raw))throw Error('Field-value origins must be a comma-separated string or an array of origins');
+  const entries=(typeof raw==='string'?raw.split(','):raw).map(x=>String(x).trim()).filter(Boolean);
+  for(const key of entries){
+    let valid=false;
+    try{valid=new URL(key).origin===key&&/^https?:/.test(key);}catch{valid=false;}
+    if(!valid)throw Error(`Field-value origin must be an exact HTTP(S) origin: ${key}`);
+    // Named but not trusted is always a mistake, and the bridge would refuse it
+    // anyway. Refusing to start says so once, loudly, instead of leaving the
+    // operator to discover it as a silently missing feature.
+    if(modes.get(key)!==MODES.TRUSTED)throw Error(`Field values may only be enabled on a trusted origin; ${key} is ${normalizeMode(modes.get(key))}`);
+    out.add(key);
+  }
+  return out;
+}
 // Which tool each mode may reach. Mirrored by the bridge; neither side relies
 // on the other having checked.
 const MODE_ALLOWS = Object.freeze({
@@ -132,7 +168,7 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -140,13 +176,25 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   for(const origin of modes.keys()){
     if(!allowed.has(origin))throw Error(`Site policy names ${origin}, which is not an allowed origin`);
   }
+  const valueOrigins=parseValueOrigins(fieldValueOrigins,modes);
+  for(const origin of valueOrigins){
+    if(!allowed.has(origin))throw Error(`Field-value policy names ${origin}, which is not an allowed origin`);
+  }
   const modeFor=origin=>normalizeMode(modes.get(origin));
+  // Re-checked here rather than trusted from parse time, so a future change to
+  // how modes are stored cannot leave a stale `trusted` decision behind.
+  const valuesFor=origin=>valueOrigins.has(origin)&&modeFor(origin)===MODES.TRUSTED;
   // Changes to policy must invalidate the grants a bridge made under the old
   // one, so the bridge needs to be able to tell that it changed. The stamp is
   // derived from the configuration, not from a clock, so it is stable across a
   // restart with identical config and differs the moment config differs.
-  const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#grants=${standingGrants!==false}`;
-  const policyFor=origin=>({mode:modeFor(origin),grants:standingGrants!==false,version:policyVersion});
+  const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#grants=${standingGrants!==false}`+
+    `#values=${[...valueOrigins].sort().join('+')}`;
+  // `values` is a BOOLEAN for the asking origin, never a list and never a field
+  // selector. The widest statement the gateway can make is "this origin is
+  // opted in"; which fields that reaches is decided in src/core.js from the
+  // live DOM, where the network cannot touch it.
+  const policyFor=origin=>({mode:modeFor(origin),grants:standingGrants!==false,values:valuesFor(origin),version:policyVersion});
   // Diagnostics are injectable so tests can capture events without touching disk.
   const diag = diagnostics || createDiagnostics({
     enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
@@ -171,6 +219,10 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     // spends a round trip finding out, and so the operator can confirm which
     // policy is actually live.
     activeMode:current?modeFor(current.origin):null,
+    // Whether a snapshot of this origin will carry field values (D-032), so a
+    // caller can tell "the field is empty" from "values are not reported here"
+    // without inferring it from an absence.
+    activeFieldValues:current?valuesFor(current.origin):null,
     queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
   function cancelAll(reason='Cancelled'){
@@ -419,6 +471,10 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     // SAFARI_SITE_POLICY="https://a.example=trusted,https://b.example=fill-only".
     // Anything not named here is read-only, which is why there is no default.
     sitePolicy:process.env.SAFARI_SITE_POLICY,
+    // SAFARI_FIELD_VALUES="https://a.example,https://b.example". Opt-in, per
+    // origin, and only for origins already nominated `trusted` - the gateway
+    // refuses to start otherwise rather than dropping the entry silently.
+    fieldValueOrigins:process.env.SAFARI_FIELD_VALUES,
     // Lets the operator switch off "Always allow" fleet-wide without editing
     // the bridge. It can only ever REMOVE an option from the local dialog.
     standingGrants:process.env.SAFARI_STANDING_GRANTS!=='0',
@@ -433,6 +489,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
   });
   if(diagEnabled)console.log(`Diagnostics ON -> ${appendLine?logFile:'console only'}  (npm run diagnose for a report)`);
   console.log(`Site policy: ${process.env.SAFARI_SITE_POLICY||'(none - every origin is read-only)'}`);
+  console.log(`Field values: ${process.env.SAFARI_FIELD_VALUES||'(off everywhere - snapshots omit what fields contain)'}`);
   const port=Number(process.env.PORT||8787);
   const host=process.env.BIND_ADDRESS||'127.0.0.1';
   if(host!=='127.0.0.1'&&process.env.ALLOW_PROXY_BIND!=='true')throw Error('Nonloopback bind needs explicit ALLOW_PROXY_BIND=true; deploy behind HTTPS proxy');

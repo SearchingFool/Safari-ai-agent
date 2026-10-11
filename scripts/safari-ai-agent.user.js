@@ -71,6 +71,42 @@
   //     payment instrument form.
   const CC_AUTOFILL = 'input[autocomplete^="cc-" i], select[autocomplete^="cc-" i], [autocomplete="transaction-amount" i], [autocomplete="transaction-currency" i]';
 
+  // ---------------------------------------------------------------------------
+  // FIELD VALUES (D-032)
+  //
+  // The snapshot used to carry no field value at all, which made *updating* an
+  // existing form blind: the agent could not tell a pre-filled field from an
+  // empty one, could not verify its own fill, and could not preserve a value it
+  // should not change. Reporting values is now possible, but it is OFF unless
+  // the operator opted the origin in AND that origin is `trusted` - and it is
+  // refused outright for the categories below whatever policy says.
+  //
+  // Same split as everywhere else (D-025): the gateway may only ever answer
+  // "the operator opted this origin in". WHICH fields are readable is decided
+  // here, from the live DOM, by code that ships with the bridge. There is
+  // deliberately no field on the wire by which a gateway can name a field, widen
+  // the allowlist, or disable an exclusion.
+  //
+  // HARD EXCLUSIONS. Structural, not keyword-based, and unreachable by any
+  // policy - the value analogue of hardCeiling():
+  //   - input[type=password], and EVERY field in a form that carries one (the
+  //     username beside a password is a credential too, and so is the answer to
+  //     a security question sitting in the same form);
+  //   - anything matching CC_AUTOFILL, and every field in a form that carries
+  //     one (payment instrument data);
+  //   - input[type=hidden] - never shown to the human, so never consented to;
+  //   - any autocomplete token in SENSITIVE_AUTOFILL below.
+  const SENSITIVE_AUTOFILL = Object.freeze(new Set([
+    'one-time-code', 'current-password', 'new-password'
+  ]));
+  // Value reporting is ALLOWLISTED by control kind, not blocklisted. An input
+  // type nobody enumerated reports nothing, which is the fail-closed direction:
+  // a future HTML input type cannot leak by default.
+  const VALUE_INPUT_TYPES = Object.freeze(new Set([
+    ...TEXT_INPUT_TYPES, 'number', 'date', 'month', 'week', 'datetime-local'
+  ]));
+  const MAX_VALUE = 200;
+
   function normalizeMode(value) { return MODE_VALUES.has(value) ? value : MODES.READ_ONLY; }
 
   /**
@@ -82,8 +118,21 @@
    */
   function normalizePolicy(raw) {
     const source = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    const mode = normalizeMode(source.mode);
     return Object.freeze({
-      mode: normalizeMode(source.mode),
+      mode,
+      // D-032 field values. An ORTHOGONAL per-origin flag, not a fourth mode:
+      // seeing what a field contains is a disclosure question, not a question
+      // of what the agent may DO, and the two do not order against each other.
+      // Three independent conditions, all required, so every one of them is a
+      // separate thing that must go wrong before a value is reported:
+      //   - the operator opted this origin in at the gateway (source.values);
+      //   - the value is strictly boolean `true`, not any truthy value, so a
+      //     string, object or 1 from a confused gateway reads as off;
+      //   - the origin is TRUSTED. read-only and fill-only never report values,
+      //     and an origin absent from the policy map normalises to read-only,
+      //     so the default for an unlisted site is silence.
+      values: mode === MODES.TRUSTED && source.values === true,
       // Standing grants are OPERATOR-set only (D-021). The gateway may switch
       // them off entirely but can never switch them on by itself, and it can
       // never create one: this flag only decides whether the local panel is
@@ -119,7 +168,66 @@
       return trim(el.getAttribute('placeholder') || el.innerText || el.textContent || el.getAttribute('title') || '');
     }
 
-    function describe(el, ref) {
+    /**
+     * HARD EXCLUSION test for a field's value (D-032). Returns true when the
+     * value must NEVER be reported, whatever the policy says. Called before the
+     * policy flag is consulted at all, exactly as hardCeiling() is.
+     *
+     * Structural throughout: no label text, placeholder or name is examined, so
+     * this works on a password field labelled in any language or not at all.
+     */
+    function valueExcluded(el, tag, type) {
+      // DELIBERATELY REDUNDANT, and honestly so. `password` is also kept out by
+      // the VALUE_INPUT_TYPES allowlist below, and `hidden` is kept out three
+      // more times over - inspect() skips type=hidden, isVisible() rejects a
+      // zero-box element, and the allowlist does not contain it. Breaking this
+      // line alone therefore changes no observable behaviour and NO TEST GOES
+      // RED for it; breaking it together with the allowlist does, and
+      // tests/remote_dom_smoke.py pins that pair on a form-less password field.
+      // It stays because an exclusion should be stated where it is reasoned
+      // about, not inferred from an allowlist two screens away.
+      if (tag === 'input' && (type === 'password' || type === 'hidden')) return true;
+      // The element itself is a payment-instrument field.
+      if (el.matches && el.matches(CC_AUTOFILL)) return true;
+      // WHATWG autofill is a token LIST ("shipping cc-number"), so split it
+      // rather than comparing the attribute whole - otherwise two tokens hide a
+      // sensitive one. Any cc-* token, or any token in the sensitive set, is out.
+      const autofill = String(el.getAttribute?.('autocomplete') || '').toLowerCase();
+      for (const token of autofill.split(/\s+/)) {
+        if (!token) continue;
+        if (token.startsWith('cc-') || SENSITIVE_AUTOFILL.has(token)) return true;
+      }
+      // Guilt by form membership. A credential or payment form makes EVERY
+      // field in it sensitive: the username beside the password identifies the
+      // account, and the name on a card form is the cardholder.
+      const form = formOwner(el);
+      if (form && (form.querySelector('input[type="password" i]') || form.querySelector(CC_AUTOFILL))) return true;
+      return false;
+    }
+
+    /**
+     * The field's current value, or undefined. `showValues` has already been
+     * through normalizePolicy, so it is true only for a TRUSTED origin the
+     * operator opted in; the exclusions above are checked regardless.
+     */
+    function fieldValue(el, tag, type, showValues) {
+      if (showValues !== true) return undefined;
+      if (valueExcluded(el, tag, type)) return undefined;
+      let raw;
+      if (tag === 'select' || tag === 'textarea') raw = el.value;
+      else if (tag === 'input' && VALUE_INPUT_TYPES.has(type)) raw = el.value;
+      else if (el.isContentEditable && el.getAttribute('contenteditable') === 'true') raw = el.textContent;
+      // Anything else - a button, a checkbox, an input type nobody enumerated -
+      // reports nothing. Allowlisted, so a new control kind is silent by default.
+      else return undefined;
+      if (typeof raw !== 'string') return undefined;
+      // An EMPTY string is reported as "". `value` absent and `value: ""` mean
+      // different things - not disclosed, versus disclosed and the field is
+      // empty - and the difference is the whole point of the feature.
+      return trim(raw, MAX_VALUE);
+    }
+
+    function describe(el, ref, showValues) {
       const tag = el.tagName.toLowerCase();
       const type = tag === 'input' ? (el.getAttribute('type') || 'text').toLowerCase() : tag;
       const details = {ref, tag, type, label: getLabel(el), disabled: Boolean(el.disabled)};
@@ -129,11 +237,24 @@
         catch (_) { /* An invalid URL is deliberately omitted. */ }
       }
       if (tag === 'select') details.options = [...el.options].slice(0, 30).map(option => ({value: option.value, label: trim(option.textContent, 80)}));
-      // Never expose input values. This covers passwords as well as personal form data.
+      // Field values are OMITTED unless the operator opted this trusted origin
+      // in (D-032), and omitted unconditionally for passwords, password-form
+      // siblings, payment fields, hidden inputs and sensitive autofill tokens.
+      const value = fieldValue(el, tag, type, showValues);
+      if (value !== undefined) {
+        details.value = value;
+        // Say so when the value was cut, otherwise a caller comparing its own
+        // fill against the readback sees a mismatch and cannot tell why.
+        if (value.length >= MAX_VALUE) details.valueTruncated = true;
+      }
       return details;
     }
 
-    function inspect() {
+    function inspect(policy) {
+      // Policy may have come over the network. normalizePolicy collapses
+      // anything unrecognised to read-only, which cannot report values, so the
+      // no-argument call used by the panel and the extension is values-off.
+      const showValues = normalizePolicy(policy).values;
       references.clear();
       sequence = 0;
       const elements = [];
@@ -144,12 +265,12 @@
         if (['hidden', 'file'].includes(type)) continue;
         const ref = `e${++sequence}`;
         references.set(ref, el);
-        elements.push(describe(el, ref));
+        elements.push(describe(el, ref, showValues));
       }
       // body.innerText only reflects rendered text. This is intentionally local-only.
       // Never copy a snapshot to an AI provider without separate explicit consent.
       const pageText = trim(doc.body?.innerText || '', MAX_TEXT);
-      return {
+      const snapshot = {
         schema: 'safari-ai-agent.snapshot.v1',
         url: win.location.href,
         title: trim(doc.title, 240),
@@ -157,6 +278,12 @@
         elements,
         truncated: elements.length >= MAX_ELEMENTS
       };
+      // Added ONLY when values are on, so a snapshot taken under the default is
+      // byte-identical to the one this code produced before D-032. When it is
+      // present it tells the caller that a missing `value` means excluded or
+      // unsupported, not merely "not asked for".
+      if (showValues) snapshot.fieldValues = true;
+      return snapshot;
     }
 
     function resolve(ref) {

@@ -55,6 +55,7 @@ A **prototype for supervised use on pages you trust**, by the person who set it 
 ## Where to start
 
 - **[Setup guide](docs/SETUP-GUIDE.md) — step-by-step instructions, written for non-technical users. Start here if you just want to use it.**
+- **[Device lifecycle](docs/DEVICE-LIFECYCLE.md) — adding an iPad, and removing everything from one before you pass it on, sell it or return it.** The device token is a standing grant to drive a browser and **signing out of iCloud does not remove it**. Read this before pairing a device you will not keep.
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md) — definitive product MVP acceptance criteria.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md) — phases B1–D, dependencies and release gates.
 - [Decision log](docs/DECISIONS.md) — architecture and decisions still requiring real evidence.

@@ -1,6 +1,8 @@
 # B1–D release acceptance checklist
 
-**Status: BLOCKED on external account / device checks.** Do not tag the AI-driven iPad MVP as accepted until every mandatory item is evidenced. These are operational tests that cannot be replaced with local simulation.
+**Status: BLOCKED on iPad device checks.** Do not tag the AI-driven iPad MVP as accepted until every mandatory item is evidenced. These are operational tests that cannot be replaced with local simulation.
+
+**2026-10-11 — the account/provider blocker is cleared.** A real Claude custom remote MCP connector authenticated over public HTTPS and completed the full natural-language workflow against a real browser. **That run was on macOS Safari, not the iPad.** macOS Safari and iPadOS Safari differ in extension lifecycle, tab suspension and backgrounding, so a macOS pass is a rehearsal, not acceptance. Items below marked *macOS* must be repeated on the device.
 
 ## Completed engineering checks
 
@@ -14,12 +16,12 @@
 
 ## Mandatory owner-side evidence to obtain
 
-- [ ] **Public HTTPS gateway:** Deploy with trusted TLS, distinct generated tokens, origin allowlist containing `https://YOUR_HOST`. Direct unencrypted upstream HTTP must not be internet-accessible.
-- [ ] **Remote MCP endpoint:** Run `npm run check:deployment` using credentials stored outside the repository; record `transport: PASS` and seven tools.
-- [ ] **Claude on existing subscription:** Add remote connector with supported authentication; demonstrate `browser_status` tool call from the iPad Claude app. Record eligibility/billing without publishing secrets.
-- [ ] **Demo authentication:** Anonymous `/demo` and `/demo/product` must yield an empty HTTP 401 challenge; the distinct demo password must work and MCP/device bearer tokens must not grant access.
-- [ ] **Actual Safari/Userscripts:** Install separate remote script, Save + Connect on `https://YOUR_HOST/demo`. Verify explicit permission and test that Stop disconnects gateway.
-- [ ] **Natural-language workflow:** Ask Claude to search for widget, open Demo Widget, fill `Test Person` and `14:30`, select Basic, preview selection and verify `Preview ready` without submitting. No copy/paste of tool calls.
+- [x] **Public HTTPS gateway:** *Done 2026-10-11.* Tailscale Funnel, trusted TLS, three distinct generated secrets, origin allowlist set to the exact Funnel host; Node bound to `127.0.0.1` only. Public reachability proven via Tailscale ingress IP, bypassing MagicDNS.
+- [x] **Remote MCP endpoint:** *Done 2026-10-11.* `npm run check:deployment` → `transport: PASS`, `toolCount: 7`, credentials read from the gitignored local file.
+- [ ] **Claude on existing subscription:** Add remote connector with supported authentication; demonstrate `browser_status` tool call **from the iPad Claude app**. Record eligibility/billing without publishing secrets. — *Connector and `browser_status` verified 2026-10-11 but NOT from an iPad. Static bearer header accepted; no API billing. Device-side half outstanding.*
+- [x] **Demo authentication:** *Done 2026-10-11.* Anonymous `/demo` returned an empty 401 with a Basic challenge over the public path; MCP and device bearer tokens were both rejected; the distinct demo password granted access.
+- [ ] **Actual Safari/Userscripts:** Install separate remote script, Save + Connect on `https://YOUR_HOST/demo`. Verify explicit permission and test that Stop disconnects gateway. — *Passed on **macOS Safari** 2026-10-11 (real extension, explicit origin opt-in, token cleared from DOM after save). **Stop revocation not yet exercised.** iPad outstanding.*
+- [ ] **Natural-language workflow:** Ask Claude to search for widget, open Demo Widget, fill `Test Person` and `14:30`, select Basic, preview selection and verify `Preview ready` without submitting. No copy/paste of tool calls. — *Completed in full on **macOS Safari** 2026-10-11, 10 tool calls all HTTP 200. Must be repeated on the iPad.*
 - [ ] **Same-origin recovery:** Navigate back to `/demo`, confirm the bridge reconnects as appropriate and resuming does not repeat a prior action.
 - [ ] **Negative cases:** Deny click approval, try disallowed external navigation, blocked Submit, stale reference, suspend app, disconnect network, Stop while queued. Confirm no unintended actions.
 - [ ] **Reliability:** Run 10 safe workflows; record each result and errors. Do not claim 100% success without evidence.

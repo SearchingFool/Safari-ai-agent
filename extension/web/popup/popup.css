@@ -1,0 +1,38 @@
+/*
+ * File: extension/web/popup/popup.css
+ * Description: Styling for the Safari AI Agent extension popup.
+ * Author: safari-ai-agent-native-extension (Claude Code, Opus 5)
+ * Created: 2026-10-11
+ */
+:root { color-scheme: light dark; }
+body {
+  width: 320px; margin: 0; padding: 14px;
+  font: 13px/1.4 -apple-system, system-ui, sans-serif;
+  background: Canvas; color: CanvasText;
+}
+h1 { font-size: 15px; margin: 0 0 8px; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; opacity: .65; margin: 16px 0 6px; }
+.note { font-size: 12px; opacity: .8; margin: 0 0 4px; }
+.sub { font-weight: 400; opacity: .7; }
+label { display: block; margin-top: 8px; font-weight: 600; font-size: 12px; }
+input {
+  width: 100%; box-sizing: border-box; padding: 8px; margin-top: 3px;
+  border: 1px solid color-mix(in srgb, CanvasText 30%, transparent);
+  border-radius: 6px; font: inherit; background: Field; color: FieldText;
+}
+.row { display: flex; gap: 8px; margin-top: 10px; }
+button {
+  flex: 1; padding: 9px; border-radius: 7px; font: 600 13px inherit; cursor: pointer;
+  border: 1px solid color-mix(in srgb, CanvasText 35%, transparent);
+  background: color-mix(in srgb, CanvasText 7%, Canvas); color: CanvasText;
+}
+button.primary { background: #254c7c; color: #fff; border-color: #254c7c; }
+button.quiet { flex: 0 0 auto; padding: 9px 12px; }
+button:disabled { opacity: .45; cursor: default; }
+.tab { font-size: 12px; word-break: break-all; margin: 0; opacity: .85; }
+.status {
+  margin: 14px 0 0; padding-top: 10px; font-size: 12px; line-height: 1.35; word-break: break-word;
+  border-top: 1px solid color-mix(in srgb, CanvasText 18%, transparent);
+}
+.status.error { color: #b2411a; }
+.status.live { color: #1d6b3a; font-weight: 600; }

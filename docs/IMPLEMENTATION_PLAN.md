@@ -23,7 +23,7 @@ Canonical product requirements: [PRODUCT_REQUIREMENTS.md](PRODUCT_REQUIREMENTS.m
 | D1 | Observe–decide–act–verify workflow and navigation recovery | C2–C4 | AI repeats tool calls and completes a safe multi-page workflow | Not started |
 | D2 | Device acceptance and CI integration | D1 | Complete test matrix and recorded actual iPad results | Not started |
 | E | Configurable agent-governance harness | MVP accepted | Policy profiles, capability leases, structured audit, risk tiers, injection testing | **Deferred; separate milestone** |
-| F | Additional provider adapters and full Safari WebExtension packaging | MVP accepted | Independent client integration and native lifecycle tests | Future |
+| F | Additional provider adapters and full Safari WebExtension packaging | MVP accepted | Independent client integration and native lifecycle tests | **REQUIRED, not Future — see D-024.** The stated goal needs tabs, background, screenshots and a real permission model, none of which Userscripts can provide. Scaffolding started 2026-10-11 |
 
 **Parallel work:** B1 (provider/client capability) and remaining A tests can proceed together. Contract drafting C1 can begin using the existing DOM engine, but its final transport bindings depend on B1/B2. Gateway and userscript adapter can be implemented in parallel after the contract is frozen. The next research work is restricted to B1/B2 blocking questions.
 

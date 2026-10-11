@@ -1,0 +1,49 @@
+<!doctype html>
+<!--
+  File: extension/web/popup/popup.html
+  Description: Extension popup UI for the Safari AI Agent. Replaces the in-page
+    shadow-DOM panel in src/remote.js. Runs in an extension origin, so the page
+    being automated cannot read, cover, or spoof it.
+  Author: safari-ai-agent-native-extension (Claude Code, Opus 5)
+  Created: 2026-10-11
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Safari AI Agent</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <h1>Safari AI Agent</h1>
+
+  <p class="note">
+    The connected tab can be read by a remote AI. Use a non-sensitive site.
+    Every click and navigation asks you first; form submission is blocked.
+  </p>
+
+  <section>
+    <h2>Gateway</h2>
+    <label for="gateway">Gateway HTTPS URL</label>
+    <input id="gateway" type="url" autocomplete="off" spellcheck="false" placeholder="https://your-domain.example">
+    <label for="secret">Device token <span class="sub">(never share with an AI)</span></label>
+    <input id="secret" type="password" autocomplete="off" spellcheck="false">
+    <div class="row">
+      <button id="save" type="button">Save</button>
+      <button id="clear" type="button" class="quiet">Forget</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>Session</h2>
+    <p class="tab" id="tabinfo">Reading current tab...</p>
+    <div class="row">
+      <button id="connect" type="button" class="primary">Connect this tab</button>
+      <button id="stop" type="button">Stop</button>
+    </div>
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite">Loading...</p>
+
+  <script src="popup.js"></script>
+</body>
+</html>

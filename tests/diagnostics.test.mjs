@@ -48,6 +48,27 @@ test('Device origin rejection names the allowlist it was compared against', () =
   assert.ok(g.likelyCauses.join(' ').includes('https://example.org'));
 });
 
+test('HTTP 200 with a tool-level error is NOT reported as success', () => {
+  // The whole point: 200 means the exchange completed, not that the action happened.
+  const blocked = at({status: 200, isError: true, toolName: 'browser_click',
+    toolError: 'High-impact control blocked: form submission; use the webpage manually'});
+  assert.equal(blocked.code, 'TOOL_BLOCKED_HIGH_IMPACT');
+  assert.ok(blocked.likelyCauses.join(' ').includes('BEFORE any approval prompt'));
+
+  const denied = at({status: 200, isError: true, toolName: 'browser_click',
+    toolError: 'User denied click'});
+  assert.equal(denied.code, 'TOOL_DENIED_BY_OPERATOR');
+
+  const timedOut = at({status: 200, isError: true, toolName: 'browser_click',
+    toolError: 'Device command timed out; action outcome may be uncertain. Inspect again.'});
+  assert.equal(timedOut.code, 'TOOL_TIMED_OUT');
+  assert.equal(timedOut.severity, SEVERITY.ERROR);
+  assert.match(timedOut.summary, /UNCERTAIN/);
+
+  // A genuine success still reads as OK.
+  assert.equal(at({status: 200, isError: false, toolName: 'browser_click'}).code, 'MCP_OK');
+});
+
 test('Successful exchanges classify as ok and render as a single line', () => {
   const g = at({status: 200});
   assert.equal(g.code, 'MCP_OK');

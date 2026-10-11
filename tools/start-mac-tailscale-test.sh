@@ -95,6 +95,28 @@ if [[ -n "${SAFARI_EXTRA_ORIGINS:-}" ]]; then
 fi
 export PORT=8787 BIND_ADDRESS=127.0.0.1 SAFARI_ALLOWED_ORIGINS="$allowed_origins"
 
+# Per-origin permission mode (D-020/D-026). An origin with no entry defaults to
+# read-only, so WITHOUT this the rig connects, reports healthy, and then refuses
+# every click - which looks like a bug rather than a policy.
+#
+# The bundled /demo is nominated `trusted` because it is the inert fixture this
+# rig exists to exercise: no real submissions, no account, no money. Anything
+# added via SAFARI_EXTRA_ORIGINS is deliberately NOT trusted - a real site has
+# to be nominated by hand, by name, every time.
+#
+#   SAFARI_SITE_POLICY="https://example.com=trusted,https://other.example=fill-only"
+#
+# Hard ceilings (payment, account deletion, credential and security changes) are
+# refused on every site including trusted ones, and no value here can lift them.
+if [[ -z "${SAFARI_SITE_POLICY:-}" ]]; then
+  SAFARI_SITE_POLICY="https://$host=trusted"
+  echo "Site policy: demo origin is 'trusted'; any extra origin defaults to read-only."
+else
+  echo "WARNING: SAFARI_SITE_POLICY overridden: $SAFARI_SITE_POLICY"
+  echo "WARNING: a 'trusted' origin lets the agent complete actions there after one approval each."
+fi
+export SAFARI_SITE_POLICY
+
 gateway_pid=""
 cleanup() {
   if [[ -n "$gateway_pid" ]]; then

@@ -5,9 +5,9 @@
   "type": "module",
   "description": "Safari iPad Userscripts bridge and MCP browser automation gateway",
   "scripts": {
-    "build": "node tools/build.mjs && node tools/build-remote.mjs",
-    "test": "npm run build && node --test tests/*.test.cjs tests/*.test.mjs",
-    "check": "npm run test && node --check scripts/safari-ai-agent.user.js && node --check scripts/safari-ai-agent-remote.user.js && node --check gateway/server.mjs && node --check gateway/diagnostics.mjs",
+    "build": "node tools/build.mjs && node tools/build-remote.mjs && node extension/build.mjs",
+    "test": "npm run build && node --test tests/*.test.cjs tests/*.test.mjs extension/*.test.mjs",
+    "check": "npm run test && node --check scripts/safari-ai-agent.user.js && node --check scripts/safari-ai-agent-remote.user.js && node --check gateway/server.mjs && node --check gateway/diagnostics.mjs && node --check extension/web/background.js && node --check extension/web/content/content.js && node extension/build.mjs --check",
     "diagnose": "node tools/show-diagnostics.mjs",
     "build:remote": "node tools/build-remote.mjs",
     "test:browser": "python3 tests/browser_e2e.py && python3 tests/remote_dom_smoke.py && python3 tests/remote_gateway_integration.py",

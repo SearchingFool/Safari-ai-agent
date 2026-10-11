@@ -16,6 +16,27 @@ const call=(name,args={})=>({name,arguments:args});
 const payload=async r=>(await r.json());
 const output=x=>JSON.parse(x.result.content[0].text);
 
+// `/device/poll` answers immediately with `command:null` when the queue is
+// empty; it is not a long poll. A tools/call started but not awaited has
+// therefore not necessarily registered its pending item by the time the next
+// poll reaches the server, so a single poll races the queueing and sees null
+// roughly half the time. The real bridge re-polls every 1200ms (src/remote.js)
+// and treats an empty answer as the ordinary idle case, so the tests do the
+// same with a tighter interval instead of assuming the first poll wins.
+async function awaitCommand(device,origin,{attempts=100,intervalMs=5}={}){
+  for(let i=0;i<attempts;i++){
+    const {command}=await payload(await device('poll',{origin}));
+    if(command)return command;
+    await new Promise(resolve=>setTimeout(resolve,intervalMs));
+  }
+  throw new Error(`Gateway never queued a command for ${origin}`);
+}
+// An un-awaited tools/call rejects once the gateway is torn down. If an
+// assertion fails first, that rejection would surface as an unhandledRejection
+// and mask the real failure, so register a no-op handler while still returning
+// the original promise for the test to await.
+const inFlight=promise=>{promise.catch(()=>{});return promise;};
+
 test('Reject unsafe or missing setup secrets and origins',()=>{
   assert.throws(()=>createGateway({clientToken:'short',deviceToken:'short',allowedOrigins:[origin]}));
   assert.throws(()=>createGateway({clientToken:mcpToken,deviceToken:deviceToken,allowedOrigins:['javascript:alert(1)']}));
@@ -44,8 +65,8 @@ test('Device origin, token, result id, and replay protection',()=>testGateway(as
   await device('poll',{origin});
   status=await payload(await rpc('tools/call',call('browser_status')));
   assert.equal(output(status).connected,true);
-  const inflight=rpc('tools/call',call('browser_inspect'),2);
-  const cmd=(await payload(await device('poll',{origin}))).command;
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),2));
+  const cmd=await awaitCommand(device,origin);
   assert.equal(cmd.action,'browser_inspect');
   assert.equal((await device('result',{id:cmd.id,origin:'https://wrong.test',result:{success:true}})).status,403);
   assert.equal((await device('result',{id:cmd.id,origin,result:{success:true,data:{url:origin+'/forms'}}})).status,200);
@@ -59,10 +80,10 @@ test('Allowed action schema, origin scope, stale device and concurrency',()=>tes
   err=await payload(await rpc('tools/call',call('browser_fill',{ref:'e9999',value:'hello'})));
   assert.equal(err.result.isError,true);
   await device('poll',{origin});
-  const waiting=rpc('tools/call',call('browser_inspect'),7);
+  const waiting=inFlight(rpc('tools/call',call('browser_inspect'),7));
+  const cmd=await awaitCommand(device,origin);
   const busy=await payload(await rpc('tools/call',call('browser_fill',{ref:'e1',value:'x'}),8));
   assert.match(output(busy).error,/one in-flight/);
-  const cmd=(await payload(await device('poll',{origin}))).command;
   await device('result',{id:cmd.id,origin,result:{success:false,error:'User denied'}});
   const done=await payload(await waiting);
   assert.equal(done.result.isError,true);
@@ -70,8 +91,8 @@ test('Allowed action schema, origin scope, stale device and concurrency',()=>tes
 }));
 test('Cancelled commands fail closed and cannot be replayed',()=>testGateway(async({rpc,device})=>{
   await device('poll',{origin});
-  const started=rpc('tools/call',call('browser_fill',{ref:'e1',value:'test'}),1);
-  const cmd=(await payload(await device('poll',{origin}))).command;
+  const started=inFlight(rpc('tools/call',call('browser_fill',{ref:'e1',value:'test'}),1));
+  const cmd=await awaitCommand(device,origin);
   assert.ok(cmd.id);
   const cancelled=await payload(await rpc('tools/call',call('browser_cancel'),3));
   assert.equal(output(cancelled).cancelled,true);
@@ -86,22 +107,22 @@ test('Device command timeout returns uncertain failure, not false success',()=>t
 },{commandTimeoutMs:35}));
 test('Allowed navigation and inspect round trip do not require a model or API billing',()=>testGateway(async({rpc,device})=>{
   await device('poll',{origin});
-  const req=rpc('tools/call',call('browser_navigate',{url:origin+'/page2'}),10);
-  const cmd=(await payload(await device('poll',{origin}))).command;
+  const req=inFlight(rpc('tools/call',call('browser_navigate',{url:origin+'/page2'}),10));
+  const cmd=await awaitCommand(device,origin);
   assert.equal(cmd.args.url,origin+'/page2');
   await device('result',{id:cmd.id,origin,result:{success:true,dispatched:true,verified:false}});
   const first=await payload(await req);
   assert.equal(output(first).verified,false);
-  const inspect=rpc('tools/call',call('browser_inspect'),11);
-  const next=(await payload(await device('poll',{origin}))).command;
+  const inspect=inFlight(rpc('tools/call',call('browser_inspect'),11));
+  const next=await awaitCommand(device,origin);
   await device('result',{id:next.id,origin,result:{success:true,data:{url:origin+'/page2',title:'Page 2'}}});
   assert.equal(output(await payload(await inspect)).data.url,origin+'/page2');
 }));
 
 test('Device disconnect revokes pending commands and rejects old results',()=>testGateway(async({rpc,device})=>{
   await device('poll',{origin});
-  const req=rpc('tools/call',call('browser_click',{ref:'e2'}),90);
-  const cmd=(await payload(await device('poll',{origin}))).command;
+  const req=inFlight(rpc('tools/call',call('browser_click',{ref:'e2'}),90));
+  const cmd=await awaitCommand(device,origin);
   assert.ok(cmd.id);
   const revoked=await payload(await device('disconnect',{origin}));
   assert.equal(revoked.disconnected,true);

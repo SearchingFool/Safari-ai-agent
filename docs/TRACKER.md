@@ -1,6 +1,6 @@
 # Safari AI Agent — Delivery tracker
 
-Updated: 2026-10-09 | This tracker tracks implementation evidence, not ideas.
+Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
 **Current focus:** Test the prepared Mac + Tailscale Funnel gateway using [MAC_TAILSCALE_TEST.md](MAC_TAILSCALE_TEST.md), connect an eligible Claude account, and complete real iPad Safari device acceptance. Gateway and browser bridge merged on `main`; Mac Funnel launcher added as an optional test deployment path; live B1/B2/D acceptance **not confirmed**. Do not count synthetic Chromium and mock-GM tests as actual iPad or subscription validation.
 
@@ -66,7 +66,7 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 ## 2026-10-09 additional B1–D hardening and acceptance evidence
 
 - Implemented explicit /device/disconnect server-side revocation on Stop, MCP transport protocol/content-type validation, a public inert two-page /demo workflow, Docker gateway packaging and a non-destructive HTTPS MCP deployment checker.
-- Automated local validation: **13/13 Node tests pass**; 3 Chromium suites pass, including a real authenticated MCP HTTP-to-DOM roundtrip using a mocked GM transport.
+- Automated local validation: ~~**13/13 Node tests pass**~~ — **superseded 2026-10-11, see below**; this was one lucky run of a flaky suite. 3 Chromium suites pass, including a real authenticated MCP HTTP-to-DOM roundtrip using a mocked GM transport.
 - GitHub CI now runs a separate Playwright browser-integration job, including a true navigated two-page scenario where CI permits networking. CI results must be checked before merge.
 - Actual iPad Claude connection, public HTTPS deployment, device-specific lifecycle and ten-run reliability **remain blocked on external account/device access**. Do not mark D2 accepted.
 - Release evidence and prerequisites: [B1_D_STATUS.md](B1_D_STATUS.md), [RELEASE_CHECKLIST.md](RELEASE_CHECKLIST.md).
@@ -76,3 +76,13 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 - Tailscale already installed on the user's Mac and iPad; no Verpex server is required for the initial test.
 - Mac launcher and [instructions](MAC_TAILSCALE_TEST.md) are committed. It binds the gateway to localhost, generates separate local secrets and uses Tailscale Funnel to expose HTTPS for remote MCP.
 - Actual Mac launch, public HTTPS endpoint, Claude account connector and device acceptance are **not yet completed**. Do not mark B1/D2 as accepted until demonstrated.
+
+## 2026-10-11 test-suite determinism correction
+
+- **Source-of-truth shift:** the recorded "13/13 Node tests pass" was not reproducible. Measured on this Mac, the suite failed **roughly half of all runs**, alternating between `Device origin, token, result id, and replay protection` and `Allowed action schema, origin scope, stale device and concurrency`. CI had been passing on timing luck, so the green checkmark on PRs #6–#8 was weaker evidence than it appeared.
+- **Cause (test defect, not product defect):** `/device/poll` answers immediately with `command:null` when the queue is empty — it is not a long poll. The tests started a `tools/call` without awaiting it and then polled once, racing the gateway's registration of the pending command. The shipped bridge is unaffected: `src/remote.js` re-polls every 1200ms against a 25s command timeout and treats an empty answer as the ordinary idle case.
+- **Fix:** `tests/gateway.test.mjs` now re-polls like the real bridge via an `awaitCommand` helper, and un-awaited in-flight calls get a no-op rejection handler so a teardown rejection can no longer mask the real assertion failure. No gateway or userscript behavior was changed.
+- **Evidence:** 25/25 consecutive `node --test tests/gateway.test.mjs` runs clean; 5/5 consecutive `npm run check` runs at **14/14** (2 build + 12 gateway); 3/3 Chromium suites pass.
+- **Also fixed:** `npm run test:browser` invoked `python`, which does not exist on a stock macOS (only `python3`), so the documented local browser check could not run on the Mac that will host the Funnel test. Now uses `python3`; CI is unaffected.
+- **Discipline change:** do not record a test-count claim in this repo from a single run. State the repeat count alongside the result, as the entries above now do.
+- **Unchanged:** this is engineering hygiene only. B1-01, B2-01 and D2-01 remain open and still require the real Claude account and physical iPad. Do not read a green suite as acceptance.

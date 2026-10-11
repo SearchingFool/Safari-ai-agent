@@ -1,0 +1,16 @@
+# Safari-ai-agent/.worktree-config
+# Description: Per-repo worktree provisioning config for the global provisioner
+#   ~/.ai-dev-dotfiles/tools/setup-worktree.sh. Consumed when starting isolated
+#   branch work so agents never hand-roll `git worktree add` or switch HEAD in
+#   the shared checkout.
+# Author: Claude Code (Opus 5)
+# Created: 2026-10-11
+#
+# This project has no Node package dependencies (see README "Run automated
+# checks"), so there is nothing to install after creation. Gateway credentials
+# live in .env.mac-tailscale, which is a real secret and is deliberately NOT
+# listed in WT_CREDS — the launcher regenerates it per worktree on first run.
+WT_BASE_BRANCH=main
+WT_POST_CREATE=''
+WT_CREDS=''
+WT_PROFILE=none

@@ -21,7 +21,9 @@ Verified 2026-10-11:
 - The community `safari-mcp` offers ~98 tools via AppleScript against the real logged-in Safari — **macOS only**.
 - `safaridriver` and AppleScript **do not exist on iPadOS**. Nothing ships for iPad.
 
-**On macOS this project is redundant.** Apple's own tooling is better. **On iPadOS it is the only viable shape**, and for a structural reason: iPadOS cannot spawn local processes, so there can be no local MCP server. An iPad agent *must* reach a remote MCP endpoint — which is exactly the architecture already built and proven.
+**On macOS this project is redundant.** Apple's own tooling is better. **On iPadOS it is the only viable shape** — but for a more precise reason than first recorded here.
+
+> **Corrected 2026-10-11 (D-030).** This section previously claimed "iPadOS cannot spawn local processes, so there can be no local MCP server". That is wrong. An iPadOS app *can* bind a local HTTP server while running. **The real blocker is reachability:** a cloud-hosted model reaches the gateway from the provider's own infrastructure, so the endpoint must be publicly routable. The iPad is behind NAT and Tailscale Funnel is unavailable on iOS, so nothing cloud-hosted can route to an on-iPad server. With an **on-device** model, client and server are both local and the Mac disappears entirely — see D-030.
 
 The macOS testing was a rehearsal. **iPad is the entire point.**
 

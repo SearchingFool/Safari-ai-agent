@@ -280,6 +280,31 @@
       return null;
     }
 
+    /**
+     * Name the ELEVATED class. This is deliberately COARSE: `inertCategory`
+     * above refuses to call ANY control with a form owner inert, so everything
+     * inside a form lands here as `form-submit` - the real submit, a
+     * `type="button"` preview beside it, and even an ordinary same-origin link
+     * that would be ROUTINE anywhere else on the page (D-031).
+     *
+     * WHY THAT IS TOLERABLE - AND THE INVARIANT IT DEPENDS ON.
+     * The operator-facing prompt names the control itself ("Preview selection"
+     * vs "Submit demo form"), so the coarse class is never what the human is
+     * shown. The class matters in exactly one place: standing grants, which key
+     * on origin + category. And `decideClick` makes a grant possible only when
+     * `tier === ROUTINE`, so an ELEVATED classification is ALWAYS
+     * `grantable: false` and no amount of approving the preview can ever
+     * authorise the submit.
+     *
+     * That invariant is load-bearing, not incidental. Relaxing it - the obvious
+     * "let the operator say Always allow on elevated too, to cut approval
+     * fatigue" change under D-021 - would make this immediately exploitable:
+     * one "Always allow" on a harmless preview button would silently cover
+     * every submit in the same form. If you ever want grantable ELEVATED
+     * classes, SPLIT THIS FUNCTION FIRST so a preview and a submit stop sharing
+     * a category. The regression test pinning `ELEVATED => !grantable` is in
+     * tests/remote_dom_smoke.py.
+     */
     function elevatedCategory(el, d) {
       if (d.isSubmit || formOwner(el)) return 'form-submit';
       if (d.isToggle) return 'state-toggle';
@@ -728,7 +753,13 @@
             lastSnapshot=null;
           }
         }
-        show(running?`Connected · ${lastCommand||'ready'}`:'Stopped');
+        // A successful poll means the gateway considers THIS tab the owner, so
+        // the panel can say so without guessing. With the session now following
+        // the visible tab (D-033) the operator may have several tabs of one
+        // site open, and "Connected" in all of them would be a lie in all but
+        // one - so the live tab says "LIVE in this tab" and every other tab
+        // says standing by or paused.
+        show(running?`${LIVE} Live in this tab · ${lastCommand||'ready'}`:'Stopped');
       } catch(e){
         if(e.status===409 && e.payload && e.payload.code==='DEVICE_SESSION_CONFLICT')showConflict(e.payload);
         else show(`Connection/action error: ${String(e.message||e)}`);
@@ -736,16 +767,25 @@
       if(running && !paused && loopId===mine)await sleep(1200);
     }
   }
+  const LIVE='●';   // filled dot: this tab holds the session
+  const IDLE='○';   // hollow dot: this tab is connected but not the live one
   function show(message){ if(status)status.textContent=message; if(takeover)takeover.hidden=!conflict; }
   // Name the tab that actually holds the session and offer a way out. Before
   // this the losing panel showed a bare HTTP error and polled forever (D-017).
   function showConflict(payload){
     conflict=payload;
-    const who=payload.sameOrigin
-      ? 'Another tab of this same site'
-      : `${payload.activeOrigin||'Another site'}`;
     const seconds=Math.ceil((payload.staleAfterMs||0)/1000);
-    show(`${who} is connected and owns the device session. Stop it there, or press "Take over" to move the session to this tab. ${seconds>0?`It frees itself in about ${seconds}s if that tab is gone.`:''}`);
+    if(payload.sameOrigin){
+      // Same origin is the D-033 case. A 409 here means the other tab is
+      // currently VISIBLE, because the gateway hands the session over
+      // automatically as soon as it is not - so the honest message is "you are
+      // next", not "something is broken". Take over stays available for the
+      // genuinely ambiguous case of two tabs visible at once (Split View or a
+      // second window), which is the one thing the gateway cannot decide.
+      show(`${IDLE} Standing by — another tab of this site is live. This tab becomes live automatically as soon as it is the one you are looking at. Press "Take over" only if both tabs are on screen at once.`);
+      return;
+    }
+    show(`${IDLE} ${payload.activeOrigin||'Another site'} is connected and owns the device session. Stop it there, or press "Take over" to move the session to this tab. ${seconds>0?`It frees itself in about ${seconds}s if that tab is gone.`:''}`);
   }
   let status=null;
   let takeover=null;
@@ -854,7 +894,7 @@
     if(paused){show(PAUSED);return;}
     show('Connecting...');void pump();
   }
-  const PAUSED='Paused - tab not visible. Nothing will run until you return to this tab.';
+  const PAUSED=`${IDLE} Paused - tab not visible. Nothing will run until you return to this tab.`;
   // Safari throttles background timers well past the gateway's 45s freshness
   // window, so an unhandled hidden tab used to look dead. Pausing explicitly
   // makes the state legible AND tells the gateway, so a queued command fails
@@ -867,8 +907,19 @@
       return;
     }
     if(paused)return;
-    paused=true;loopId++;clearTimeout(timer);show(PAUSED);
+    paused=true;loopId++;clearTimeout(timer);
+    // An approval dialog left open in a tab that just went off screen must not
+    // be answerable later. Without this the operator could switch away, let the
+    // session follow to another tab (D-033), come back minutes afterwards and
+    // approve a prompt for a command this tab no longer holds - which is the
+    // "two tabs acting on one command" case restated. Denying is also the only
+    // fail-closed answer: consent given to an off-screen page is not consent.
+    if(pendingApproval)pendingApproval('deny');
+    show(PAUSED);
     // Best effort only: tells the gateway this tab is not a safe place to run.
+    // Load-bearing for D-033 as well as for the pause itself - it is what lets
+    // the next visible tab take the session immediately instead of waiting out
+    // the 45s freshness window.
     if(url&&token)void request('/device/poll',identity()).catch(()=>{});
   }
   document.addEventListener('visibilitychange',onVisibilityChange);

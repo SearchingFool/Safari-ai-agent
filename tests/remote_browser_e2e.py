@@ -121,9 +121,21 @@ def run():
         def gm_bridge(source, details):
             assert details['url'].startswith('https://test.gateway.example/device/')
             assert details['headers']['Authorization'] == 'Bearer ' + DEVICE_TOKEN
-            response = post(gateway + details['url'].split('example', 1)[1],
-                            json.loads(details['data']), DEVICE_TOKEN)
-            return {'status': 200, 'responseText': json.dumps(response)}
+            # Pass the real status and body through rather than raising. A 409
+            # DEVICE_SESSION_CONFLICT is an ORDINARY answer the bridge is
+            # designed to read and explain (D-017/D-033); swallowing it here
+            # made every multi-tab path untestable in this suite, which is why
+            # the behaviour had only ever been exercised against a mock.
+            req = request.Request(gateway + details['url'].split('example', 1)[1],
+                                  details['data'].encode(),
+                                  headers={'Content-Type': 'application/json',
+                                           'Authorization': 'Bearer ' + DEVICE_TOKEN},
+                                  method='POST')
+            try:
+                with request.urlopen(req, timeout=35) as response:
+                    return {'status': response.status, 'responseText': response.read().decode()}
+            except error.HTTPError as exc:
+                return {'status': exc.code, 'responseText': exc.read().decode()}
 
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True,
@@ -145,6 +157,15 @@ def run():
                xmlHttpRequest:details=>window.__gmBridge(details)
             };
             window.__settings=__TEST_GM_SETTINGS__;
+            // Headless Chromium reports EVERY page as visible, including
+            // background tabs, so the one signal the whole of D-033 turns on
+            // cannot be driven for real here. It is overridden per page
+            // instead: everything else in the two-tab test - two independent
+            // bridges, two instance ids, real HTTP, the real gateway - is
+            // genuine. Real tab suspension is still only observable on a device.
+            window.__visibility='visible';
+            Object.defineProperty(Document.prototype,'visibilityState',
+              {configurable:true,get:()=>window.__visibility});
             // D-021: approval is no longer window.confirm but a three-way dialog
             // inside the panel's CLOSED shadow root, so page.on('dialog') no
             // longer sees it. Force the root open for this run only and act as
@@ -213,6 +234,64 @@ def run():
             verified = parse(call_through_browser(page, gateway, 'browser_verify', {'textIncludes': 'Navigation succeeded'}, request_id=16))
             assert verified['success']
             print('PASS: MCP -> authenticated gateway -> mocked GM isolated bridge -> Chromium DOM -> navigation -> auto-resume -> verify')
+
+            # --- The session follows the visible tab (D-033) ------------------
+            # Two REAL bridge instances, two real sessionStorage instance ids,
+            # one real gateway. The operator's expectation is that opening a
+            # second tab of an already-configured site and switching to it just
+            # works, with no Take over and no reconfiguration.
+            def active_instance():
+                return parse(call(gateway, 'browser_status'))['activeInstanceId']
+
+            def wait_for_instance(expected, why):
+                # Must pump the Playwright event loop, not time.sleep: every
+                # device poll these bridges make goes through an exposed
+                # binding, so a blocking sleep stops them polling at all and
+                # the handover being waited for can never happen.
+                for _ in range(100):
+                    if active_instance() == expected:
+                        return
+                    second_tab.wait_for_timeout(100)
+                raise AssertionError(f'{why}: session stayed on {active_instance()}, wanted {expected}')
+
+            def set_visibility(target, value):
+                target.evaluate("(v)=>{window.__visibility=v;"
+                                "document.dispatchEvent(new Event('visibilitychange'));}", value)
+
+            second_tab = context.new_page()
+            second_tab.goto(origin + '/demo.html')
+            first_id = page.evaluate("sessionStorage.getItem('safari-agent:instance')")
+            second_tab.wait_for_function(
+                "window.__panel && window.__panel.querySelector('.status').textContent.length>0",
+                timeout=15000)
+            second_id = second_tab.evaluate("sessionStorage.getItem('safari-agent:instance')")
+            assert first_id and second_id and first_id != second_id, (first_id, second_id)
+            # While the first tab is still the visible one it KEEPS the session.
+            # Auto-start alone must not move it; that would be the D-023 defect
+            # with extra steps.
+            second_tab.wait_for_function(
+                "window.__panel.querySelector('.status').textContent.includes('Standing by')",
+                timeout=15000)
+            assert active_instance() == first_id, 'a visible owner must not be displaced'
+
+            # The operator switches tabs. No button is pressed anywhere.
+            set_visibility(page, 'hidden')
+            wait_for_instance(second_id, 'the session did not follow to the visible tab')
+            second_tab.wait_for_function(
+                "window.__panel.querySelector('.status').textContent.includes('Live in this tab')",
+                timeout=15000)
+            # And the new tab really can do the work, which is the only thing
+            # that makes the handover worth anything.
+            followed = parse(call_through_browser(second_tab, gateway, 'browser_inspect', request_id=17))
+            assert followed['success'] and followed['data']['title'] == 'Safari AI Agent Test Page', followed
+
+            # Switching back hands it straight back, still with no operator action.
+            set_visibility(second_tab, 'hidden')
+            set_visibility(page, 'visible')
+            wait_for_instance(first_id, 'the session did not follow back')
+            back = parse(call_through_browser(page, gateway, 'browser_inspect', request_id=18))
+            assert back['success'] and back['data']['title'] == 'Second test page', back
+            print('PASS: the device session follows the visible tab between two real bridges, no takeover (D-033)')
             browser.close()
     finally:
         proc.terminate()

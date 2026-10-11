@@ -186,7 +186,19 @@ The status should read `Connected`.
 
 > **If the tab is not in front, the agent is paused — deliberately.** The panel shows *"Paused — tab not visible"*, and the gateway will **refuse** to hand it a command rather than letting an approval prompt appear where you cannot see it. Claude will be told the tab is not visible. Bring the tab forward and it resumes on its own.
 
-### Step 3.5 — Try it
+### Step 3.5 — Use Split View. This is a requirement, not a tip.
+
+**On iPadOS, Safari must be visible on screen for the agent to touch the page.** Backgrounding Safari *suspends* the tab: polling stops, the session ages out, and every page-touching tool is refused.
+
+Since you drive the agent from the Claude app, you need both on screen at once:
+
+> Open Safari on the demo page, then drag **Claude** from the Dock to the side of the screen to enter **Split View** (or use Stage Manager).
+
+Without this, `browser_status` works — it never touches the page — and everything else fails with *"No active iPad Safari device"*. Confirmed on device 2026-10-11 (D-029). It is an iPadOS constraint; no setting or update changes it.
+
+The refusal is immediate (about 1 ms), so you get a clear error rather than a long hang.
+
+### Step 3.6 — Try it
 
 Keep that Safari tab **in front**. In Claude:
 

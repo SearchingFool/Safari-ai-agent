@@ -2,7 +2,7 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** Repeat the 2026-10-11 workflow on the **physical iPad**. The Mac + Tailscale Funnel gateway, the Claude remote MCP connector and the full observe/act/verify workflow are now demonstrated live, but **on macOS Safari**. B1-01 is closed; B2-01 and D2-01 remain open and require the actual device. Do not count the macOS rehearsal, synthetic Chromium runs or mock-GM tests as iPad acceptance.
+**Current focus:** Finish D2-01. The full workflow and the core negative cases are now **evidenced on the physical iPad** (2026-10-11): B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device. **Remaining for D2-01:** network loss mid-command, Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an independent security review. Also open and blocking wider use: **D-034** (the `browser_click` description states a safety guarantee that no longer exists), **D-033** (session should follow the visible tab — agent in flight), **D-032** (snapshot omits field values, so *updating* a form is blind). Do not read demo-page results as proof that submissions are prevented — see D-034.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -21,13 +21,13 @@ Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 | A-03 | iPad Safari acceptance checklist | Partially observed, open | A-01/A-02 | Recorded inspect/fill/click/navigate/permission tests on actual iPad |
 | B1-01 | Supported AI-client custom-tool/MCP feasibility | **Closed 2026-10-11** | None | Live Claude custom remote MCP connector: `initialize`, `tools/list` and 10 `tools/call` round trips, all HTTP 200. See 2026-10-11 entry |
 | B1-02 | Subscription entitlement, terms and costs | **Closed 2026-10-11** | B1-01 | Existing Claude subscription, static bearer header accepted; no API billing incurred; Funnel adds no cost |
-| B2-01 | Foreground iPad outbound transport and lifecycle | **Open — macOS rehearsal only** | A-03 | macOS Safari + Userscripts verified 2026-10-11. **iPad** suspend/resume/permission behaviour still unrecorded |
+| B2-01 | Foreground iPad outbound transport and lifecycle | **CLOSED on device 2026-10-11** | — | Real iPad, real Userscripts, real Claude app. `/device/poll → 200` with token, allowlisted origin, per-tab `instanceId` and `visibility` all accepted; `browser_status` and `browser_inspect` invoked from Claude on iPad. Suspension behaviour characterised: backgrounding **suspends** the tab, session ages out, page-touching tools fast-fail in 1 ms (D-029) |
 | C1-01 | Versioned browser tool contract and errors | **Closed 2026-10-11** | — | Seven tools exercised live; stale-ref reassignment handled correctly across navigation |
 | C2-01 | Authenticated MCP gateway/session routing | **Closed 2026-10-11** | B1-01, C1-01 | Public HTTPS tool-call round trip, 2–1191 ms; `check:deployment` reports `transport: PASS` |
 | C3-01 | Userscripts transport adapter | **Open — macOS rehearsal only** | B2-01 | Real Userscripts extension paired and polled on macOS Safari; iPadOS runtime unverified |
 | C4-01 | **Minimum MVP safety gate**, not full harness | Partially closed | C1-01, C3-01 | Origin allowlist and approval prompts verified live. Submission block and Stop revocation **not yet exercised against the live rig** |
-| D1-01 | Model-driven observe/act/verify and navigation recovery | **Closed on macOS 2026-10-11** | C2, C3, C4 | Full multi-page workflow with no copy/paste: search, navigate, fill text/time/select, click, verify, stop without submitting |
-| D2-01 | Device acceptance, regression, documented limits | Open | D1-01 | All MVP release criteria in PRODUCT_REQUIREMENTS met |
+| D1-01 | Model-driven observe/act/verify and navigation recovery | **CLOSED ON DEVICE 2026-10-11** | C2, C3, C4 | 17 tool calls from Claude on iPad: search → navigate → fill text/time/select → preview → verify, no copy/paste, not submitted. Approval latency 3.6/5.5/6.8 s against the 25 s timeout — *faster* than macOS |
+| D2-01 | Device acceptance, regression, documented limits | **Partially closed 2026-10-11** | D1-01 | **Done on device:** operator denial refuses the action (twice, incl. a submit); disallowed external navigation refused by the gateway in 0 ms; stale reference refused; session survives refusals; Split View constraint characterised (D-029). **Outstanding:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, security review |
 | E-01 | **Separate post-MVP governance harness** | Deferred | MVP acceptance | Independently specified policy and capability-lease milestone |
 | F-01 | Additional provider adapters and native packaging | Future | MVP acceptance | Independently verified adapters and Safari packaging |
 
@@ -109,6 +109,26 @@ Search → navigate → fill text/time/select → click → verify, with **no co
 **Live negative tests (same session).** **Submission block passed:** `browser_click` on the submit control was refused in 424 ms with "High-impact control blocked: form submission", **no approval dialog offered**, form not submitted. The command reached the device and the *bridge* refused it at the point of execution — defence in depth, not merely a gateway-side check. **Stop revocation passed:** polling ceased, `/device/disconnect` returned 200, and `browser_status` then reported `connected: false` with `generation` incremented by `cancelAll()` — server-side revocation, not a paused poller. **Stale references passed** implicitly: refs were reassigned across navigation and the client used the fresh snapshot.
 
 **NOT established.** This was **macOS Safari, not the iPad**. No iPadOS extension runtime, tab suspension, backgrounding or device-specific permission behaviour was exercised. Still untested: denied click approval, disallowed external navigation, app suspension, network loss, Stop while a command is queued, same-origin recovery, ten-run reliability, security review. **B2-01 and D2-01 remain open; the MVP is not accepted.**
+
+## 2026-10-11 FIRST iPAD DEVICE SESSION — B2-01 and D1-01 closed
+
+**The two gates that blocked this project from the first commit are now closed on real hardware.** Claude on an iPad drove a real Safari tab through the gateway. All timings from `logs/gateway-diagnostics.jsonl`.
+
+**Connection.** `/device/poll → 200` with device token, allowlisted origin, per-tab `instanceId` and `visibility` all accepted — the session-identity work (D-023) running on the actual target device.
+
+**Workflow (D1-01).** 17 tool calls: search → navigate → fill text/time/select → preview → verify. No copy/paste. Not submitted.
+
+**Approval latency (closes D-016 favourably).** iPad: **3.6 / 5.5 / 6.8 s** against the 25 s timeout — *faster* than macOS (3.2–14.9 s). Worst case 27 % of budget vs 60 %. The timeout is not under pressure on touch.
+
+**Negative cases proven on device.** Operator denial refuses the action — verified twice, including on a **submit** (`TOOL_DENIED_BY_OPERATOR`, 5.5 s and 4.5 s). Disallowed external navigation refused by the **gateway in 0 ms** before reaching the device. Stale reference refused by the bridge. Session survived three consecutive refusals. Three different layers each refusing what they own.
+
+**A first attempt mis-tapped "Allow once" instead of "Deny"**, which produced a false alarm. Re-run with an actual denial gave the correct refusal. Recording this because the dialog's three buttons are easy to mis-hit on touch.
+
+**D-029, a hard platform constraint.** `browser_inspect` refused in **1 ms** with Safari backgrounded, succeeded in 1398 ms with it visible. Two distinct refusals occur: *"No active iPad Safari device"* (iPadOS **suspends** the tab; session ages out of the 45 s window) and *"The paired Safari tab is not visible"* (visibility gate, on shorter backgrounding). **macOS differs** — a hidden tab keeps polling, throttled. **Split View is mandatory** on iPadOS; no code change and no native extension lifts it.
+
+**D-034, a defect this session exposed.** There is **no blanket submit ceiling any more** — hard ceilings are payment, account-deletion and credentials-security only, so a generic submit on a `trusted` origin is ELEVATED: prompt, approve, dispatch. That is D-026 (C) as specified. **But `browser_click` still advertises "Submission is blocked by default".** The model read that, saw a submit dispatch, and reported a connector failure — correctly. **The submit WAS dispatched;** nothing happened only because the demo page blocks itself with `preventDefault`. On a real trusted site that approval would have submitted. **Demo-page evidence must not be read as proof that submissions are prevented.**
+
+**Still outstanding for D2-01:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, independent security review.
 
 ## 2026-10-11 test-suite determinism correction
 

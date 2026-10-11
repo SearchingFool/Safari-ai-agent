@@ -83,7 +83,7 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 
 **First end-to-end execution with a real AI client driving a real browser.** All timings from `logs/gateway-diagnostics.jsonl`.
 
-**Deployment.** Mac launcher + Tailscale Funnel; gateway bound to `127.0.0.1:8787`, public HTTPS at `https://libors-macbook-pro-2.tail1447fc.ts.net`. Public reachability confirmed by forcing resolution to Tailscale's ingress (`185.40.234.198`), bypassing MagicDNS — an earlier in-tailnet curl had **not** proven this. `npm run check:deployment` → `transport: PASS`, 7 tools.
+**Deployment.** Mac launcher + Tailscale Funnel; gateway bound to `127.0.0.1:8787`, public HTTPS at the operator's `https://<mac>.ts.net` Funnel address (hostname deliberately not recorded here — this repository is public, and naming a live endpoint invites probing even though both entrances are authenticated). Public reachability confirmed by forcing resolution to a Tailscale ingress IP, bypassing MagicDNS — an earlier in-tailnet curl had **not** proven this. `npm run check:deployment` → `transport: PASS`, 7 tools.
 
 **B1 — Claude connector (closed).** Three failed attempts all sent `Authorization` of length 25: the literal placeholder `Bearer <MCP_CLIENT_TOKEN>` from the setup docs, never substituted. The connector had no edit affordance, so it was deleted and re-created with the real 71-character value. Handshake then succeeded: `initialize` → 200, `notifications/initialized` → 202, `tools/list` → 200. **Claude's connector does support static header auth on this account.**
 

@@ -45,8 +45,12 @@ def decoded(response):
 def main():
     chosen_port=port()
     host=f'http://127.0.0.1:{chosen_port}'
+    # D-020: allowlisting an origin only permits CONNECTING to it. Acting on it
+    # needs a site mode, and an unlisted origin is read-only, so this rig must
+    # nominate its own test origin the same way an operator would.
     env={**os.environ,'MCP_CLIENT_TOKEN':CLIENT,'DEVICE_TOKEN':DEVICE,
-         'SAFARI_ALLOWED_ORIGINS':ORIGIN,'PORT':str(chosen_port)}
+         'SAFARI_ALLOWED_ORIGINS':ORIGIN,'SAFARI_SITE_POLICY':f'{ORIGIN}=trusted',
+         'PORT':str(chosen_port)}
     gateway=subprocess.Popen(['node','gateway/server.mjs'],cwd=ROOT,env=env,
                              stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
     try:
@@ -85,6 +89,23 @@ def main():
                   setValue:(key,val)=>{window.__gmStore[key]=val;return Promise.resolve();},
                   xmlHttpRequest:details=>window.__gmBridge(details)
                 };
+                // D-021: approval is no longer window.confirm but a three-way
+                // dialog inside the panel's CLOSED shadow root. The root is
+                // forced open for this run only so the test can act as the
+                // operator; production behaviour is unchanged.
+                const attach=Element.prototype.attachShadow;
+                Element.prototype.attachShadow=function(init){
+                  const root=attach.call(this,{...init,mode:'open'});
+                  if(this.hasAttribute('data-safari-ai-remote-host'))window.__panel=root;
+                  return root;
+                };
+                window.__answer='once';
+                setInterval(()=>{
+                  const box=window.__panel && window.__panel.querySelector('.approval');
+                  if(!box||box.hidden)return;
+                  const button=box.querySelector('#approve-'+window.__answer);
+                  (button||box.querySelector('#approve-deny')).click();
+                },20);
             ''' % DEVICE)
             page.add_script_tag(content=(ROOT/'src/core.js').read_text())
             page.add_script_tag(content=(ROOT/'src/remote.js').read_text())
@@ -112,8 +133,14 @@ def main():
                 assert page.locator('#delivery').input_value()=='14:30'
                 bad=rpc('browser_fill',{'ref':controls['Preferred delivery time'],'value':'14:20'},5)
                 assert bad['isError'] and page.locator('#delivery').input_value()=='14:30',bad
+                # HARD CEILING over the real wire: the site is nominated
+                # `trusted`, the operator stand-in would approve anything, and
+                # the submit is STILL refused - because the form carries a
+                # password field and that decision is made in the bridge, not
+                # by anything the gateway said.
                 denied=rpc('browser_click',{'ref':controls['Submit test form']},6)
-                assert denied['isError'] and 'High-impact' in denied['error'],denied
+                assert denied['isError'] and 'never permitted' in denied['error'],denied
+                assert 'credentials-security' in denied['error'],denied
                 assert page.locator('#feedback').inner_text()=='No actions yet.'
                 clicked=rpc('browser_click',{'ref':controls['Show confirmation']},7)
                 assert clicked['dispatched'] and not clicked['verified'],clicked

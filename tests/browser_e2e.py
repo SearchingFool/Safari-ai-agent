@@ -47,21 +47,28 @@ def run():
             host.locator('[data-do="fill"]').click()
             assert 'Unsupported field' in host.locator('.status').inner_text()
             assert page.locator('#secret').input_value() == 'never-share-me'
+            # D-019 inverted the default to fail-closed, so an ordinary button
+            # nobody enumerated is now ELEVATED rather than waved through.
+            # Dismissing the prompt must leave the page untouched.
             select_ref(by_label['Show confirmation'])
-            host.locator('[data-do="click"]').click()
-            assert page.locator('#feedback').inner_text() == 'Button clicked'
-            select_ref(by_label['Submit test form'])
             page.once('dialog', lambda dialog: dialog.dismiss())
             host.locator('[data-do="click"]').click()
-            assert page.locator('#feedback').inner_text() == 'Button clicked', 'Rejected submission still triggered!'
+            assert page.locator('#feedback').inner_text() == 'No actions yet.', 'Rejected click still fired!'
             page.once('dialog', lambda dialog: dialog.accept())
             host.locator('[data-do="click"]').click()
-            assert page.locator('#feedback').inner_text() == 'Test form submitted locally'
+            assert page.locator('#feedback').inner_text() == 'Button clicked'
+            # HARD CEILING: this form carries a password field, so its submit is
+            # a credential submission. It is refused in code that ships with the
+            # engine - no prompt is raised, and accepting one would not help.
+            select_ref(by_label['Submit test form'])
+            host.locator('[data-do="click"]').click()
+            assert 'never permitted' in host.locator('.status').inner_text()
+            assert page.locator('#feedback').inner_text() == 'Button clicked', 'Hard-ceiling submit still fired!'
             # Cross-origin navigation must receive approval; cancel keeps the page intact.
             host.locator('#url').fill('https://example.com/next')
             page.once('dialog', lambda dialog: dialog.dismiss())
             host.locator('[data-do="navigate"]').click()
-            assert page.locator('#feedback').inner_text() == 'Test form submitted locally'
+            assert page.locator('#feedback').inner_text() == 'Button clicked'
             # Exercise the navigation engine using a fake location so no external network is needed.
             assigned = page.evaluate("""() => {
               let captured = null;

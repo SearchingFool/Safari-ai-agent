@@ -90,8 +90,14 @@ def run():
     gateway_port = free_port()
     origin = 'https://safari-test.example'
     gateway = f'http://127.0.0.1:{gateway_port}'
+    # An origin with no policy entry defaults to read-only (D-020), so fills and
+    # clicks would be refused. This suite exercises the full workflow, so it
+    # nominates its own fixture origin as trusted - the same opt-in the other
+    # suites make. Restrictive-default behaviour is asserted in gateway.test.mjs
+    # and remote_dom_smoke.py, not here.
     env = dict(os.environ, MCP_CLIENT_TOKEN=MCP_TOKEN, DEVICE_TOKEN=DEVICE_TOKEN,
-               SAFARI_ALLOWED_ORIGINS=origin, PORT=str(gateway_port), BIND_ADDRESS='127.0.0.1')
+               SAFARI_ALLOWED_ORIGINS=origin, SAFARI_SITE_POLICY=f'{origin}=trusted',
+               PORT=str(gateway_port), BIND_ADDRESS='127.0.0.1')
     proc = subprocess.Popen(['node', 'gateway/server.mjs'], cwd=ROOT, env=env,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     try:
@@ -139,6 +145,24 @@ def run():
                xmlHttpRequest:details=>window.__gmBridge(details)
             };
             window.__settings=__TEST_GM_SETTINGS__;
+            // D-021: approval is no longer window.confirm but a three-way dialog
+            // inside the panel's CLOSED shadow root, so page.on('dialog') no
+            // longer sees it. Force the root open for this run only and act as
+            // the operator. Re-runs on every navigation because this is an init
+            // script, which is what the post-navigation resume step needs.
+            const __attach=Element.prototype.attachShadow;
+            Element.prototype.attachShadow=function(init){
+              const root=__attach.call(this,{...init,mode:'open'});
+              if(this.hasAttribute('data-safari-ai-remote-host'))window.__panel=root;
+              return root;
+            };
+            // 'once' only: never 'always'. A standing grant would mask a
+            // regression that re-prompts when it should not.
+            setInterval(()=>{
+              const box=window.__panel && window.__panel.querySelector('.approval');
+              if(!box||box.hidden)return;
+              (box.querySelector('#approve-once')||box.querySelector('#approve-deny')).click();
+            },20);
             '''.replace('__TEST_GM_SETTINGS__', json.dumps(gm_storage))
             context.add_init_script(script=preamble + '\n' + core + '\n' + remote)
             page = context.new_page()
@@ -168,10 +192,14 @@ def run():
             assert page.locator('#person').input_value() == 'Browser Agent'
             assert parse(call_through_browser(page, gateway, 'browser_verify', {'textIncludes': 'Safari AI Agent Test Page'}, request_id=12))['success']
             # After verify re-inspection, old refs can be reused only if stable.
-            # A consequential submit button must be blocked even if a local confirmation would accept.
+            # A hard ceiling is refused even on a TRUSTED origin and even if a
+            # local confirmation would have accepted. The fixture's submit sits
+            # in a form carrying a password field, so it classifies structurally
+            # as credentials-security - no keyword needed.
             blocked = call_through_browser(page, gateway, 'browser_click', {'ref': refs['Submit test form']}, request_id=13)
             assert blocked['isError']
-            assert 'High-impact' in parse(blocked)['error']
+            assert 'never permitted' in parse(blocked)['error'], parse(blocked)
+            assert 'credentials-security' in parse(blocked)['error'], parse(blocked)
             assert page.locator('#feedback').inner_text() == 'No actions yet.'
 
             # Explicitly navigate to next page. Response is only dispatch acknowledgement.

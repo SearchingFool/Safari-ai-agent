@@ -106,7 +106,9 @@ Search → navigate → fill text/time/select → click → verify, with **no co
 
 **Findings recorded as decisions:** D-015 (Claude requested MCP protocol `2026-07-28`; gateway advertises `2025-11-25`, returned 400, client renegotiated). D-016 (approval latency 3.2–14.9 s against a 25 s timeout — the worst case used 60% of the budget). D-014 (Userscripts is App Store-only, effectively single-maintainer, in beta since 2026-01 — a single point of failure for the iPad path).
 
-**NOT established.** This was **macOS Safari, not the iPad**. No iPadOS extension runtime, tab suspension, backgrounding or device-specific permission behaviour was exercised. Submission blocking and Stop revocation were **not** run against the live rig. No ten-run reliability measurement, no security review. **B2-01 and D2-01 remain open; the MVP is not accepted.**
+**Live negative tests (same session).** **Submission block passed:** `browser_click` on the submit control was refused in 424 ms with "High-impact control blocked: form submission", **no approval dialog offered**, form not submitted. The command reached the device and the *bridge* refused it at the point of execution — defence in depth, not merely a gateway-side check. **Stop revocation passed:** polling ceased, `/device/disconnect` returned 200, and `browser_status` then reported `connected: false` with `generation` incremented by `cancelAll()` — server-side revocation, not a paused poller. **Stale references passed** implicitly: refs were reassigned across navigation and the client used the fresh snapshot.
+
+**NOT established.** This was **macOS Safari, not the iPad**. No iPadOS extension runtime, tab suspension, backgrounding or device-specific permission behaviour was exercised. Still untested: denied click approval, disallowed external navigation, app suspension, network loss, Stop while a command is queued, same-origin recovery, ten-run reliability, security review. **B2-01 and D2-01 remain open; the MVP is not accepted.**
 
 ## 2026-10-11 test-suite determinism correction
 

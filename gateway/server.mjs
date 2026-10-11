@@ -177,10 +177,49 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     return {
       activeOrigin:current?.origin||null,
       activeInstanceId:current?.instanceId||null,
+      // The owner's own visibility is the whole reason this request was
+      // refused rather than followed (D-033), so the losing panel is told it.
+      // It discloses nothing: a same-origin tab could poll for it anyway.
+      activeVisibility:current?.visibility||null,
       sameOrigin:current?.origin===b.origin,
       staleAfterMs:Math.max(0,deviceFreshMs-(clock()-lastPoll)),
       canTakeOver:true
     };
+  }
+  // ---------------------------------------------------------------------------
+  // D-033: THE SESSION FOLLOWS THE VISIBLE TAB.
+  //
+  // The operator expects to configure a site once and have whichever tab they
+  // are looking at be the live one. Before this, the gateway granted the
+  // session to whichever tab polled first and every other tab sat on a 409
+  // until the operator found the "Take over" button.
+  //
+  // This does NOT reinstate D-023. D-023 was a command being claimed by a tab
+  // the operator could not see. The gateway now refuses to deliver a command to
+  // a tab reporting anything other than `visible`, and on iPadOS a backgrounded
+  // tab is suspended outright (D-029). So the ONLY session this function will
+  // move is one held by a tab that is structurally incapable of executing
+  // anything. The gate is exactly that signal and nothing else:
+  //
+  //   - the claimant must itself be VISIBLE - a tab that cannot act must not be
+  //     handed the session either, or a background tab could steal it from a
+  //     foreground one;
+  //   - the incumbent must NOT be visible - a visible, live owner is never
+  //     displaced automatically. That stays an explicit operator "Take over",
+  //     because two simultaneously visible tabs (Split View, a second window)
+  //     is a real conflict and the gateway cannot tell which one the operator
+  //     means;
+  //   - SAME ORIGIN only - a different allowlisted origin is a genuine
+  //     conflict, not a tab switch, and keeps the existing takeover UI.
+  //
+  // The already-stale case needs no entry here: `sessionFresh()` is false once
+  // the owner ages out of deviceFreshMs, so the poll simply succeeds. The
+  // same-tab-reconnecting case is likewise already handled by `owns`, because
+  // the instance id is sessionStorage-backed and survives same-tab navigation.
+  function sessionFollows(b,visibility){
+    return visibility==='visible'
+        && current?.origin===b.origin
+        && current.visibility!=='visible';
   }
   async function call(tool,args){
     if(tool==='browser_status')return toolOK(status());
@@ -290,17 +329,25 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         }
         if(url.pathname==='/device/poll'){
           if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
+          const visibility=b.visibility==='visible'?'visible':'hidden';
           if(sessionFresh() && !owns){
+            const follows=sessionFollows(b,visibility);
             // The losing tab previously got a bare 409 forever with no way out
             // (D-017). Name the owner so the panel can say WHICH tab holds the
             // session, and accept an explicit operator-driven takeover.
-            if(b.takeover!==true)return json(res,409,{error:'Another tab already owns the device session',code:'DEVICE_SESSION_CONFLICT',...conflictBody(b),requestId});
-            // Takeover invalidates everything the previous tab might still act
-            // on. Queued commands were issued against a page the operator is no
-            // longer looking at, so they must not survive the handover.
-            cancelAll('Device session taken over by another tab');
+            if(!follows && b.takeover!==true)return json(res,409,{error:'Another tab already owns the device session',code:'DEVICE_SESSION_CONFLICT',...conflictBody(b),requestId});
+            // A session move - automatic or explicit - invalidates everything
+            // the previous tab might still act on. This is the mechanism that
+            // stops two tabs acting on one command: the losing tab's claimed
+            // command is disposed here, so its later POST to /device/result is
+            // refused 409, and the bridge dispatches a click or navigation only
+            // AFTER that result is accepted. A revoked command therefore cannot
+            // reach the page. Queued work was also approved, if at all, against
+            // a page the operator has stopped looking at.
+            cancelAll(follows
+              ? 'Device session followed the visible tab'
+              : 'Device session taken over by another tab');
           }
-          const visibility=b.visibility==='visible'?'visible':'hidden';
           current={origin:b.origin,instanceId:b.instanceId,visibility};lastPoll=clock();
           // Policy rides on EVERY poll, including the idle and paused ones, so
           // revoking trust takes effect within one poll interval rather than at

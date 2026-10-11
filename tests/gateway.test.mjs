@@ -378,3 +378,122 @@ test('A stale session is replaced without takeover once it ages out',()=>testGat
   assert.equal(body.command,null);
   assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).activeInstanceId,second);
 },{deviceFreshMs:40}));
+
+// --- The session follows the visible tab (D-033) -----------------------------
+// The operator's expectation is "configure the site once, then whichever tab I
+// am looking at is the live one". These tests pin BOTH halves of that: the
+// transfer that must happen, and - more importantly - the four cases where it
+// must not, because each one of those is a route back to the D-023 defect of a
+// command being claimed by a tab the operator cannot see.
+const third='tab-third-3';
+const activeInstance=async rpc=>output(await payload(await rpc('tools/call',call('browser_status')))).activeInstanceId;
+
+test('The session follows a visible tab when the owner has gone hidden (D-033)',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  // The owner reports itself hidden. This is the poll src/remote.js fires from
+  // visibilitychange; it is what makes the handover immediate instead of
+  // waiting out the 45s freshness window.
+  assert.equal((await payload(await device('poll',{origin,visibility:'hidden'}))).paused,'hidden');
+  // No takeover flag, no operator action: the second tab simply polls.
+  const followed=await payload(await device('poll',{origin,instanceId:second}));
+  assert.equal(followed.command,null);
+  assert.equal(followed.policy.mode,'trusted');
+  assert.equal(await activeInstance(rpc),second);
+  // And it keeps working: the new owner can be given a command straight away.
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),60));
+  const cmd=await awaitCommand(device,origin,{instanceId:second});
+  await device('result',{id:cmd.id,origin,instanceId:second,result:{success:true,data:{ok:true}}});
+  assert.equal(output(await payload(await inflight)).data.ok,true);
+}));
+
+test('A VISIBLE owner is never displaced automatically; that still needs Take over',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  // Two tabs on screen at once (Split View, or a second window) is a genuine
+  // conflict: the gateway cannot tell which one the operator means, so it must
+  // not guess. This is the single most important negative case in D-033.
+  const refused=await device('poll',{origin,instanceId:second});
+  assert.equal(refused.status,409);
+  const body=await payload(refused);
+  assert.equal(body.sameOrigin,true);
+  assert.equal(body.activeVisibility,'visible');
+  assert.equal(body.canTakeOver,true);
+  assert.equal(await activeInstance(rpc),'tab-primary-1');
+  // The explicit operator action still works, unchanged.
+  assert.equal((await payload(await device('poll',{origin,instanceId:second,takeover:true}))).command,null);
+  assert.equal(await activeInstance(rpc),second);
+}));
+
+test('A hidden tab never takes the session, even from another hidden tab',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  await device('poll',{origin,visibility:'hidden'});
+  // The claimant cannot execute anything either, so handing it the session
+  // would only move the problem. Only a tab that can act may become live.
+  const refused=await device('poll',{origin,instanceId:second,visibility:'hidden'});
+  assert.equal(refused.status,409);
+  assert.equal((await payload(refused)).activeVisibility,'hidden');
+  assert.equal(await activeInstance(rpc),'tab-primary-1');
+  // Becoming visible is the whole and only qualification.
+  await device('poll',{origin,instanceId:second});
+  assert.equal(await activeInstance(rpc),second);
+}));
+
+test('A different origin is still a real conflict and never follows',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  await device('poll',{origin,visibility:'hidden'});
+  // Switching to a different allowlisted site is not "the same tab switch" -
+  // it changes which site mode applies, so it stays an explicit decision.
+  const refused=await device('poll',{origin:other,instanceId:second});
+  assert.equal(refused.status,409);
+  assert.equal((await payload(refused)).sameOrigin,false);
+  assert.equal(await activeInstance(rpc),'tab-primary-1');
+},{allowedOrigins:[origin,other],sitePolicy:{[origin]:'trusted'}}));
+
+test('A command claimed by the losing tab cannot be completed after the session follows',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  const abandoned=inFlight(rpc('tools/call',call('browser_click',{ref:'e1'}),61));
+  const cmd=await awaitCommand(device,origin);
+  // The tab backgrounds while holding a CLAIMED command - the operator walked
+  // away mid-approval. The session follows to the tab now on screen.
+  await device('poll',{origin,visibility:'hidden'});
+  await device('poll',{origin,instanceId:second});
+  assert.equal(await activeInstance(rpc),second);
+  // The MCP caller is told, rather than being left to time out.
+  assert.match(output(await payload(await abandoned)).error,/followed the visible tab/);
+  // THE LOAD-BEARING ASSERTION. The losing tab posts the result it was about to
+  // produce and is refused. src/remote.js dispatches a click or a navigation
+  // only AFTER /device/result is accepted, so a revoked command can never reach
+  // the page - which is what keeps two tabs from acting on one command.
+  assert.equal((await device('result',{id:cmd.id,origin,result:{success:true,dispatched:true}})).status,409);
+  // The new owner cannot answer for work it did not do either.
+  assert.equal((await device('result',{id:cmd.id,origin,instanceId:second,result:{success:true}})).status,409);
+}));
+
+test('Rapid tab switching hands the session back and forth without stranding it',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  // Six switches. Each one must leave exactly the visible tab live, and none
+  // may leave the session held by a tab that reported itself hidden.
+  for(const [leaving,arriving] of [['tab-primary-1',second],[second,third],[third,'tab-primary-1'],
+                                   ['tab-primary-1',second],[second,third],[third,'tab-primary-1']]){
+    await device('poll',{origin,instanceId:leaving,visibility:'hidden'});
+    await device('poll',{origin,instanceId:arriving});
+    assert.equal(await activeInstance(rpc),arriving,`${leaving} -> ${arriving}`);
+  }
+  // Still a usable session at the end, not a wedged one.
+  const inflight=inFlight(rpc('tools/call',call('browser_inspect'),62));
+  const cmd=await awaitCommand(device,origin);
+  await device('result',{id:cmd.id,origin,result:{success:true,data:{ok:true}}});
+  assert.equal(output(await payload(await inflight)).data.ok,true);
+}));
+
+test('A followed session is still refused work while the new owner is hidden',()=>testGateway(async({device,rpc})=>{
+  await device('poll',{origin});
+  await device('poll',{origin,visibility:'hidden'});
+  await device('poll',{origin,instanceId:second});
+  // Following must not be a back door around the visibility gate: the new owner
+  // is subject to exactly the same refusal the old one was.
+  await device('poll',{origin,instanceId:second,visibility:'hidden'});
+  const refused=await payload(await rpc('tools/call',call('browser_click',{ref:'e1'}),63));
+  assert.equal(refused.result.isError,true);
+  assert.match(output(refused).error,/not visible/);
+  assert.equal(await activeInstance(rpc),second);
+}));

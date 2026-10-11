@@ -12,8 +12,74 @@
   const ACTIONABLE = 'a[href], button, input, textarea, select, [role="button"], [role="link"], [contenteditable="true"]';
   const TEXT_INPUT_TYPES = new Set(['text', 'search', 'email', 'url', 'tel', 'time']);
   const TIME_FORMAT = /^([01][0-9]|2[0-3]):[0-5][0-9]$/;
-  const HIGH_IMPACT = /\b(delete|remove|erase|pay|purchase|buy|checkout|transfer|send|publish|confirm|submit|post|order)\b/i;
   const trim = (value, max = 120) => String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+
+  // ---------------------------------------------------------------------------
+  // PERMISSION MODEL (D-019 tiers, D-020 site modes, D-021 grants, D-025 split)
+  //
+  // Three tiers, evaluated fail-CLOSED. The previous `riskOfClick()` returned
+  // null for anything it did not recognise, so every control nobody had
+  // enumerated read as an ordinary click. The default is now ELEVATED and only
+  // a short, explicitly enumerated set of *provably inert* structures can earn
+  // ROUTINE.
+  //
+  // The split that matters (D-025): BLOCKED is computed HERE, in code that
+  // ships with the bridge, from the live DOM. The gateway is reachable over the
+  // network, so it is allowed to supply only the *tunable* part of policy (the
+  // per-origin mode). There is deliberately no code path by which anything the
+  // gateway sends can turn a BLOCKED classification into an allowed action.
+  // ---------------------------------------------------------------------------
+  const TIERS = Object.freeze({BLOCKED: 'blocked', ELEVATED: 'elevated', ROUTINE: 'routine'});
+  const MODES = Object.freeze({READ_ONLY: 'read-only', FILL_ONLY: 'fill-only', TRUSTED: 'trusted'});
+  const MODE_VALUES = new Set([MODES.READ_ONLY, MODES.FILL_ONLY, MODES.TRUSTED]);
+
+  // HARD CEILINGS. Genuinely irreversible categories. Never grantable, not even
+  // on a site the operator has nominated as trusted, and not overridable by any
+  // gateway-supplied policy. Adding to this list is a code change that ships
+  // with the bridge; that is the point.
+  //
+  // Each category has a STRUCTURAL test (language-independent, works on
+  // icon-only controls) and a keyword test. The keyword test can only ever
+  // RAISE a control to BLOCKED. It is never consulted to clear a control, so a
+  // word nobody thought of cannot cause a fail-open - it only means the control
+  // falls through to ELEVATED, which still requires explicit human approval.
+  const CEILING_WORDS = Object.freeze({
+    // Money leaving the operator's control.
+    payment: /\b(pay|paying|payment|purchase|buy|checkout|check\s?out|place\s+(the\s+)?order|order\s+now|donate|donation|subscribe|subscription|billing|invoice|wire|remit|transfer\s+(funds|money)|withdraw|top\s?up)\b|(bezahlen|kaufen|kasse|acheter|payer|commander|comprar|pagar|pagamento|acquista|betalen|köp|購入|支払|決済|結帳|结账|购买|支付|결제|구매|оплат|купить)/i,
+    // Destroying the account itself, not just a row of data.
+    'account-deletion': /\b(delete|delet(e|ing)|deactivate|disable|close|terminate|remove|wipe|purge)\s+(my\s+|the\s+|your\s+)?(account|profile|workspace|organi[sz]ation|tenant|everything|all\s+data)\b|\bdelete\s+my\s+data\b|\baccount\s+(deletion|removal|closure)\b|(konto\s+löschen|compte.*supprim|supprimer.*compte|eliminar.*cuenta|excluir.*conta|删除(账户|帐号)|注销(账户|帐号)|アカウント.*削除|계정.*삭제|удалить.*аккаунт)/i,
+    // Credentials, second factors, API keys, recovery paths, session trust.
+    'credentials-security': /\b(change|update|reset|rotate|revoke|regenerate|remove|disable|set)\s+(the\s+|my\s+|your\s+)?(password|passphrase|pin|api[\s-]?key|access[\s-]?token|secret|credential|recovery\s+code|backup\s+code|security\s+question)s?\b|\b(two[\s-]?factor|2fa|mfa|passkey|security\s+key|authenticator)\b|\b(revoke|remove)\s+(access|session|device|app)\b|(passwort\s+ändern|changer.*mot\s+de\s+passe|cambiar.*contraseña|修改密码|重置密码|パスワード.*変更|비밀번호.*변경|сменить.*пароль)/i
+  });
+  // Structural ceiling signals read off the element's FORM OWNER. These need no
+  // text at all, so they survive translation, icon-only buttons and an empty
+  // accessible name.
+  //   - a form carrying a password field is a credential submission or change;
+  //   - a form carrying autocomplete="cc-*" (WHATWG autofill tokens) is a
+  //     payment instrument form.
+  const CC_AUTOFILL = 'input[autocomplete^="cc-" i], select[autocomplete^="cc-" i], [autocomplete="transaction-amount" i], [autocomplete="transaction-currency" i]';
+
+  function normalizeMode(value) { return MODE_VALUES.has(value) ? value : MODES.READ_ONLY; }
+
+  /**
+   * Coerce whatever the gateway sent into a policy object this bridge will act
+   * on. Anything unrecognised, absent or malformed collapses to the most
+   * restrictive mode. A gateway that is compromised, confused or simply older
+   * than this bridge therefore cannot widen permissions by accident or design;
+   * the worst it can do is fail to grant any.
+   */
+  function normalizePolicy(raw) {
+    const source = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw : {};
+    return Object.freeze({
+      mode: normalizeMode(source.mode),
+      // Standing grants are OPERATOR-set only (D-021). The gateway may switch
+      // them off entirely but can never switch them on by itself, and it can
+      // never create one: this flag only decides whether the local panel is
+      // allowed to OFFER "Always allow" to a human.
+      grantsOffered: source.grants !== false,
+      version: typeof source.version === 'string' || typeof source.version === 'number' ? String(source.version) : '0'
+    });
+  }
 
   function createAgentCore(doc, win) {
     if (!doc || !win) throw new TypeError('Document and window are required');
@@ -120,12 +186,165 @@
       return {action: 'fill', ref, success: true, type: tag};
     }
 
-    function riskOfClick(el) {
-      const tag = el.tagName.toLowerCase();
-      if (tag === 'button' && el.closest('form') && (el.getAttribute('type') || 'submit').toLowerCase() === 'submit') return 'form submission';
-      if (tag === 'input' && ['submit', 'image'].includes((el.type || '').toLowerCase())) return 'form submission';
-      if (HIGH_IMPACT.test(getLabel(el))) return 'potentially consequential action';
+    /** The form this control actually submits, honouring the `form` attribute. */
+    function formOwner(el) {
+      const named = el.getAttribute && el.getAttribute('form');
+      if (named) return doc.getElementById(named) || null;
+      return el.closest ? el.closest('form') : null;
+    }
+
+    // Every scrap of text that could name the action, not just the accessible
+    // name. id/name are included because an icon-only control frequently
+    // carries `id="delete-account"` and nothing else a human could read.
+    function ceilingText(el) {
+      const parts = [getLabel(el), el.getAttribute('title'), el.getAttribute('value'),
+                     el.getAttribute('name'), el.id, el.getAttribute('data-testid')];
+      return parts.filter(Boolean).join(' ').slice(0, 400);
+    }
+
+    /**
+     * HARD CEILING test. Returns {category, reasons} or null.
+     * Structural first, keywords second, and keywords may only add.
+     */
+    function hardCeiling(el) {
+      const reasons = [];
+      let category = null;
+      const form = formOwner(el);
+      if (form) {
+        if (form.querySelector('input[type="password" i]')) {
+          category = 'credentials-security';
+          reasons.push('its form contains a password field');
+        } else if (form.querySelector(CC_AUTOFILL)) {
+          category = 'payment';
+          reasons.push('its form contains payment-card fields');
+        }
+      }
+      const text = ceilingText(el);
+      if (text) {
+        for (const [name, pattern] of Object.entries(CEILING_WORDS)) {
+          if (pattern.test(text)) {
+            // A structural hit already fixed the category; a keyword hit on a
+            // different category is still recorded, because the operator should
+            // see every reason the control was refused.
+            if (!category) category = name;
+            reasons.push(`its text matches the ${name} category`);
+            break;
+          }
+        }
+      }
+      return category ? {category, reasons} : null;
+    }
+
+    /**
+     * The ONLY structures allowed to be ROUTINE. Everything here must be
+     * reversible by the operator with a single ordinary browser action (back
+     * button, click it again). Anything that merely *looks* safe is not here.
+     * Returns a category string or null.
+     */
+    function inertCategory(el, d) {
+      if (d.disabled) return null;
+      // An empty accessible name means we are acting blind. It ELEVATES; it
+      // must never exempt. This is the inversion of the old behaviour, where an
+      // unlabelled control produced an empty string that matched no keyword and
+      // was therefore waved through.
+      if (d.unnamed) return null;
+      // Anything inside a form may participate in submission, implicitly or via
+      // a script, so no control with a form owner is ever inert.
+      if (formOwner(el)) return null;
+      if (d.isSubmit) return null;
+      // aria-pressed / aria-checked is a persisted state change - Like, Follow,
+      // Subscribe, Mute. Structurally detectable in any language with no text.
+      if (d.isToggle) return null;
+      const role = trim(el.getAttribute('role') || '', 32).toLowerCase();
+      // 1. Ordinary same-origin navigation by a real href. Reversible with Back.
+      if (d.tag === 'a' && d.href && !d.isPseudoLink && !d.external) return 'same-origin-link';
+      // 2. Disclosure. aria-expanded is only meaningful on a control that
+      //    expands something, and collapsing it again is the inverse.
+      if (el.hasAttribute('aria-expanded') && !d.isPseudoLink) return 'disclosure';
+      // 3. Tab selection within a tablist, and pagination expressed as tabs.
+      if (role === 'tab' || (el.hasAttribute('aria-selected') && role !== 'option')) return 'tab-select';
       return null;
+    }
+
+    function elevatedCategory(el, d) {
+      if (d.isSubmit || formOwner(el)) return 'form-submit';
+      if (d.isToggle) return 'state-toggle';
+      if (d.external) return 'cross-origin-link';
+      if (d.isPseudoLink) return 'scripted-action';
+      if (d.unnamed) return 'unnamed-control';
+      return 'unclassified-action';
+    }
+
+    /**
+     * Fail-closed classification of a click. Policy-free on purpose: this says
+     * what the control IS, never what the operator has permitted. Keeping the
+     * two apart is what lets `decideClick` be given untrusted policy safely.
+     */
+    function classifyClick(el) {
+      const control = describeControl(el);
+      const summary = describeForPrompt(control);
+      const ceiling = hardCeiling(el);
+      if (ceiling) {
+        return Object.freeze({
+          tier: TIERS.BLOCKED, category: ceiling.category, reasons: Object.freeze(ceiling.reasons),
+          grantable: false, control, summary
+        });
+      }
+      const inert = inertCategory(el, control);
+      if (inert) {
+        return Object.freeze({
+          tier: TIERS.ROUTINE, category: inert, reasons: Object.freeze([`recognised as a ${inert} control`]),
+          grantable: true, control, summary
+        });
+      }
+      const category = elevatedCategory(el, control);
+      const reasons = [category === 'unclassified-action'
+        ? 'not provably inert, so it is treated as consequential'
+        : `recognised as a ${category}`];
+      if (control.unnamed) reasons.push('it has no accessible name, so the agent is acting blind');
+      return Object.freeze({
+        tier: TIERS.ELEVATED, category, reasons: Object.freeze(reasons), grantable: false, control, summary
+      });
+    }
+
+    /**
+     * Apply operator policy to a classification. `policy` may have come over
+     * the network, so every branch below is written so that a hostile value can
+     * only ever produce a MORE restrictive answer:
+     *   - BLOCKED is handled before policy is consulted at all;
+     *   - mode is normalised against a closed enum, unknown -> read-only;
+     *   - the most permissive mode still yields 'prompt', never 'allow', so a
+     *     human is in the loop for every click no matter what arrives.
+     */
+    function decideClick(classification, policy) {
+      const p = normalizePolicy(policy);
+      if (classification.tier === TIERS.BLOCKED) {
+        return {decision: 'refuse', grantable: false, mode: p.mode,
+                reason: `${classification.category} actions are never permitted on any site, including trusted ones`};
+      }
+      if (p.mode !== MODES.TRUSTED) {
+        return {decision: 'refuse', grantable: false, mode: p.mode,
+                reason: `clicking is not permitted on this site (site mode: ${p.mode}). Nominate it as trusted to allow completion.`};
+      }
+      return {decision: 'prompt', mode: p.mode,
+              // Only ROUTINE may ever be covered by a standing grant (D-021).
+              grantable: classification.tier === TIERS.ROUTINE && p.grantsOffered};
+    }
+
+    function decideFill(policy) {
+      const p = normalizePolicy(policy);
+      if (p.mode === MODES.READ_ONLY) {
+        return {decision: 'refuse', mode: p.mode, reason: 'this site is read-only; fields cannot be filled'};
+      }
+      return {decision: 'allow', mode: p.mode};
+    }
+
+    function decideNavigate(policy) {
+      const p = normalizePolicy(policy);
+      if (p.mode === MODES.READ_ONLY) {
+        return {decision: 'refuse', grantable: false, mode: p.mode, reason: 'this site is read-only; navigation is not permitted'};
+      }
+      return {decision: 'prompt', mode: p.mode, grantable: p.grantsOffered};
     }
 
     // Describe a control in terms a HUMAN can consent to. The approval prompt
@@ -183,12 +402,17 @@
 
     function previewClick(ref) {
       const el = resolve(ref);
-      const detail = describeControl(el);
+      const c = classifyClick(el);
       return {
-        ref, risk: riskOfClick(el), tag: detail.tag,
-        href: detail.href,
-        control: detail,
-        summary: describeForPrompt(detail)
+        ref, tier: c.tier, category: c.category, reasons: c.reasons, grantable: c.grantable,
+        // `risk` is retained for callers that predate tiering (src/panel.js).
+        // It is now derived FROM the tier rather than being the classifier, so
+        // there is one source of truth and it can no longer disagree.
+        risk: c.tier === TIERS.ROUTINE ? null : `${c.tier}: ${c.category}`,
+        tag: c.control.tag,
+        href: c.control.href,
+        control: c.control,
+        summary: c.summary
       };
     }
 
@@ -203,10 +427,19 @@
         const href = new URL(el.getAttribute('href') || '', doc.baseURI);
         if (!['https:', 'http:'].includes(href.protocol)) throw new Error('Unsupported link protocol.');
       }
-      const risk = riskOfClick(el);
-      if (risk && approved !== true) return {action: 'click', ref, requiresApproval: true, reason: risk};
+      const c = classifyClick(el);
+      // A hard ceiling is refused even when the caller claims approval. There
+      // is no `approved` value, and no policy, that reaches past this line.
+      if (c.tier === TIERS.BLOCKED) {
+        throw new Error(`Refused: ${c.category} actions are never permitted - ${c.summary}`);
+      }
+      if (c.tier !== TIERS.ROUTINE && approved !== true) {
+        return {action: 'click', ref, requiresApproval: true, tier: c.tier, category: c.category,
+                reason: `${c.category} (${c.summary})`};
+      }
       el.click();
-      return {action: 'click', ref, success: true, approvalUsed: Boolean(risk)};
+      return {action: 'click', ref, success: true, tier: c.tier, category: c.category,
+              approvalUsed: c.tier !== TIERS.ROUTINE};
     }
 
     function highlight(ref) {
@@ -227,9 +460,16 @@
       return {action: 'navigate', success: true, url: url.href};
     }
 
-    return Object.freeze({inspect, fill, click, previewClick, highlight, navigate});
+    return Object.freeze({
+      inspect, fill, click, previewClick, highlight, navigate,
+      // Ref-addressed so remote callers never hold a live element.
+      classify: ref => classifyClick(resolve(ref)),
+      decideClick, decideFill, decideNavigate
+    });
   }
 
-  global.SafariAIAgentCore = {createAgentCore};
-  if (typeof module !== 'undefined' && module.exports) module.exports = {createAgentCore};
+  global.SafariAIAgentCore = {createAgentCore, TIERS, MODES, normalizeMode, normalizePolicy};
+  if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {createAgentCore, TIERS, MODES, normalizeMode, normalizePolicy};
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -368,8 +368,84 @@ test('Standing grants can be switched off centrally but never switched on',()=>t
   // dialog. There is no field by which the gateway creates a grant itself:
   // the wire format carries a boolean, never a list of granted classes.
   assert.equal(idle.policy.grants,false);
-  assert.deepEqual(Object.keys(idle.policy).sort(),['grants','mode','version']);
+  assert.deepEqual(Object.keys(idle.policy).sort(),['grants','mode','values','version']);
 },{standingGrants:false}));
+
+// --- D-032 field values: an orthogonal, per-origin, opt-in disclosure ---------
+// The gateway's half of the split is exactly one boolean per origin. It cannot
+// name a field, cannot disable an exclusion, and cannot opt in a site that is
+// not `trusted`.
+test('Field values are off for every origin unless the operator opted one in',()=>testGateway(async({device,rpc})=>{
+  const idle=await payload(await device('poll',{origin}));
+  // `trusted` alone must NOT imply value reporting: acting and disclosing are
+  // separate decisions, which is the whole reason this is a flag and not a mode.
+  assert.equal(idle.policy.mode,'trusted');
+  assert.equal(idle.policy.values,false);
+  const status=output(await payload(await rpc('tools/call',call('browser_status'),69)));
+  assert.equal(status.activeFieldValues,false);
+}));
+
+test('An opted-in trusted origin reports values; its neighbours do not',()=>testGateway(async({device,rpc})=>{
+  const on=await payload(await device('poll',{origin}));
+  assert.equal(on.policy.values,true);
+  const status=output(await payload(await rpc('tools/call',call('browser_status'),70)));
+  assert.equal(status.activeFieldValues,true);
+  // A second allowlisted origin, also connected through the same gateway, is
+  // not opted in - so the flag is genuinely per-origin and not a server switch.
+  const off=await payload(await device('poll',{origin:other,instanceId:'tab-second-1',takeover:true}));
+  assert.equal(off.policy.values,false);
+  const status2=output(await payload(await rpc('tools/call',call('browser_status'),71)));
+  assert.equal(status2.activeFieldValues,false);
+},{allowedOrigins:[origin,other],sitePolicy:{[origin]:'trusted',[other]:'trusted'},fieldValueOrigins:[origin]}));
+
+test('Field-value configuration is validated as strictly as the site policy',()=>{
+  const base={clientToken:mcpToken,deviceToken,allowedOrigins:[origin,other]};
+  const trusted={...base,sitePolicy:{[origin]:'trusted'}};
+  // Only an exact HTTP(S) origin, exactly as parseSitePolicy requires.
+  assert.throws(()=>createGateway({...trusted,fieldValueOrigins:'https://example.org/path'}),/exact HTTP\(S\) origin/);
+  assert.throws(()=>createGateway({...trusted,fieldValueOrigins:'example.org'}),/exact HTTP\(S\) origin/);
+  // Never for a mode that cannot act. Silently ignoring these is the dangerous
+  // failure: the operator would believe values were on where they were off.
+  assert.throws(()=>createGateway({...trusted,fieldValueOrigins:[other]}),/trusted origin/);
+  assert.throws(()=>createGateway({...base,sitePolicy:{[origin]:'fill-only'},fieldValueOrigins:[origin]}),/trusted origin/);
+  assert.throws(()=>createGateway({...base,fieldValueOrigins:[origin]}),/trusted origin/);
+  // Not reachable past the connection allowlist either.
+  assert.throws(()=>createGateway({...base,sitePolicy:{[origin]:'trusted'},
+    fieldValueOrigins:'https://unlisted.example'}),/exact HTTP\(S\) origin|trusted origin/);
+  // A shape nobody designed for is refused outright rather than coerced. `true`
+  // is the dangerous one: a global "values on" is exactly what must not exist.
+  for(const bad of [true,1,{[origin]:true},()=>{}]){
+    assert.throws(()=>createGateway({...trusted,fieldValueOrigins:bad}),/comma-separated string or an array/,String(bad));
+  }
+  // Both accepted forms. The string is what the launcher passes from the env.
+  assert.ok(createGateway({...trusted,fieldValueOrigins:`${origin}`}));
+  assert.ok(createGateway({...trusted,fieldValueOrigins:[origin]}));
+  // Absent, empty and null are all simply off, not errors.
+  for(const none of [undefined,null,'',[]])assert.ok(createGateway({...trusted,fieldValueOrigins:none}));
+});
+
+test('Turning field values on changes the policy version, so standing grants drop',()=>{
+  const base={clientToken:mcpToken,deviceToken,allowedOrigins:[origin],sitePolicy:{[origin]:'trusted'}};
+  const version=async options=>{
+    const g=createGateway({...base,...options});
+    await new Promise(r=>g.server.listen(0,'127.0.0.1',r));
+    const port=g.server.address().port;
+    const res=await fetch(`http://127.0.0.1:${port}/device/poll`,{method:'POST',
+      headers:{Authorization:`Bearer ${deviceToken}`,'Content-Type':'application/json'},
+      body:JSON.stringify({origin,instanceId:'tab-primary-1',visibility:'visible'})});
+    const body=await res.json();
+    await g.close();
+    return body.policy.version;
+  };
+  return (async()=>{
+    const off=await version({});
+    const on=await version({fieldValueOrigins:[origin]});
+    // The bridge revokes every standing grant when the version changes. A
+    // disclosure change is a context change, so consent given before it must
+    // not carry over.
+    assert.notEqual(off,on);
+  })();
+});
 
 test('Site policy configuration is validated and must not exceed the origin allowlist',()=>{
   const base={clientToken:mcpToken,deviceToken,allowedOrigins:[origin]};

@@ -117,6 +117,38 @@ else
 fi
 export SAFARI_SITE_POLICY
 
+# Per-origin FIELD VALUES (D-032). Off everywhere unless named here, because it
+# is the one setting that makes the snapshot carry what a form already contains
+# rather than only what it is called. That is what makes UPDATING a form
+# possible - and it is also a real disclosure, so it is never a default and
+# never inferred from `trusted`.
+#
+#   SAFARI_FIELD_VALUES="https://example.com,https://other.example"
+#
+# Only an origin already nominated `trusted` may appear: the gateway refuses to
+# start otherwise, rather than dropping the entry quietly. Passwords, fields
+# sharing a form with a password, payment-card and one-time-code fields and
+# hidden inputs are excluded in src/core.js on every site including these, and
+# nothing set here can reach them.
+#
+# Unlike the site policy, the demo origin is NOT opted in by default. The demo
+# form carries a password field, so most of it is excluded anyway, and switching
+# a disclosure on for the operator is not the launcher's call to make.
+if [[ -n "${SAFARI_FIELD_VALUES:-}" ]]; then
+  for value_origin in ${SAFARI_FIELD_VALUES//,/ }; do
+    if [[ ! "$value_origin" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+      echo "Refusing malformed field-value origin: $value_origin (expected https://host with no path)" >&2
+      exit 1
+    fi
+  done
+  echo "WARNING: field VALUES will be reported to the AI for: $SAFARI_FIELD_VALUES"
+  echo "WARNING: that is the current contents of ordinary form fields, not just their labels."
+  echo "WARNING: passwords, password-form siblings, payment and hidden fields are still never reported."
+  export SAFARI_FIELD_VALUES
+else
+  echo "Field values: off (snapshots say what a field IS, never what it contains)."
+fi
+
 gateway_pid=""
 cleanup() {
   if [[ -n "$gateway_pid" ]]; then

@@ -142,7 +142,12 @@
       // Inspect and verify are permitted in every mode including read-only.
       // They still disclose rendered page text to the model, which is why
       // read-only is a site-trust decision and not "harmless".
-      case 'browser_inspect': lastSnapshot=core.inspect(); return {success:true,data:lastSnapshot};
+      // Policy is handed to inspect() so the snapshot can carry field VALUES
+      // (D-032) when - and only when - the operator opted this trusted origin
+      // in. core.normalizePolicy re-checks that independently of the gateway,
+      // and the hard exclusions inside core.js are not reachable from here at
+      // all, so passing policy can widen the snapshot by exactly one thing.
+      case 'browser_inspect': lastSnapshot=core.inspect(policy); return {success:true,data:lastSnapshot};
       case 'browser_fill': {
         const verdict=core.decideFill(policy);
         if(verdict.decision!=='allow')throw new Error(`Refused: ${verdict.reason}`);
@@ -150,7 +155,7 @@
         return {success:true,data:core.fill(a.ref,a.value)};
       }
       case 'browser_verify': {
-        const snap=core.inspect(); lastSnapshot=snap;
+        const snap=core.inspect(policy); lastSnapshot=snap;
         const pass=(!a.textIncludes || snap.textExcerpt.includes(a.textIncludes)) && (!a.urlIncludes || snap.url.includes(a.urlIncludes));
         return {success:pass,data:{match:pass,url:snap.url,title:snap.title},error:pass?undefined:'Expected condition was not observed'};
       }
@@ -377,7 +382,11 @@
   // 21 surveyed permission systems allow post-hoc modification at all; that gap
   // is the whole reason this list exists.
   function renderGrants(){
-    if(modeLine)modeLine.textContent=`Site mode: ${policy.mode}${policy.grantsOffered?'':' (standing approvals disabled by gateway)'}`;
+    // Field-value reporting is a disclosure the operator turned on at the
+    // gateway, possibly days ago. Say so in the tab where the disclosure
+    // actually happens, every time, rather than leaving it invisible here.
+    if(modeLine)modeLine.textContent=`Site mode: ${policy.mode}${policy.grantsOffered?'':' (standing approvals disabled by gateway)'}`+
+      (policy.values?' · FIELD VALUES on this site are readable by the AI (passwords, card and hidden fields never are)':'');
     if(!grantList)return;
     grantList.textContent='';
     if(grants.size===0){

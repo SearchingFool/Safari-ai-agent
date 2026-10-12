@@ -2,11 +2,11 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
-**Current focus:** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad** (2026-10-11): B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-037 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain*, and the bridge recovers from a network drop on its own.
+**Current focus:** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
 
-**Remaining for D2-01:** **Stop while a command is queued** (now testable — it was blocked by D-036, where the Stop control was physically covered by the approval dialog), same-origin recovery, **ten-run reliability**, and an **independent security review**.
+**Remaining for D2-01:** **Stop while a command is queued** (unblocked — it was impossible while D-036 left the Stop control covered), same-origin recovery, **ten-run reliability**, and an **independent security review**.
 
-**Not yet confirmed on device:** the D-035 ordering fix, and the D-036/D-037 fixes. All three are pinned by test, but D-035's race is a ~1-in-8 event that cannot be triggered on demand, and D-036 needs an iPad to show the new button is reachable and legible under a thumb — which is the entire point of it. Do not read demo-page results as proof that submissions are prevented — see D-034.
+**NOT YET CONFIRMED ON DEVICE — read this before trusting any of it:** D-035 (stale-poll ordering), D-036 (reachable Stop), D-038 (44pt touch targets), D-039/D-040 (audible + visual approval alert). All are pinned by test; none has been touched by a thumb. D-035's race is a ~1-in-8 event that cannot be triggered on demand. **D-040's sound was still unverified at handoff** — the operator's first attempt at D-039 was silent on hardware, which is what produced D-040. The visual pulse means a silent result is now degraded rather than total failure. Do not read demo-page results as proof that submissions are prevented — see D-034.
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
@@ -156,6 +156,20 @@ Measured on the **iPad Pro** (the M4 was excluded: it is being set up for anothe
 **Also learned the hard way:** `tailscale funnel status` prints *"No serve config"* while a **foreground** serve session is still holding port 443 — it is **not** a sufficient "am I exposed?" check. Use `tailscale serve status --json`. And Universal Clipboard silently does nothing across different Apple IDs.
 
 **Methodology note.** The handover was *unmeasurable* until `deviceInstance`/`deviceVisibility` were added to the poll log an hour earlier — without them every poll looks alike and this would have been an argument about whether the operator "waited long enough". **The operator's report that it had hung was correct and the obvious explanation was wrong.** Two defects (D-034, D-035) have now been found by device testing that no off-device suite could have produced; treat that as the standing argument for more device runs, not fewer.
+
+## 2026-10-11 (late) D-036 to D-040 — four defects the earlier tests could not have caught
+
+All four came out of the operator asking **"did you test it?"** about D-036, where the honest answer was *not properly*.
+
+- **D-036** — `.panel` and `.approval` declared the same position, width and `z-index`, so **Stop was physically covered** at exactly the moment it is wanted. The operator could not find it; they were not missing it. Deny refuses one action, Stop revokes everything — not substitutes. The dialog now carries its own escape in a separate row.
+- **D-037, confirmed on device** — an approval that timed out reported `User denied click` and logged `TOOL_DENIED_BY_OPERATOR` at INFO, *"working as intended"*. The operator touched nothing. Five outcomes are now distinct in message **and** code; `TOOL_APPROVAL_UNANSWERED` is **warn**, because a prompt nobody sees is a usability failure wearing the costume of a user choice.
+- **A fail-open found while fixing D-037, worse than either:** the caller refused only the literal string `'deny'` and returned success for anything else, so adding a `'timeout'` answer — the obvious fix — would have turned **every unanswered prompt into consent**. Mutation-verified. Approval is now an allowlist of the two answers that mean yes.
+- **D-038** — rendering the dialog at real iPad viewports showed **every button 37px against the 44pt minimum**, including the Deny the operator had already mis-tapped. The mis-tap was not carelessness. `tests/approval_layout.py` now measures geometry at four viewports, using `elementFromPoint` rather than a `z-index` read — a z-index read is what made D-036 look fine on inspection.
+- **D-039 / D-040** — the operator asked for an audible alert after two prompts timed out unanswered within five minutes. The first version was **silent on hardware** with the volume up and the ringer on while YouTube played in the same browser: half the iOS unlock was missing (Safari needs a buffer actually *played* inside a gesture), and the tones were scheduled before the async `resume()` settled, so the hardware dropped them without error. **The design error underneath was worse:** D-039 recorded that iOS might refuse to play the sound and then shipped sound as the only channel. The dialog border now always pulses; audio is the bonus.
+
+**The pattern worth carrying forward.** Three times in one day a test passed while the defect shipped, always the same way: **the test modelled an easier world than the real one.** A structural assertion for a layout bug (D-036/D-038); an AudioContext stub that resumed instantly and accepted notes whatever the state (D-039/D-040). A test built from one's own mental model of a platform reproduces one's own misunderstanding of it. Where the platform is the risk, **measure the rendered/real behaviour**, not the code's intent.
+
+**Process note that cost the most time:** a fix was lost **four times** to `git restore` run after a mutation test, which discards the uncommitted fix alongside the deliberate break. **Commit before mutating.**
 
 ## 2026-10-11 D-033 and D-034 closed; a latent test hole found and fixed
 

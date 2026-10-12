@@ -9,6 +9,8 @@
 
 ---
 
+> **Not keeping this iPad?** If it is going to someone else, being sold or returned, read **[DEVICE-LIFECYCLE.md](DEVICE-LIFECYCLE.md)** before you start. The device token is a standing grant to drive a browser, it lives in extension storage rather than your Apple account, and **signing out of iCloud does not remove it.**
+>
 > **Read [the risks](../README.md#risks-you-must-understand-before-you-start) first.** This software lets an AI assistant click and type inside your web browser while you are logged in. That is genuinely useful and genuinely risky. Ten minutes of reading now is worth it.
 
 ## What you are building
@@ -155,6 +157,8 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
    `https://raw.githubusercontent.com/SearchingFool/Safari-ai-agent/main/scripts/safari-ai-agent-remote.user.js`
 2. Userscripts should offer to install it. Accept.
 
+> **There is no automatic update.** The script carries no `@updateURL`, so Userscripts will never tell you a newer version exists. **To update, repeat this step** — open the same address and accept the replace prompt. If the Mac side has been updated and the iPad behaves oddly, reinstall before debugging anything else.
+
 ### Step 3.3 — Get the iPad's password across
 
 The iPad needs a **different** password from Claude's. Typing 64 random characters on an iPad is miserable, so use the clipboard instead.
@@ -181,6 +185,8 @@ If both devices use the same Apple account with Handoff on, **Universal Clipboar
 7. Tap **Connect**
 
 The status should read `Connected`.
+
+> **Sound when approval is needed** is a checkbox in the panel, on by default. Tick it off and on again and it plays two short beeps, so you can confirm audio works without waiting for a real prompt. The approval box **also pulses visually** every time it appears, so a muted iPad still gets your attention — the alert deliberately does not depend on sound alone (D-040).
 
 > **Only one tab may be connected at a time.** If a second tab tries to connect, it is refused — but it now tells you **which page currently holds the session** and offers a **Take over** button. Use that, or press **Stop** in the other tab. (Previously this was a silent hang; D-017/D-023.)
 
@@ -257,6 +263,9 @@ It prints what happened in plain language, with likely causes and suggested fixe
 | `DEVICE_SESSION_CONFLICT` | Another tab holds the session. The panel names it — use **Take over**, or press Stop there |
 | `paused: hidden` on a poll | The connected tab is not in front. Expected, not an error — bring it forward |
 | `TOOL_BLOCKED_HIGH_IMPACT` | The agent tried something it is not allowed to do. Working as designed |
+| `TOOL_APPROVAL_UNANSWERED` | **Nobody answered the prompt.** Not a refusal by you — you probably never saw it. Check the tab is on screen |
+| `TOOL_DENIED_BY_OPERATOR` | You actually tapped **Deny** |
+| `TOOL_STOPPED_BY_OPERATOR` | You pressed **Stop**, which revokes everything, not just that one action |
 | `TOOL_TIMED_OUT` | Nobody answered the permission prompt. **The result is uncertain** — check the page yourself |
 | No events at all | Claude never reached your Mac. Check the address, and that the Terminal is still running |
 

@@ -71,6 +71,36 @@ A test (`tests/diagnostics.test.mjs`) asserts that no token value ever appears i
 | `DEVICE_ORIGIN_NOT_ALLOWED` | error | iPad page origin is not in `SAFARI_ALLOWED_ORIGINS` |
 | `DEVICE_SESSION_CONFLICT` | warn | Duplicate/expired/revoked command — fail-closed, nothing applied twice |
 | `UNKNOWN_PATH` | warn | Reveals an endpoint convention the client expected |
+| `TOOL_BLOCKED_HIGH_IMPACT` | warn | A hard ceiling refused the control **before** any prompt was offered |
+| `TOOL_DENIED_BY_OPERATOR` | info | The operator **actually tapped Deny** in the paired tab |
+| `TOOL_STOPPED_BY_OPERATOR` | info | The operator pressed **Stop** while a prompt was open — revokes everything, not just this action |
+| `TOOL_APPROVAL_UNANSWERED` | **warn** | **Nobody answered.** Refused, but **not an operator decision** |
+| `TOOL_APPROVAL_TAB_HIDDEN` | warn | The tab went off screen while the prompt was open |
+| `TOOL_TIMED_OUT` | error | No result came back at all — the outcome is **uncertain**, do not retry blindly |
+
+### Telling a refusal from a non-decision (D-037)
+
+These four used to be **one** code. An approval that expired untouched was logged `TOOL_DENIED_BY_OPERATOR` at `info`, asserting *"the operator declined"* and *"working as intended"* — a decision nobody made, recorded in the flattering direction at the severity least likely to be read. Found on a device: the operator touched nothing and the log said they had.
+
+**`TOOL_DENIED_BY_OPERATOR` now means a real tap and nothing else.** If you see `TOOL_APPROVAL_UNANSWERED`, the correct response is *not* "the user said no" — it is **"the user probably never saw it"**. Check the tab is on screen, then retry.
+
+Recurring `TOOL_APPROVAL_UNANSWERED` is a **usability defect, not a user choice**. It is `warn` for that reason, and it is the signal that led to the audible/visual approval alert (D-039, D-040).
+
+## Timing a session handover
+
+```sh
+npm run handover              # whole log
+npm run handover -- --since 10m
+```
+
+`/device/poll` events carry `deviceInstance` (the per-tab session id) and `deviceVisibility`, so ownership can be reconstructed over time and every transfer timed. Without those fields a handover is **invisible** — every poll looks alike — and the question "did it hang, or did you not wait long enough?" has no answer.
+
+The tool names which path a transfer took:
+
+- **~1 s after a `hidden` final poll** — the new visible tab followed (D-033 working)
+- **~45 s after a `visible` final poll** — the leaving tab's notification lost the race with iPadOS suspension, so the claimant waited out `deviceFreshMs`
+
+Measured on an iPad 2026-10-11: **1.25 / 1.27 / 1.27 s**, three for three.
 
 ### The two highest-value signals
 

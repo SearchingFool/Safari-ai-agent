@@ -4,7 +4,13 @@
 
 **2026-10-11 — the device blocker is cleared.** The full natural-language workflow ran on the **physical iPad**: Claude on iPad drove a real Safari tab through 17 tool calls with no copy/paste. Operator denial, disallowed navigation and stale references were all refused, each by a different layer. B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device.
 
-**What is left is no longer about whether it works.** Outstanding: network loss mid-command, Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an **independent security review**.
+**What is left is no longer about whether it works.** Outstanding: Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an **independent security review**.
+
+**2026-10-11 (late) — network loss mid-command PASSED on device.** Command claimed by the iPad, Airplane Mode enabled before answering, no result ever returned: the gateway reported *"timed out; action outcome may be uncertain"* after 24.9 s. It did **not** invent a success and did **not** claim a definite failure. The bridge also **recovered unaided** once the network returned — same instance id, no re-pairing.
+
+**Stop-while-queued was impossible until now, and that was itself a defect (D-036):** the approval dialog rendered at the same coordinates, width and z-index as the panel, so the Stop control was physically covered at the one moment it is wanted. Fixed; the dialog now carries its own escape.
+
+**⚠ Four merged fixes are pinned by test but NOT confirmed on a device:** D-035 (stale-poll ordering), D-036 (reachable Stop), D-038 (44pt touch targets), D-039/D-040 (approval alert). **Do not tick anything on their account.** D-038 exists precisely because a passing structural test for D-036 shipped buttons too small to tap, and D-040 because an AudioContext stub that resumed instantly hid two real faults.
 
 **Two cautions when reading the evidence below.** (1) **Submissions are no longer blocked by a ceiling** — hard ceilings are payment, account-deletion and credentials-security only, so a generic submit on a `trusted` origin prompts and, once approved, dispatches (D-026 (C) as chosen; D-034 for the stale tool description that still claims otherwise). (2) In the device run the submit **was dispatched** and nothing happened only because the demo page blocks itself with `preventDefault` — **demo-page results are not proof that submissions are prevented.**
 

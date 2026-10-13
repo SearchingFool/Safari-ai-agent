@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-13 19:07 Europe/Prague — Tour prompts clarified; disposition proposal awaiting approval
+
+Owner clarified repeated prompts are from Remote AI during a site tour in full permission. Core trusted-mode clicks intentionally prompt, with standing grants only for recognized structural routine categories. Generic buttons elevate and cannot receive Always allow; exact tour control classification remains unobserved. This is an expectation/permission-semantics mismatch, not evidence of fallback policy.
+
+Concrete proposal recorded in docs/TRACKER.md: default Ask every time retained; explicit full permission executes ordinary fills/clicks/same-origin navigation automatically; actual submissions still ask, hard ceilings and Stop stay enforced. Distinguish actual submits from non-submit controls before altering disposition; update UI/tool descriptions and validate tour plus approval boundaries. No approval-disposition code changed. Owner previously required approval of plans; requesting approval before this behavioral expansion. Lead should review the proposal without starting implementation or assigning unapproved work.
+
+---
+
 ## 2026-10-13 19:04 Europe/Prague — Trusted-mode prompts investigated
 
 Owner reported Safari/gateway prompts despite provider connector approval and choosing the most permissive site mode. Compared saved policy against effective tab policy: trusted matched; logs showed successful Claude fills, clicks and same-origin navigation. No evidence of fallback to ask. Current trusted semantics still prompt for clicks/navigation unless covered by a routine category's tab-session grant; submissions always require approval. Provider approval does not create a Safari grant. Explained the distinction; exact reported prompt/action remains unidentified.

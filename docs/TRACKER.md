@@ -14,6 +14,12 @@ Verification: full Node gate **80/80**, all **five browser suites pass**, and UI
 
 Follow-up approval investigation: owner reported prompts despite choosing the most permissive mode and allowing connector tools. Inspection confirmed the configured origin and effective gateway mode matched as trusted, with successful Claude fills, clicks and same-site navigation. No fallback-to-ask defect evidenced. Trusted mode still prompts for clicks/navigation unless a routine category has a session-scoped standing grant; submissions always prompt. Provider tool approval and Safari local approval are separate. A persistent per-site Allow/Ask/Deny disposition remains a distinct design question requiring owner approval; no such implementation started. Exact prompt/action has not yet been identified. Stale-element and cross-site destination refusals also appeared and are separate from permission prompts.
 
+### Proposed correction — full permission vs ask (awaiting owner approval)
+
+Owner clarified that Remote AI asks on every click while progressing through a site tour despite full site permission. Current core intentionally prompts on every trusted click unless covered by a routine-category standing grant. Only structural same-origin links, disclosures and tab selection are routine; generic buttons are elevated and cannot receive standing approval. The exact tour-control classification is not present in diagnostic logs, so it must be inspected rather than assumed.
+
+Proposed behavior: unlisted sites stay Ask every time; explicit full permission automatically executes ordinary fills, clicks and same-origin navigation. Actual form submissions retain individual approval, and payment/account-deletion/credential-security controls remain blocked. Implementation must distinguish submit controls from non-submit controls before changing approval disposition, retain Stop/revocation, update the labels/modal/model tool descriptions, and test a multi-step tour plus denial/submission boundaries in full Node/browser gates and on device. Full permission would authorize ordinary actions without a per-action human check. No behavior change made for this proposal; owner approval required before implementation.
+
 ## 2026-10-13 — UI controls, read-everywhere and provider research
 
 Owner authorized Mac/iPad gateway controls, GUI website permissions, and reading across websites without a project allowlist restriction. Owner has paid ChatGPT/Gemini subscriptions and both native apps on iPad. **Future implementation plans require explicit owner approval.**

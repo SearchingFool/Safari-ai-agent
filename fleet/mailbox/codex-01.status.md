@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-13 — Private Mac websites clarification
+
+Owner asked how to use Mac-local websites with no public exposure, reachable through Tailscale. Verified official Serve docs: private tailnet reverse proxy, HTTPS and existing tailnet access controls; Serve/Funnel cannot share a port. Proposed separate private port, leaving gateway/control forwarding intact. Existing paired Safari DOM bridge works with private HTTP(S) pages; cloud provider only reaches the public MCP gateway. Private pages require iPad Tailscale connectivity. Added existing-web-service path to P5 and tracker; no mapping created without a selected local target URL/port. No direct-file capability assumed.
+
+---
+
 ## 2026-10-13 19:42 Europe/Prague — Enhancement plans drafted; lead inbox notified; install-fetch fix
 
 Owner explicitly requested making the peer aware and dividing enhancement work with clear plans before implementation. Draft package catalog at docs/plans/ENHANCEMENTS-2026-10-13.md and formal discovery steps at docs/plans/enhancement-discovery-2026-10-13.yaml cover acceptance, markup/CSS/JS, find/scroll/site-search, visible feedback, screenshots, local files, ChatGPT/Gemini and background options. Proposed split: Codex connector modules/shared integration; Claude disjoint feasibility reports/device evidence/review. Message written in claude-04.md with plan links and a request to acknowledge/confirm. No acknowledgment yet; new implementations remain unapproved.

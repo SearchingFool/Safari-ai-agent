@@ -1,15 +1,18 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let csrf='',sites=[],dirty=false,working=false;
-const modes={'read-only':'Read only','fill-only':'Fill fields and navigate',trusted:'Allow clicks, fills and navigation'};
+const modes={ask:'Ask every time','read-only':'Read only','fill-only':'Fill and navigate; no clicks',trusted:'Clicks, fills and navigation'};
 function message(text){$('message').textContent=text;}
 function renderSites(){
   $('sites').replaceChildren();
   for(const [index,site] of sites.entries()){
     const row=document.createElement('div');row.className='site';
-    const name=document.createElement('span');name.textContent=site.url+' — '+modes[site.mode];
+    const name=document.createElement('span');name.textContent=site.url;
+    const select=document.createElement('select');select.setAttribute('aria-label','Permission for '+site.url);
+    for(const [value,label] of Object.entries(modes)){const option=document.createElement('option');option.value=value;option.textContent=label;select.append(option);}
+    select.value=site.mode;select.onchange=()=>{site.mode=select.value;dirty=true;message('Permission changed. Save settings to apply it.');};
     const remove=document.createElement('button');remove.className='secondary';remove.textContent='Remove';remove.type='button';
-    remove.onclick=()=>{sites.splice(index,1);dirty=true;renderSites();};row.append(name,remove);$('sites').append(row);
+    remove.onclick=()=>{sites.splice(index,1);dirty=true;renderSites();};row.append(name,select,remove);$('sites').append(row);
   }
 }
 function render(data){
@@ -17,7 +20,7 @@ function render(data){
   $('phase').textContent={running:'Running',starting:'Starting',stopping:'Stopping',stopped:'Stopped',external:'Running in Terminal'}[data.phase]||data.phase;
   $('notice').textContent=data.error||(data.phase==='external'?'The current gateway was started elsewhere. Stop its Terminal launcher with Ctrl+C once, then use this panel.':'');
   const b=data.browser;
-  $('browser').textContent=data.phase==='external'?'Browser status will appear after this panel starts the gateway.':b?.connected?`Safari ${b.activeVisibility==='visible'?'is ready':'is paused — bring the tab into view'} on ${b.activeOrigin}`:'Safari is not currently connected. Open a webpage and connect Remote AI.';
+  $('browser').textContent=data.phase==='external'?'Browser status will appear after this panel starts the gateway.':b?.connected?`Safari ${b.activeVisibility==='visible'?'is ready':'is paused — bring the tab into view'} on ${b.activeOrigin}. Permission: ${modes[b.activeMode]||'Unknown — reconnect'}.`:'Safari is not currently connected. Open a webpage and connect Remote AI.';
   $('start').disabled=working||data.busy||data.phase!=='stopped';$('stop').disabled=working||data.busy||data.phase!=='running';
   $('mcp').value=data.mcpUrl;$('demo').href=data.demoUrl;$('ipad').href=data.controlUrl;
   $('install').href=data.installUrl;
@@ -36,11 +39,14 @@ async function act(path,data={}){
 async function refresh(){if(working)return;try{render(await request('/api/status'));}catch(error){message(error.message);}}
 $('start').onclick=()=>act('/api/start');$('stop').onclick=()=>act('/api/stop');
 $('auto').onchange=()=>{dirty=true;};
-$('mode').onchange=()=>{$('permission-help').textContent={'read-only':'Read page content. No filling, navigation or clicks.','fill-only':'Allow filling ordinary fields and navigating. Clicks remain refused.',trusted:'Allow clicks and form submission after local approval, as well as filling and navigation.'}[$('mode').value];};
+$('mode').onchange=()=>{$('permission-help').textContent={ask:'Read freely. Ask in Safari before every action. No Always allow.', 'read-only':'Read page content. All actions are blocked.','fill-only':'Fill ordinary fields without asking; navigation asks. All clicks are blocked.',trusted:'Fill ordinary fields without asking; clicks and navigation ask. Routine actions may offer Always allow.'}[$('mode').value];};
+$('permission-details').onclick=()=>$('permissions-dialog').showModal();
+$('close-permissions').onclick=()=>$('permissions-dialog').close();
 $('add').onsubmit=event=>{
-  event.preventDefault();try{const url=new URL($('url').value);
+  event.preventDefault();try{const address=$('url').value.trim();const url=new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(address)||/^file:/i.test(address)?address:($('address-type').value==='local'?'http://':'https://')+address);
+    if(url.protocol==='file:')throw Error('Local files are not supported by the remote connector. Serve the page over HTTP and choose Local web server.');
     if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw Error('Enter an HTTP(S) webpage address without credentials.');
-    if(sites.some(s=>s.url===url.origin))throw Error('That website is already listed. Remove its entry to change the permission.');
+    if(sites.some(s=>s.url===url.origin))throw Error('That website is already listed. Change its permission in the list above.');
     sites.push({url:url.origin,mode:$('mode').value});dirty=true;renderSites();$('url').value='';message('Website added to the draft. Save settings to apply it.');
   }catch(error){message(error.message);}
 };

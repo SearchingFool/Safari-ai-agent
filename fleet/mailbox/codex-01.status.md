@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-10-13 19:02 Europe/Prague — Ask-mode implementation published; UI complete
+
+Core policy/script/tests published as 3285b7a. Full gates: 80/80 Node tests and all five browser suites passed. Separate Chromium control-UI check passed edit/save, modal open/Escape, hostname normalization, local HTTP input, file rejection and narrow layout. Ask-mode approval regression confirms denial leaves a field unchanged, approval fills it, and no standing approval is offered. UI/doc changes publishing next.
+
+Live diagnostic comparison found saved action policy belongs to a different origin than the paired tab; old default read-only explains that state. No private addresses recorded here. Navigation validation also fixed for unlisted authenticated same-origin tabs; cross-site remains blocked and errors explain it. Scoped error review confirms failures remain deterministic and correlated in existing diagnostics.
+
+Next operator step: install remote script 0.2.3, reconnect and test Ask every time with denial/approval. Preparing controller reload for the code update. Direct file support is pending owner clarification; disabled choice explicitly says support pending. Visible Safari already performs actions in headed mode; reading is not highlighted. No future provider plan or new highlighting implementation started.
+
+---
+
+## 2026-10-13 18:55 Europe/Prague — Owner-authorized ask default and permission UI in progress
+
+Owner requested actions ask by default, explanation modal, editing existing permission rows, prefix-free addresses and local-file choice. Implementing an explicit ask mode with per-action confirmation and no standing grants/field-value disclosure. Existing read-only overrides remain refusals. Middle mode explained accurately: fills do not prompt, navigation prompts, clicks blocked. Direct file support is unresolved; clarification requested, while local HTTP addresses are supported as a distinct choice.
+
+Owner reported navigation refusal. Logs confirm browser_navigate returned Destination not allowed, not an approval denial. Fixing same-origin navigation on authenticated unlisted sites; cross-origin remains blocked and will get clearer diagnostics. Requested current/destination addresses to distinguish hostname changes from unsaved policy. Owner also requested headed operation: current actions already occur in the visible Safari tab; read/target highlighting is a separate prospective capability.
+
+Scope includes core/remote policy and corresponding generated artifacts/tests; queue reservations held. No changes to peer-owned decision log/run sheet. Node gate currently 80/80; browser gate in progress. Changes are not yet deployed to the controller or accepted on device.
+
+---
+
 ## 2026-10-13 18:43 Europe/Prague — Google read-only checkpoint; assignment 06 read
 
 Owner tested the connector on Google as a second website and reported correct read-only behavior. Recorded as owner-observed evidence, without claiming an instrumented action-denial test or closing D2-01. Next guided test: control Stop/Start from iPad and repeat a read. No provider implementation or new capability plan started.

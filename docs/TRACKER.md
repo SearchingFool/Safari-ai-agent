@@ -2,6 +2,16 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
+## 2026-10-13 — Ask default and permission usability update
+
+Owner explicitly requested replacing the unlisted-site action refusal with **Ask every time**, explaining permission choices in a modal, editing existing entries directly, and accepting addresses without an HTTPS prefix. Implemented explicit `ask` mode: reads allowed; fills/clicks/same-origin navigation require individual Safari approval; standing grants and existing field-value disclosure disabled. Explicit Read only, Fill and navigate, and trusted entries retain their previous behavior. Managed controls and CLI use ask as the default; legacy `createGateway` callers keep read-only unless opting in. Old scripts fail closed on unknown ask mode; install remote script **0.2.3**.
+
+Control UI now has per-row permission dropdowns, a description modal, and Website/Local web server address choices. Saving automatically restarts a managed gateway; a controller restart is required to load this code update. Direct file URLs remain unsupported and appear as a disabled choice; owner clarification on iPad HTML vs Mac files vs documents is pending. Local HTTP page injection added to script metadata; hardware acceptance remains open. Actual visible Safari actions already provide headed operation; read/target highlighting would be a separate feature.
+
+Navigation investigation: logs confirmed `Destination not allowed`. Live status showed the saved action entry and connected tab had different origins, which correctly left the connected tab read-only under the old default. A separate gateway validation flaw rejected same-origin navigation from unlisted paired sites; fixed by admitting the current authenticated origin while retaining cross-origin restrictions. Owner's exact requested destination remains pending, so the live refusal is not attributed solely to that flaw.
+
+Verification: full Node gate **80/80**, all **five browser suites pass**, and UI Chromium check passed permission editing/save, modal open/Escape, hostname normalization, local HTTP input, file refusal and narrow layout. Browser gate confirms denied ask-mode fill leaves the field unchanged, approved fill executes, and Always allow is absent. Navigation error handling reviewed: deterministic refusals surface through existing correlated diagnostics; destination errors now explain same-site restrictions. Device acceptance requires the new script and gateway code; no acceptance gate closed.
+
 ## 2026-10-13 — UI controls, read-everywhere and provider research
 
 Owner authorized Mac/iPad gateway controls, GUI website permissions, and reading across websites without a project allowlist restriction. Owner has paid ChatGPT/Gemini subscriptions and both native apps on iPad. **Future implementation plans require explicit owner approval.**

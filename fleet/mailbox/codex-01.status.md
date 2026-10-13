@@ -12,7 +12,7 @@ Core policy/script/tests published as 3285b7a. Full gates: 80/80 Node tests and 
 
 Live diagnostic comparison found saved action policy belongs to a different origin than the paired tab; old default read-only explains that state. No private addresses recorded here. Navigation validation also fixed for unlisted authenticated same-origin tabs; cross-site remains blocked and errors explain it. Scoped error review confirms failures remain deterministic and correlated in existing diagnostics.
 
-Next operator step: install remote script 0.2.3, reconnect and test Ask every time with denial/approval. Preparing controller reload for the code update. Direct file support is pending owner clarification; disabled choice explicitly says support pending. Visible Safari already performs actions in headed mode; reading is not highlighted. No future provider plan or new highlighting implementation started.
+UI/docs published as d878027. Post-update controller restart and Start API smoke test passed, and gateway health returned success. Next operator step: install remote script 0.2.3, reconnect and test Ask every time with denial/approval. Direct file support is pending owner clarification; disabled choice explicitly says support pending. Visible Safari already performs actions in headed mode; reading is not highlighted. No future provider plan or new highlighting implementation started.
 
 ---
 

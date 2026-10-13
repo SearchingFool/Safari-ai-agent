@@ -1,6 +1,8 @@
 # Safari AI Agent
 
-**0.2.1 integration candidate — not yet certified for real iPad + Claude use.**
+**Integration candidate — Claude/iPad workflow proven; final reliability and security acceptance remain open.**
+
+**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is 0.2.2. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
 
 An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
@@ -23,6 +25,8 @@ This differs fundamentally from a normal integration, where a service checks a t
 ### 3. Web pages can try to hijack the agent
 
 A malicious page can embed instructions aimed at the AI rather than at you — "prompt injection". The agent reads the page, and the page tries to give it orders.
+
+Reading across websites broadens the content that can enter the AI conversation. A read-only page can contain instructions that influence a later action on a trusted website in the same conversation. Per-site action permissions and local approval remain enforced, but they do not remove those instructions from the model's context.
 
 This is the single biggest unsolved risk for every AI browser agent, including well-funded commercial ones. In March 2026 a zero-click vulnerability was found in Anthropic's own Chrome extension that let a visited page take control. It was patched — but **assume this project has undiscovered holes too.** It has had no security review.
 
@@ -73,7 +77,7 @@ A **prototype for supervised use on pages you trust**, by the person who set it 
 | `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Tested through gateway; actual Safari flow pending |
 | `Dockerfile` | Node 22 container gateway, non-root runtime | Created; image build needs Docker-equipped environment |
 
-The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Clicking requires local approval; consequential controls, cross-site navigation, password filling and real submissions are blocked in this test release.
+The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Filling/navigation need per-site permission; clicking needs a trusted site and local approval. Generic form submissions can proceed after approval on trusted sites. Payment, account-deletion and credential/security controls remain refused.
 
 ## Run automated checks
 

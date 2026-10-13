@@ -2,6 +2,23 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
+## 2026-10-13 — UI controls, read-everywhere and provider research
+
+Owner authorized Mac/iPad gateway controls, GUI website permissions, and reading across websites without a project allowlist restriction. Owner has paid ChatGPT/Gemini subscriptions and both native apps on iPad. **Future implementation plans require explicit owner approval.**
+
+| ID | State | Evidence / next acceptance |
+|---|---|---|
+| UI-01 | Implemented, owner acceptance pending | Separate authenticated control server; Start/Stop, persistent site action modes, login-service installer/remover, automatic gateway startup option, sleep prevention, protected local script-install link. Native Mac Safari auth/add/save verified. Managed lifecycle and CSRF/auth/ownership tested over real HTTP; Funnel and caffeinate are mocked in lifecycle tests. Actual LaunchAgent/public 8443 forwarding and iPad UI remain to test. See [test instructions](GATEWAY-CONTROLS.md) |
+| READ-01 | Implemented, iPad acceptance pending | Authenticated unlisted HTTP(S) origins can inspect/verify with read-only policy; fills/clicks/navigation do not inherit rights. Foreground session can follow a new website after the old one becomes hidden. Updated script supports connect-across-websites and global Stop opt-out. Node/Chromium gates pass; install script 0.2.2 from the local gateway before hardware testing |
+| F2-01 | Researched; next plan awaiting owner approval | ChatGPT custom MCP plugin flow documented for web; native iPad/account eligibility and bearer-vs-OAuth compatibility unverified. Paid subscription recorded, no API spending authorized. [Research](PROVIDER-IPAD-RESEARCH.md) |
+| F3-01 | Researched; next plan awaiting owner approval | Gemini custom Connected App is documented for mobile after web registration, currently English/US/personal-account/Keep-Activity gated. Owner eligibility and authentication compatibility unverified. [Research](PROVIDER-IPAD-RESEARCH.md) |
+
+Verification: `npm run check` **79/79 pass**, zero failures; `npm run test:browser` all **five** suites pass. The script-install route and failed-spawn Stop behavior are pinned by the Node gate, and global Stop/auto-connect are pinned by the browser gate. New control UI verified in real Mac Safari. No new public control endpoint or login agent installed during development; the existing live Terminal rig was preserved. Owner instructed incremental commits and pushes to main/GitHub on 2026-10-13; publication is recorded in git history. Physical device acceptance remains pending.
+
+Claude second-account connection confirmed live 2026-10-13 17:31:08 Prague: `browser_status` HTTP 200 from Claude, matching the iPad screen. Earlier wrong base URL was corrected to `/mcp`. Claude still first tries protocol `2026-07-28`, then retries successfully with `2025-11-25`; D-015 remains a compatibility follow-up, not a proven DNS failure.
+
+Peer coordination: codex-01 joined the fleet on the owner's explicit instruction, acknowledges claude-04's collaborative lead role, and has exchanged scope/findings through the shared mailbox. Lead owns registry confirmation and integration; codex-01 owns this completed change. Proposed next work: owner acceptance first, peer review, then an account-specific ChatGPT/Gemini feasibility plan for approval. No provider implementation is underway. The read-everywhere prompt-injection trade-off is documented in README; lead will own any decision numbering.
+
 **Current focus:** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
 
 **Remaining for D2-01:** **Stop while a command is queued** (unblocked — it was impossible while D-036 left the Stop control covered), same-origin recovery, **ten-run reliability**, and an **independent security review**.

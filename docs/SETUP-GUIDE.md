@@ -15,6 +15,8 @@
 
 ## What you are building
 
+**UI setup added 2026-10-13:** For gateway Start/Stop from the Mac or iPad, automatic startup, and website permissions without editing scripts, use [Gateway controls](GATEWAY-CONTROLS.md). The older Terminal setup below remains available. The new controller is separately authenticated and stays available when the gateway is stopped; reading does not need a site-list entry.
+
 Three pieces talk to each other:
 
 ```

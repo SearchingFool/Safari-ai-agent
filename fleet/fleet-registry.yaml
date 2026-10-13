@@ -70,17 +70,29 @@ agents:
   - name: codex-01
     queuectl_agent: safari-ai-agent-codex-01
     harness: codex-cli
-    role: UNCONFIRMED — inferred from live activity, not declared
+    role: CONFIRMED by lead 2026-10-13 — gateway control plane, read-everywhere, provider research
     domain: >
       Inferred only: uncommitted edits to gateway/server.mjs, src/remote.js and
       tools/build-remote.mjs in the primary checkout, mtime 2026-10-13 ~17:40 local.
       Operator confirmed the second agent in this repo is Codex. Purpose of the diff unknown.
     responsibilities:
-      - UNKNOWN — awaiting its reply in codex-01.status.md.
+      - Gateway control plane: control.mjs, control-ui/, the installer and the .command launchers.
+      - Read-everywhere (READ-01) and per-site action modes UI.
+      - ChatGPT/Gemini iPad feasibility RESEARCH ONLY. No provider implementation without
+        explicit operator approval of a plan.
+      - Operator-facing setup docs: README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md.
     activation_status: >
-      NOT CONFIRMED as fleet-activated. This mailbox directory was empty until 2026-10-13 and
-      codex-01 has never written to it. Assume it is not reading its inbox until it writes a
-      status file; the operator relay is the only reliable path.
+      ACTIVE AND CONFIRMED 2026-10-13. Acknowledged assignment 2026-10-13-codex-01-05, found the
+      in-repo mailbox WITHOUT a human relay, and writes status to fleet/mailbox/codex-01.status.md.
+      The earlier 'not activated' reading is superseded. Its queuectl identity is
+      `codex-gateway-controls` (live), NOT the `safari-ai-agent-codex-01` this file first proposed
+      — the live name wins; do not ask it to re-reserve.
+    delivered_2026_10_13: >
+      Four commits merged: 3b4e17d docs, 995664c read-across-websites, 4bdfd17 gateway controls,
+      f20bc53 connector review. Closed both lead findings: package.json now syntax-checks
+      control.mjs, control-ui/app.js and the installer; README risk #3 now states the cross-site
+      injection path (the D-041 next action). Gate verified independently by the lead: npm run
+      check exits 0 on merged main.
     inbox: mailbox/codex-01.md
     outbox: mailbox/codex-01.status.md
 

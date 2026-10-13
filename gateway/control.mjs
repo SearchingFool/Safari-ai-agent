@@ -115,7 +115,7 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
       const allowed=Object.keys(modes);
       mkdirSync(join(root,'logs'),{recursive:true});
       gateway=makeGateway({clientToken:credentials.MCP_CLIENT_TOKEN,deviceToken:credentials.DEVICE_TOKEN,
-        demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,defaultSiteMode:'ask',
+        demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,defaultSiteMode:'ask',routineActions:true,
         diagnostics:createDiagnostics({enabled:true,clientTokenLength:64,deviceTokenLength:64,allowedOrigins:allowed,
           append:line=>appendFileSync(join(root,'logs/gateway-diagnostics.jsonl'),line,{mode:0o600})})});
       await listen(gateway.server,port);

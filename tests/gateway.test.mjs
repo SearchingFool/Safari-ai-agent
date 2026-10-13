@@ -46,6 +46,16 @@ test('Read everywhere pairs an unlisted site but never grants it action rights',
   assert.equal((await device('disconnect',{origin:site})).status,200);
   for(const origin of ['null','file:///tmp/a','javascript:alert(1)','https://x.test/path'])assert.equal((await device('poll',{origin})).status,403);
 },{readAnyOrigin:true}));
+test('Routine execution is delivered only for explicit trusted sites',()=>testGateway(async({rpc,device})=>{
+  const full=await payload(await device('poll',{origin}));
+  assert.equal(full.policy.routineActions,true);
+  assert.equal(output(await payload(await rpc('tools/call',call('browser_status')))).activeRoutineActions,true);
+  await device('disconnect',{origin});
+  const response=await device('poll',{origin:'https://other.example',instanceId:'other-tab'});
+  assert.equal(response.status,200);
+  const other=await payload(response);
+  assert.equal(other.policy.mode,'ask');assert.equal(other.policy.routineActions,false);
+},{readAnyOrigin:true,defaultSiteMode:'ask',routineActions:true}));
 test('Ask default queues unlisted actions, disables grants and preserves explicit read-only',()=>testGateway(async({rpc,device})=>{
   const site='https://unlisted.example';
   const poll=await payload(await device('poll',{origin:site}));
@@ -414,7 +424,7 @@ test('Standing grants can be switched off centrally but never switched on',()=>t
   // dialog. There is no field by which the gateway creates a grant itself:
   // the wire format carries a boolean, never a list of granted classes.
   assert.equal(idle.policy.grants,false);
-  assert.deepEqual(Object.keys(idle.policy).sort(),['grants','mode','values','version']);
+  assert.deepEqual(Object.keys(idle.policy).sort(),['grants','mode','routineActions','values','version']);
 },{standingGrants:false}));
 
 // --- D-032 field values: an orthogonal, per-origin, opt-in disclosure ---------

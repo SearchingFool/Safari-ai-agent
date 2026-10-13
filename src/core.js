@@ -126,6 +126,7 @@
       // never create one: this flag only decides whether the local panel is
       // allowed to OFFER "Always allow" to a human.
       grantsOffered: mode !== MODES.ASK && source.grants !== false,
+      routineActions: mode === MODES.TRUSTED && source.routineActions === true,
       version: typeof source.version === 'string' || typeof source.version === 'number' ? String(source.version) : '0'
     });
   }
@@ -375,52 +376,34 @@
       // unlabelled control produced an empty string that matched no keyword and
       // was therefore waved through.
       if (d.unnamed) return null;
-      // Anything inside a form may participate in submission, implicitly or via
-      // a script, so no control with a form owner is ever inert.
-      if (formOwner(el)) return null;
+      // Form membership alone does not turn a non-submit control into a submit.
       if (d.isSubmit) return null;
+      if (/\b(save|send|post|publish|confirm|book|reserve|follow|like|subscribe)\b/i.test(d.name || '')) return null;
       // aria-pressed / aria-checked is a persisted state change - Like, Follow,
       // Subscribe, Mute. Structurally detectable in any language with no text.
       if (d.isToggle) return null;
       const role = trim(el.getAttribute('role') || '', 32).toLowerCase();
       // 1. Ordinary same-origin navigation by a real href. Reversible with Back.
-      if (d.tag === 'a' && d.href && !d.isPseudoLink && !d.external) return 'same-origin-link';
+      if (d.tag === 'a' && d.href && !d.isPseudoLink && !d.external && !el.hasAttribute('download')) return 'same-origin-link';
       // 2. Disclosure. aria-expanded is only meaningful on a control that
       //    expands something, and collapsing it again is the inverse.
       if (el.hasAttribute('aria-expanded') && !d.isPseudoLink) return 'disclosure';
       // 3. Tab selection within a tablist, and pagination expressed as tabs.
       if (role === 'tab' || (el.hasAttribute('aria-selected') && role !== 'option')) return 'tab-select';
+      if (el.getAttribute('aria-haspopup') === 'menu' && doc.getElementById(el.getAttribute('aria-controls'))) return 'menu-open';
+      // Tour controls need both a recognised tour container and a step label;
+      // a generic "Next" or "Finish" button elsewhere stays unclear.
+      if (d.type === 'button' && el.closest('.introjs-tooltip,.driver-popover,.shepherd-element,[data-tour-step]') &&
+          /^(next|previous|back|skip|done|finish|close)(\s+(step|tour))?$/i.test(d.name)) return 'tour-step';
       return null;
     }
 
-    /**
-     * Name the ELEVATED class. This is deliberately COARSE: `inertCategory`
-     * above refuses to call ANY control with a form owner inert, so everything
-     * inside a form lands here as `form-submit` - the real submit, a
-     * `type="button"` preview beside it, and even an ordinary same-origin link
-     * that would be ROUTINE anywhere else on the page (D-031).
-     *
-     * WHY THAT IS TOLERABLE - AND THE INVARIANT IT DEPENDS ON.
-     * The operator-facing prompt names the control itself ("Preview selection"
-     * vs "Submit demo form"), so the coarse class is never what the human is
-     * shown. The class matters in exactly one place: standing grants, which key
-     * on origin + category. And `decideClick` makes a grant possible only when
-     * `tier === ROUTINE`, so an ELEVATED classification is ALWAYS
-     * `grantable: false` and no amount of approving the preview can ever
-     * authorise the submit.
-     *
-     * That invariant is load-bearing, not incidental. Relaxing it - the obvious
-     * "let the operator say Always allow on elevated too, to cut approval
-     * fatigue" change under D-021 - would make this immediately exploitable:
-     * one "Always allow" on a harmless preview button would silently cover
-     * every submit in the same form. If you ever want grantable ELEVATED
-     * classes, SPLIT THIS FUNCTION FIRST so a preview and a submit stop sharing
-     * a category. The regression test pinning `ELEVATED => !grantable` is in
-     * tests/remote_dom_smoke.py.
-     */
+    /** Classify real submits separately from other data changes and unclear controls. */
     function elevatedCategory(el, d) {
-      if (d.isSubmit || formOwner(el)) return 'form-submit';
+      if (d.isSubmit) return 'form-submit';
       if (d.isToggle) return 'state-toggle';
+      if (/\b(save|send|post|publish|confirm|book|reserve|follow|like|subscribe)\b/i.test(d.name || '')) return 'data-change';
+      if (formOwner(el)) return 'form-control';
       if (d.external) return 'cross-origin-link';
       if (d.isPseudoLink) return 'scripted-action';
       if (d.unnamed) return 'unnamed-control';
@@ -465,8 +448,8 @@
      * only ever produce a MORE restrictive answer:
      *   - BLOCKED is handled before policy is consulted at all;
      *   - mode is normalised against a closed enum, unknown -> read-only;
-     *   - the most permissive mode still yields 'prompt', never 'allow', so a
-     *     human is in the loop for every click no matter what arrives.
+     *   - automatic execution requires trusted mode, explicit routine
+     *     permission and a recognised routine classification.
      */
     function decideClick(classification, policy) {
       const p = normalizePolicy(policy);
@@ -477,6 +460,9 @@
       if (p.mode !== MODES.TRUSTED && p.mode !== MODES.ASK) {
         return {decision: 'refuse', grantable: false, mode: p.mode,
                 reason: `clicking is not permitted on this site (site mode: ${p.mode}). Nominate it as trusted to allow completion.`};
+      }
+      if (p.routineActions && classification.tier === TIERS.ROUTINE) {
+        return {decision:'allow',mode:p.mode,grantable:false};
       }
       return {decision: 'prompt', mode: p.mode,
               // Only ROUTINE may ever be covered by a standing grant (D-021).
@@ -496,7 +482,7 @@
       if (p.mode === MODES.READ_ONLY) {
         return {decision: 'refuse', grantable: false, mode: p.mode, reason: 'this site is read-only; navigation is not permitted'};
       }
-      return {decision: 'prompt', mode: p.mode, grantable: p.grantsOffered};
+      return {decision: p.routineActions ? 'allow' : 'prompt', mode: p.mode, grantable: !p.routineActions && p.grantsOffered};
     }
 
     // Describe a control in terms a HUMAN can consent to. The approval prompt
@@ -508,8 +494,9 @@
     function describeControl(el) {
       const tag = el.tagName.toLowerCase();
       const name = getLabel(el);
-      const inForm = Boolean(el.closest('form'));
-      const type = (el.getAttribute('type') || (tag === 'button' ? 'submit' : '') || '').toLowerCase();
+      const inForm = Boolean(formOwner(el));
+      // Use the browser's effective type: missing/invalid button types submit.
+      const type = (tag === 'button' ? el.type : el.getAttribute('type') || '').toLowerCase();
       const isSubmit = (tag === 'button' && inForm && type === 'submit') ||
                        (tag === 'input' && ['submit', 'image'].includes(type));
       // aria-pressed/aria-checked identify state toggles (like, follow, bookmark,
@@ -557,6 +544,10 @@
       const c = classifyClick(el);
       return {
         ref, tier: c.tier, category: c.category, reasons: c.reasons, grantable: c.grantable,
+        actionType: c.tier === TIERS.BLOCKED ? 'Blocked action' :
+          c.category === 'same-origin-link' ? 'Navigation' :
+          c.tier === TIERS.ROUTINE ? 'Page interaction' :
+          ['form-submit','state-toggle','data-change'].includes(c.category) ? 'Submit or change data' : 'Unclear action',
         // `risk` is retained for callers that predate tiering (src/panel.js).
         // It is now derived FROM the tier rather than being the classifier, so
         // there is one source of truth and it can no longer disagree.
@@ -566,6 +557,22 @@
         control: c.control,
         summary: c.summary
       };
+    }
+
+    // A saved approval identifies one control on one exact page, never an eN
+    // ref or an entire action category. Ambiguous/unnamed controls cannot persist.
+    function approvalKey(ref) {
+      const el=resolve(ref);
+      const signature=node=>{
+        const d=describeControl(node);
+        return JSON.stringify([node.id||'',d.tag,d.type,d.name,d.href,
+          node.getAttribute('name')||'',node.getAttribute('data-testid')||'',formOwner(node)?.id||'']);
+      };
+      if(!getLabel(el))return null;
+      const value=signature(el);
+      if([...doc.querySelectorAll(ACTIONABLE)].filter(node=>signature(node)===value).length!==1)return null;
+      const key=JSON.stringify([win.location.origin,win.location.pathname,win.location.search,value]);
+      return key.length<4000?key:null;
     }
 
     function click(ref, approved = false) {
@@ -613,7 +620,7 @@
     }
 
     return Object.freeze({
-      inspect, fill, click, previewClick, highlight, navigate,
+      inspect, fill, click, previewClick, approvalKey, highlight, navigate,
       // Ref-addressed so remote callers never hold a live element.
       classify: ref => classifyClick(resolve(ref)),
       decideClick, decideFill, decideNavigate

@@ -13,6 +13,7 @@
   const K_SITE = `safari-agent:enabled:${location.origin}`;
   const K_EVERYWHERE = 'safari-agent:read-everywhere';
   const K_ACTIVE = 'safari-agent:active';
+  const K_GRANTS = `safari-agent:button-grants:${location.origin}`;
   // Per-TAB identity. sessionStorage is scoped to one tab and survives
   // same-tab navigation and reload, which is exactly the lifetime of a paired
   // session: a new tab gets a new id, but navigating within this tab keeps it,
@@ -45,29 +46,48 @@
   // answer is missing or malformed, it is read-only: the bridge fails closed on
   // a gateway it cannot hear from, not open.
   //
-  // `grants` is the LOCAL half. It is a session-scoped, in-memory map that only
+  // `grants` is the LOCAL half. It is a persistent, per-button map that only
   // the operator can add to - by pressing "Always allow" in the panel dialog.
   // The gateway cannot create one, the model cannot request one, and nothing in
   // the page can cause one, which is what stops prompt injection from turning
-  // into privilege escalation. Grants key on origin + action CLASS, never on an
+  // into privilege escalation. Grants key on origin + page + control, never on an
   // element ref: refs are reassigned on every inspect, so a ref-scoped grant
   // would silently transfer to an unrelated control.
   // ---------------------------------------------------------------------------
   let policy = SAFARI_CORE.normalizePolicy(null);
-  const grants = new Map();          // `${origin} | ${category}` -> {origin, category, at}
-  const grantKey = (origin, category) => `${origin} | ${category}`;
-  function hasGrant(category) { return grants.has(grantKey(location.origin, category)); }
-  function addGrant(category) {
-    grants.set(grantKey(location.origin, category), {origin: location.origin, category, at: Date.now()});
+  const grants = new Map(); // exact page + stable control signature; isolated GM storage
+  let grantLoad=null,grantWrites=Promise.resolve(),clickAuthorization=null;
+  function persistGrants(){
+    const saved=[...grants.entries()];
+    grantWrites=grantWrites.catch(()=>{}).then(()=>GM.setValue(K_GRANTS,saved));
+    return grantWrites;
+  }
+  async function loadGrants(refresh=false){
+    if(refresh){await grantWrites;grantLoad=null;}
+    if(!grantLoad)grantLoad=(async()=>{
+      const saved=await GM.getValue(K_GRANTS,[]);
+      grants.clear();
+      if(Array.isArray(saved))for(const row of saved.slice(0,100)){
+        if(Array.isArray(row)&&typeof row[0]==='string'&&row[0].length<4000&&row[1]?.origin===location.origin&&typeof row[1].category==='string')grants.set(row[0],row[1]);
+      }
+      renderGrants();
+    })();
+    return grantLoad;
+  }
+  function hasGrant(key,category){return Boolean(key&&grants.get(key)?.category===category);}
+  async function addGrant(key,category,target){
+    if(!key||grants.size>=100)throw Error('Cannot save this approval; revoke an existing approval and retry.');
+    const previous=grants.get(key);
+    grants.set(key,{origin:location.origin,category,target,page:location.pathname,at:Date.now()});
+    try{await persistGrants();}catch(error){if(previous)grants.set(key,previous);else grants.delete(key);throw Error('Could not save Always allow. No action executed.');}
     renderGrants();
   }
-  function revokeGrant(key) { grants.delete(key); renderGrants(); }
-  function revokeAllGrants() { grants.clear(); renderGrants(); }
-  // A policy change invalidates every grant made under the previous one: the
-  // operator consented in a context that no longer exists.
+  async function revokeGrant(key){grants.delete(key);renderGrants();await persistGrants();}
+  async function revokeAllGrants(){grants.clear();renderGrants();await persistGrants();}
+  // Saved approvals survive reconnects. Current policy and live classification
+  // are checked first, so a saved approval cannot bypass a restriction.
   function applyPolicy(raw) {
     const next = SAFARI_CORE.normalizePolicy(raw);
-    if (next.mode !== policy.mode || next.version !== policy.version) revokeAllGrants();
     policy = next;
     renderGrants();
   }
@@ -179,24 +199,28 @@
         // then applies policy; a hard ceiling is refused inside decideClick
         // before the policy mode is even read.
         const verdict=core.decideClick(preview,policy);
-        if(verdict.decision!=='prompt')throw new Error(`Refused: ${verdict.reason}`);
+        if(!['prompt','allow'].includes(verdict.decision))throw new Error(`Refused: ${verdict.reason}`);
         if(preview.href && new URL(preview.href).origin!==location.origin)throw new Error('Cross-site link blocked');
+        const targetKey=core.approvalKey(a.ref);
+        clickAuthorization={id:command.id,key:targetKey,category:preview.category,summary:preview.summary};
+        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,action:'click',approval:'site-permission',category:preview.category};
+        if(verdict.grantable)await loadGrants(true);
         // A standing grant covers only the ROUTINE class the operator granted,
         // on this origin. It is checked AFTER the tier and mode gates, so it can
         // never reach an elevated or blocked control.
-        if(verdict.grantable && hasGrant(preview.category)){
+        if(verdict.grantable && hasGrant(targetKey,preview.category)){
           return {success:true,dispatched:true,verified:false,action:'click',approval:'standing-grant',category:preview.category};
         }
         // Name the control, not the opaque ref. The operator is the enforcement
         // layer here, so approving "e37" is the security control failing.
         const answer=await requestApproval({
           verb:'click', target:preview.summary||a.ref, tier:preview.tier,
-          category:preview.category, reasons:preview.reasons,
-          grantable:verdict.grantable, expiresAt:command.expiresAt
+          category:preview.category, actionType:preview.actionType,reasons:preview.reasons,
+          grantable:verdict.grantable&&Boolean(targetKey), expiresAt:command.expiresAt
         });
         const refusal=refusalFor(answer,'click');
         if(refusal)throw new Error(refusal);
-        if(answer==='always')addGrant(preview.category);
+        if(answer==='always')await addGrant(targetKey,preview.category,preview.summary);
         // Links may cause a page unload. Caller must inspect again to verify.
         return {success:true,dispatched:true,verified:false,action:'click',approval:answer,category:preview.category};
       }
@@ -204,16 +228,15 @@
         const dest = new URL(a.url);
         if(!['http:','https:'].includes(dest.protocol)||dest.origin!==location.origin)throw new Error('Only same-site navigation allowed');
         const verdict=core.decideNavigate(policy);
-        if(verdict.decision!=='prompt')throw new Error(`Refused: ${verdict.reason}`);
-        if(verdict.grantable && hasGrant(NAV_CLASS))return {success:true,dispatched:true,verified:false,url:dest.href,approval:'standing-grant'};
+        if(!['prompt','allow'].includes(verdict.decision))throw new Error(`Refused: ${verdict.reason}`);
+        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,url:dest.href,approval:'site-permission'};
         const answer=await requestApproval({
-          verb:'navigate to', target:dest.href, tier:'routine', category:NAV_CLASS,
+          verb:'navigate to', target:dest.href, tier:'routine', category:NAV_CLASS,actionType:'Navigation',
           reasons:['same-origin navigation, reversible with the back button'],
-          grantable:verdict.grantable, expiresAt:command.expiresAt
+          grantable:false, expiresAt:command.expiresAt
         });
         const refusal=refusalFor(answer,'navigation');
         if(refusal)throw new Error(refusal);
-        if(answer==='always')addGrant(NAV_CLASS);
         return {success:true,dispatched:true,verified:false,url:dest.href,approval:answer};
       }
       default:throw new Error('Unsupported tool action');
@@ -281,6 +304,11 @@
             return;
           }
           if(outcome.success && outcome.dispatched && command.action==='browser_click'){
+            const currentPreview=core.previewClick(command.args.ref);
+            if(clickAuthorization?.id!==command.id||clickAuthorization.category!==currentPreview.category||clickAuthorization.summary!==currentPreview.summary||
+               (clickAuthorization.key&&clickAuthorization.key!==core.approvalKey(command.args.ref)))throw new Error('Click target changed; inspect again.');
+            const latest=core.decideClick(currentPreview,policy);
+            if(latest.decision==='refuse'||(outcome.approval==='site-permission'&&latest.decision!=='allow'))throw new Error('Click permission changed; inspect again.');
             // Re-check element/reference after user's confirmation, then click.
             const result=clickInThisTab(command.args.ref);
             if(result.requiresApproval)throw new Error('Unexpected high-impact control on recheck');
@@ -504,6 +532,7 @@
       const timer2=setTimeout(()=>settle('timeout'),Math.max(1000,Math.min(120000,remaining)));
       approvalBox.textContent='';
       approvalBox.append(el('b',`Approve ${request.verb}?`));
+      if(request.actionType)approvalBox.append(el('p',request.actionType,'why'));
       approvalBox.append(el('p',request.target,'target'));
       approvalBox.append(el('p',`on ${location.origin}`,'where'));
       const why=el('p',`${request.tier.toUpperCase()} · ${request.category}`,'why');
@@ -514,7 +543,7 @@
       once.addEventListener('click',()=>settle('once'));
       row.append(once);
       if(request.grantable){
-        const always=el('button',`Always allow "${request.category}" here`);
+        const always=el('button','Always allow this button on this page');
         always.id='approve-always';always.type='button';
         always.addEventListener('click',()=>settle('always'));
         row.append(always);
@@ -563,6 +592,7 @@
     // gateway, possibly days ago. Say so in the tab where the disclosure
     // actually happens, every time, rather than leaving it invisible here.
     if(modeLine)modeLine.textContent=`Site mode: ${policy.mode}${policy.grantsOffered?'':' (standing approvals disabled by gateway)'}`+
+      (policy.routineActions?' · recognised navigation and page interactions automatic':'')+
       (policy.values?' · FIELD VALUES on this site are readable by the AI (passwords, card and hidden fields never are)':'');
     if(!grantList)return;
     grantList.textContent='';
@@ -570,20 +600,21 @@
       grantList.append(el('p','No standing approvals.','muted'));
       return;
     }
-    grantList.append(el('p',`${grants.size} standing approval${grants.size===1?'':'s'} - review:`,'muted'));
+    grantList.append(el('p',`${grants.size} standing approval${grants.size===1?'':'s'} saved for individual buttons — review:`,'muted'));
     for(const [key,grant] of grants){
       const row=el('div',null,'grant');
-      row.append(el('span',`${grant.category} on ${grant.origin}`));
+      row.append(el('span',`${grant.target||grant.category} · ${grant.category} on ${grant.page||'this page'}`));
       const button=el('button','Revoke');button.type='button';
-      button.addEventListener('click',()=>revokeGrant(key));
+      button.addEventListener('click',()=>void revokeGrant(key).catch(error=>show(`Could not save revocation: ${error.message}`)));
       row.append(button);
       grantList.append(row);
     }
     const all=el('button','Revoke all');all.type='button';all.id='revoke-all';
-    all.addEventListener('click',revokeAllGrants);
+    all.addEventListener('click',()=>void revokeAllGrants().catch(error=>show(`Could not save revocation: ${error.message}`)));
     grantList.append(all);
   }
   async function start(){
+    await loadGrants();
     if(running)return;
     url=String(await GM.getValue(K_URL,'')).replace(/\/$/,'');
     token=String(await GM.getValue(K_TOKEN,''));
@@ -630,13 +661,11 @@
   window.addEventListener('pageshow',()=>{if(running&&paused&&document.visibilityState==='visible')onVisibilityChange();});
   async function stop(){
     running=false;paused=false;conflict=null;loopId++;clearTimeout(timer);
-    // Stop is the revocation of everything: an open dialog is refused, every
-    // standing grant is dropped, and policy returns to read-only so a reconnect
-    // cannot inherit trust from the session being ended (D-021). Reported as
+    // Stop cancels execution and resets policy to read-only. Saved approvals
+    // remain in isolated storage until explicitly revoked. Reported as
     // 'stopped' - unlike a timeout this IS a deliberate operator act, and the
     // log should say which one it was.
     if(pendingApproval)pendingApproval('stopped');
-    revokeAllGrants();
     policy=SAFARI_CORE.normalizePolicy(null);
     renderGrants();
     // Persist the explicit stop before asking the gateway to revoke this device.
@@ -691,7 +720,7 @@
     `;
     const root=document.createElement('div');root.innerHTML=`
       <button class="toggle" type="button">Remote AI</button><section class="panel" hidden>
-      <b>Safari AI Agent Remote</b><p>This page can be read by a connected AI. For testing, use only a non-sensitive website. Payment, account-deletion and credential controls are refused on every site, including trusted ones.</p>
+      <b>Safari AI Agent Remote · 0.2.4</b><p>This page can be read by a connected AI. Full permission runs recognised navigation and page interactions automatically; submissions, data changes and unclear actions ask. Payment, account-deletion and credential controls are refused on every site.</p>
       <label>Gateway HTTPS URL</label><input id="gateway" autocomplete="off" placeholder="https://your-domain.example" />
       <label>Device token (never share with an AI)</label><input id="secret" type="password" autocomplete="off" />
       <div class="actions"><button id="save" type="button">Save</button><button id="connect" type="button">Connect</button><button id="stop" type="button">Stop</button><button id="takeover" type="button" hidden>Take over</button></div>
@@ -736,9 +765,8 @@
     // session between tabs on its own, because the moving tab may be one the
     // operator is not looking at.
     takeover.addEventListener('click',async()=>{
-      // A takeover starts a new session context. Grants were consented to for
-      // the session being displaced, so they do not survive it.
-      takeoverRequested=true;conflict=null;revokeAllGrants();show('Taking over the device session...');
+      // Saved button approvals survive sessions; current policy still gates use.
+      takeoverRequested=true;conflict=null;show('Taking over the device session...');
       if(!running){try{await start()}catch(e){show(String(e.message||e))}}
     });
     void (async()=>{try{

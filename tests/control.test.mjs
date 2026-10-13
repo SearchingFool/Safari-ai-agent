@@ -99,7 +99,8 @@ test('Managed gateway start, settings restart, read-everywhere and stop use real
     assert.equal(policy.mode,'ask');assert.equal(policy.grants,false);assert.equal(policy.values,false);
     await manager.save({autoStart:true,sites:[{url:'https://unlisted.test/page',mode:'trusted'}]});
     assert.equal(children.length,4);assert.equal(children[0].signalCode,'SIGTERM');
-    assert.equal((await (await device()).json()).policy.mode,'trusted');
+    const full=(await (await device()).json()).policy;
+    assert.equal(full.mode,'trusted');assert.equal(full.routineActions,true);
     await manager.stop();assert.equal((await manager.status()).phase,'stopped');assert.equal(children[2].signalCode,'SIGTERM');
     assert.equal(manager.autoStart(),true);
   }finally{await manager.close();f.close();}

@@ -321,6 +321,7 @@ def main():
               <input name="qty" />
               <button id="g_preview" type="button">Preview selection</button>
               <button id="g_submit" type="submit">Submit demo form</button>
+              <button id="g_invalid" type="invalid" aria-expanded="false">Invalid type control</button>
               <a id="g_informlink" href="/terms">Read the terms</a>
             </form>
             <button id="g_toggle" aria-pressed="false">Follow</button>
@@ -369,9 +370,11 @@ def main():
         # by class. Assert the shared class explicitly, so a future change that
         # splits them makes this line fail loudly and get re-read rather than
         # leaving a stale comment behind.
-        assert preview['category'] == submit['category'] == 'form-submit', (preview, submit)
+        assert preview['category'] == 'form-control' and submit['category'] == 'form-submit', (preview, submit)
         assert preview['tier'] == submit['tier'] == 'elevated', (preview, submit)
         assert not preview['decideGrantable'] and not submit['decideGrantable'], (preview, submit)
+        assert by_name['Invalid type control']['category']=='form-submit',by_name['Invalid type control']
+        assert by_name['Invalid type control']['tier']=='elevated',by_name['Invalid type control']
         # The class is broader still than the Preview/Submit pair: an ordinary
         # same-origin link is ROUTINE anywhere else on the page, but inside a
         # form it is `form-submit` too, because inertCategory() refuses to call
@@ -379,9 +382,9 @@ def main():
         # and it is correct - but it widens what a single grant on this class
         # would have covered, which is the reason the invariant has to hold
         # rather than merely being likely to.
-        assert by_name['Read the terms']['tier'] == 'elevated', by_name['Read the terms']
-        assert by_name['Read the terms']['category'] == 'form-submit', by_name['Read the terms']
-        assert by_name['Read the terms']['decideGrantable'] is False, by_name['Read the terms']
+        assert by_name['Read the terms']['tier'] == 'routine', by_name['Read the terms']
+        assert by_name['Read the terms']['category'] == 'same-origin-link', by_name['Read the terms']
+        assert by_name['Read the terms']['decideGrantable'] is True, by_name['Read the terms']
         # The identical link OUTSIDE a form is routine, so this is form
         # membership doing the work and not a broken link classifier.
         assert by_name['Page three']['tier'] == 'routine', by_name['Page three']
@@ -465,6 +468,61 @@ def main():
         second = command('browser_click', {'ref': refs4['Toggle details section']})
         assert second['success'] and second['approval'] == 'standing-grant', second
         assert page.evaluate('window.__dialogSeen') == 0, 'a standing grant must not re-prompt'
+        saved_grants=page.evaluate("window.__settings['safari-agent:button-grants:'+location.origin]")
+        assert saved_grants and saved_grants[0][1]['target'].find('Toggle details section') >= 0
+        fresh=browser.new_page()
+        fresh.set_content('<button id="t_grantable" type="button" aria-expanded="false">Toggle details section</button>')
+        fresh.evaluate('''(saved) => {
+          window.__queue=[];window.__results=[];window.__clicked=0;
+          document.querySelector('button').onclick=()=>window.__clicked++;
+          const values={'safari-agent:gateway-url':'https://gateway.test',
+            'safari-agent:device-token':'D'.repeat(48),
+            ['safari-agent:enabled:'+location.origin]:true,
+            ['safari-agent:button-grants:'+location.origin]:saved};
+          window.GM={getValue:(key,def)=>Promise.resolve(values[key]??def),
+            setValue:(key,val)=>{values[key]=val;return Promise.resolve();},
+            xmlHttpRequest:details=>{
+              const path=new URL(details.url).pathname;const body=JSON.parse(details.data);
+              if(path==='/device/result')window.__results.push(body.result);
+              return Promise.resolve({status:200,responseText:JSON.stringify(path==='/device/poll'
+                ?{command:window.__queue.shift()||null,policy:{mode:'trusted',grants:true,version:'new-session'}}
+                :{accepted:true})});
+            }};
+        }''',saved_grants)
+        fresh.add_script_tag(content=core)
+        fresh.add_script_tag(content=remote)
+        def fresh_command(action,args):
+            count=fresh.evaluate('window.__results.length')
+            fresh.evaluate('(c)=>window.__queue.push(c)',{'id':'11111111-1111-4111-8111-'+str(count+1).zfill(12),
+                'action':action,'args':args,'origin':'null','expiresAt':9999999999999})
+            fresh.wait_for_function('(n)=>window.__results.length>n',arg=count,timeout=8000)
+            return fresh.evaluate('window.__results.at(-1)')
+        restored_snapshot=fresh_command('browser_inspect',{})
+        restored_ref=restored_snapshot['data']['elements'][0]['ref']
+        restored_click=fresh_command('browser_click',{'ref':restored_ref})
+        assert restored_click['success'] and restored_click['approval']=='standing-grant',restored_click
+        fresh.wait_for_function('window.__clicked===1')
+        fresh.close()
+        # A different button in the same category must not inherit approval.
+        denied_other=command('browser_click',{'ref':refs4['More detail']})
+        assert not denied_other['success'],denied_other
+        # Simulate a new tab/reloaded script loading the same isolated storage.
+        page.evaluate("window.__panel.querySelector('#revoke-all').click()")
+        page.wait_for_function("window.__settings['safari-agent:button-grants:'+location.origin].length===0")
+        page.evaluate('(saved)=>{window.__settings["safari-agent:button-grants:"+location.origin]=saved;}',saved_grants)
+        command('browser_inspect')
+        prompts_before_restore=page.evaluate('window.__dialogSeen')
+        restored=command('browser_click',{'ref':refs4['Toggle details section']})
+        assert restored['success'] and restored['approval']=='standing-grant',restored
+        assert page.evaluate('window.__dialogSeen') == prompts_before_restore, 'restoring a saved button approval must not prompt'
+        # A changed target identity needs fresh consent.
+        page.evaluate("document.querySelector('#t_grantable').textContent='Different details section'")
+        changed_snap=command('browser_inspect')['data']
+        changed_refs={item['label']:item['ref'] for item in changed_snap['elements']}
+        changed=command('browser_click',{'ref':changed_refs['Different details section']})
+        assert not changed['success'],changed
+        page.evaluate("document.querySelector('#t_grantable').textContent='Toggle details section'")
+        command('browser_inspect')
         # It is scoped to the class, not the element: an ELEVATED control is
         # still prompted (and here denied) while the grant is live.
         command('browser_inspect')
@@ -478,7 +536,42 @@ def main():
         command('browser_inspect')
         revoked = command('browser_click', {'ref': refs4['Toggle details section']})
         assert not revoked['success'] and 'denied' in revoked['error'], revoked
-        print('PASS: a standing grant is class-scoped, suppresses re-prompting, and is revocable mid-session')
+        print('PASS: a standing grant is button-scoped, persisted, suppresses re-prompting, and is revocable')
+
+        # Full permission automatically performs recognised page interactions,
+        # while unclear controls and actual submissions still prompt.
+        page.evaluate('''() => {
+          const tour=document.createElement('div');tour.setAttribute('data-tour-step','1');
+          tour.innerHTML='<button id="tour_next" type="button">Next step</button>';
+          window.__tourSteps=0; document.body.appendChild(tour);
+          tour.querySelector('button').onclick=()=>{window.__tourSteps++;};
+        }''')
+        set_policy({'mode':'trusted','grants':True,'routineActions':True,'version':'full-routine'})
+        set_answer('deny')
+        full_snap=command('browser_inspect')['data']
+        full_refs={item['label']:item['ref'] for item in full_snap['elements']}
+        for step in range(3):
+            command('browser_inspect')
+            advanced=command('browser_click',{'ref':full_refs['Next step']})
+            assert advanced['success'] and advanced['approval']=='site-permission',advanced
+            page.wait_for_function('(n)=>window.__tourSteps===n',arg=step+1)
+        assert page.evaluate('window.__dialogSeen') == 0
+        command('browser_inspect')
+        denied=command('browser_click',{'ref':full_refs['Flurb']})
+        assert not denied['success'] and page.evaluate('window.__dialogSeen') > 0,denied
+        command('browser_inspect')
+        submitted=command('browser_click',{'ref':full_refs['Submit demo form']})
+        assert not submitted['success'] and 'approve-always' not in page.evaluate('window.__offered'),submitted
+        assert 'Submit or change data' in page.evaluate('window.__lastDialog')
+        full_decisions=page.evaluate('''() => {
+          const core=SafariAIAgentCore.createAgentCore(document,window);
+          return {full:core.decideNavigate({mode:'trusted',routineActions:true}).decision,
+                  ask:core.decideNavigate({mode:'ask',routineActions:true}).decision,
+                  ro:core.decideNavigate({mode:'read-only',routineActions:true}).decision};
+        }''')
+        assert full_decisions == {'full':'allow','ask':'prompt','ro':'refuse'},full_decisions
+        print('PASS: full permission advances a tour without prompts; unclear actions and submits still ask')
+        set_policy({'mode':'trusted','grants':True,'version':'test-1'})
 
         # --- D-026 (C): completion is possible on a trusted site --------------
         # A plain Save on a form with no password and no card fields. This is

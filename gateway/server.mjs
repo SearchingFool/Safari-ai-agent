@@ -38,9 +38,9 @@ const TOOL_DEFS = [
   // is blocked by default" for one release after D-019 narrowed the hard
   // ceilings and that stopped being true (D-034). Keep it matched to
   // src/core.js; tests/gateway.test.mjs pins it against drifting back.
-  {name:'browser_click',description:'Click a referenced control. Ask mode requires explicit operator confirmation in Safari for every click. Trusted mode can offer standing approval for routine controls. Read-only and fill-only refuse clicks. Payment, account-deletion and credential or security controls are refused on every site. A form submit is NOT blocked in ask or trusted mode: it proceeds once the operator confirms it, and it always needs its own confirmation - a standing approval can never cover it.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
+  {name:'browser_click',description:'Click a referenced control after inspecting. Full permission automatically executes recognised same-site navigation and page interactions when routineActions is enabled. Submissions, data changes and unclear controls require individual approval. Ask mode asks for every click; read-only and fill-only refuse clicks. When offered, Always allow is saved for one identifiable button on one exact page, never for other buttons. Payment, account-deletion and credential or security controls remain refused. A form submit is NOT blocked in ask or trusted mode, but always requires its own confirmation.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
    annotations:{title:'Click a control',readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:true}},
-  {name:'browser_navigate',description:'Navigate only to an approved same-origin HTTP(S) URL; verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false},
+  {name:'browser_navigate',description:'Navigate only within the current website using HTTP(S). Full permission with routineActions executes without a local prompt; ask and fill-only request local approval. Cross-site navigation is blocked. Verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false},
    annotations:{title:'Navigate same-origin',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
   {name:'browser_verify',description:'Verify visible page text or URL contains expected substring.',inputSchema:{type:'object',properties:{textIncludes:{type:'string'},urlIncludes:{type:'string'}},additionalProperties:false},
    annotations:{title:'Verify page state',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
@@ -169,7 +169,7 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,defaultSiteMode='read-only',standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,defaultSiteMode='read-only',routineActions=false,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -200,12 +200,12 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   // derived from the configuration, not from a clock, so it is stable across a
   // restart with identical config and differs the moment config differs.
   const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#default=${defaultSiteMode}#grants=${standingGrants!==false}`+
-    `#values=${[...valueOrigins].sort().join('+')}`;
+    `#values=${[...valueOrigins].sort().join('+')}#routine=${routineActions===true}`;
   // `values` is a BOOLEAN for the asking origin, never a list and never a field
   // selector. The widest statement the gateway can make is "this origin is
   // opted in"; which fields that reaches is decided in src/core.js from the
   // live DOM, where the network cannot touch it.
-  const policyFor=origin=>({mode:modeFor(origin),grants:modeFor(origin)!==MODES.ASK&&standingGrants!==false,values:valuesFor(origin),version:policyVersion});
+  const policyFor=origin=>({mode:modeFor(origin),grants:modeFor(origin)!==MODES.ASK&&standingGrants!==false,values:valuesFor(origin),routineActions:modeFor(origin)===MODES.TRUSTED&&routineActions===true,version:policyVersion});
   // Diagnostics are injectable so tests can capture events without touching disk.
   const diag = diagnostics || createDiagnostics({
     enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
@@ -234,6 +234,7 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     // caller can tell "the field is empty" from "values are not reported here"
     // without inferring it from an absence.
     activeFieldValues:current?valuesFor(current.origin):null,
+    activeRoutineActions:current?modeFor(current.origin)===MODES.TRUSTED&&routineActions===true:false,
     queueDepth:pending.size,generation});
   function dispose(id){const p=pending.get(id);if(!p)return;clearTimeout(p.timer);pending.delete(id);}
   function cancelAll(reason='Cancelled'){
@@ -530,6 +531,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     // retain read-only unless they explicitly choose the ask default.
     sitePolicy:process.env.SAFARI_SITE_POLICY,
     defaultSiteMode:process.env.SAFARI_DEFAULT_SITE_MODE||'ask',
+    routineActions:process.env.SAFARI_ROUTINE_ACTIONS!=='0',
     readAnyOrigin:process.env.SAFARI_READ_ANY_ORIGIN!=='0',
     // SAFARI_FIELD_VALUES="https://a.example,https://b.example". Opt-in, per
     // origin, and only for origins already nominated `trusted` - the gateway

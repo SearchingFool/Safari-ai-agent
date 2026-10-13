@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-13 — Owner confirms private login page opens
+
+Owner reports the private test login page opens on iPad; has not gone beyond login. Initial reachability confirmed by owner, post-login navigation and connector inspection pending. Researched descriptive addressing: named Tailscale Services require tagged host identity and administrative setup; path prefixes may affect existing app paths. No mapping/name changes made. Inbox and peer status checked; no new dated assignment body or ownership acknowledgment found.
+
+---
+
 ## 2026-10-13 — Private proxy verification and registry reconciliation
 
 Owner authorized a private Mac website test without changing the application and required available-port checks and device registry registration first. Checked canonical registry, active listeners and Serve configuration before allocation. Registry reservations, including previously missing gateway/control ports, published in ai-dev-dotfiles c55678f. Mac-side HTTPS login-page and JavaScript asset checks passed; test endpoint had no Funnel entry and existing gateway health passed. No application changes. iPad page reachability and connector inspection still require owner testing; no hardware gate closed. Operator addresses and deployment configuration remain outside this public record.

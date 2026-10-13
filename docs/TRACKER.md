@@ -4,6 +4,8 @@ Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
 ## 2026-10-13 — Enhancement planning and installer follow-up
 
+Private-site device checkpoint: owner reports the test login page opens on the iPad; no post-login navigation tested yet. This establishes initial device reachability only. Owner requested descriptive addressing. Named Tailscale Services provide application-specific HTTPS names but require a tagged service host and tailnet administration; path prefixes are another option with application compatibility constraints. No addressing change approved or applied.
+
 Owner requested an explicit work division with the Claude agent and clear plans before new implementation. [Package plans](plans/ENHANCEMENTS-2026-10-13.md) and [discovery steps](plans/enhancement-discovery-2026-10-13.yaml) are **draft for owner approval**. Codex proposed markup/source, search/scroll and visible-feedback modules; Claude proposed screenshot/local-file/provider/background feasibility, device acceptance and review. Peer inbox notified; acknowledgment and ownership confirmation pending. No new enhancement implementation has started.
 
 Installer issue: owner reported Failed to fetch after opening the authenticated script page. Device mirror showed source 0.2.4 loaded; subsequent requests received HTTP 401. Control install link changed to the existing published raw GitHub artifact, whose bytes matched the local build. The authenticated local development route remains protected. **81/81 Node and all five browser suites passed**; owner-side successful installation not yet reported. This operational fix is separate from the unapproved enhancement packages.

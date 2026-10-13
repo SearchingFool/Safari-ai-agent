@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-13 — Private proxy verification and registry reconciliation
+
+Owner authorized a private Mac website test without changing the application and required available-port checks and device registry registration first. Checked canonical registry, active listeners and Serve configuration before allocation. Registry reservations, including previously missing gateway/control ports, published in ai-dev-dotfiles c55678f. Mac-side HTTPS login-page and JavaScript asset checks passed; test endpoint had no Funnel entry and existing gateway health passed. No application changes. iPad page reachability and connector inspection still require owner testing; no hardware gate closed. Operator addresses and deployment configuration remain outside this public record.
+
+Read inbox header assignment 08 and peer status at this checkpoint. First dated inbox body still starts with the earlier migration message; no new assignment body found. Enhancement ownership acknowledgment remains pending. Existing approved work retained; future packages not started.
+
+---
+
 ## 2026-10-13 — Private Mac websites clarification
 
 Owner asked how to use Mac-local websites with no public exposure, reachable through Tailscale. Verified official Serve docs: private tailnet reverse proxy, HTTPS and existing tailnet access controls; Serve/Funnel cannot share a port. Proposed separate private port, leaving gateway/control forwarding intact. Existing paired Safari DOM bridge works with private HTTP(S) pages; cloud provider only reaches the public MCP gateway. Private pages require iPad Tailscale connectivity. Added existing-web-service path to P5 and tracker; no mapping created without a selected local target URL/port. No direct-file capability assumed.

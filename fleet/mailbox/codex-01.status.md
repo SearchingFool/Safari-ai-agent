@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-13 — Private app test cancelled by owner
+
+Owner requested removal because the application's additional connections make this test unsuitable. Removed only the private test Serve mapping and released the corresponding registry reservation. Verified test mapping absent and existing gateway/control mappings retained. Application unchanged; no post-login acceptance claimed. No further setup for this application planned. Inbox checked; earlier device reachability evidence retained as history.
+
+---
+
 ## 2026-10-13 — Owner confirms private login page opens
 
 Owner reports the private test login page opens on iPad; has not gone beyond login. Initial reachability confirmed by owner, post-login navigation and connector inspection pending. Researched descriptive addressing: named Tailscale Services require tagged host identity and administrative setup; path prefixes may affect existing app paths. No mapping/name changes made. Inbox and peer status checked; no new dated assignment body or ownership acknowledgment found.

@@ -48,6 +48,63 @@ Updated: 2026-10-11. Each entry is a project decision or an explicitly unresolve
 | D-026 | **Open — blocks gate design** | Which product framing is the target? | Measured 2026-10-11: ~6 minutes, 10 tool calls and 2 approvals to fill a three-field form a human completes in ~20 s. The current design is optimised *against* its best use cases — tasks worth automating are long and click-heavy (maximum approval cost), while tasks it can complete are those with no submission (minimum value). Four honest framings: **(A) draft-and-review** — agent prepares, human commits; the hard block becomes a feature; shippable today. **(B) read-only research** — no actions, no approval tax; shippable today. **(C) trusted-site completion** — one task-level approval on nominated sites; needs D-019→D-023. **(D) plan-level approval** — approve a plan once rather than each step; needs D-021 plus plan-drift handling. The gate design is downstream of this choice, so fixing D-019's classifier is a different job depending on the answer. |
 | D-027 | **Open — forced by the multi-provider goal** | Safety cannot be delegated to the AI client | Claude in Chrome's protections (three approval modes, two injection classifiers, semantic hard blocks, financial-site gating) are Anthropic's **client-side** machinery. Codex, Antigravity and local models will not have them, so any inherited safety evaporates when the client is swapped. Everything protective must live in this project's own layer — the bridge and the gateway. This answers the recurring "can't we just rely on the connector?" question definitively: **no, because the plan is to swap connectors.** |
 
+### D-041 — read-everywhere widens the prompt-injection surface from an allowlist to the whole web
+
+**Status: accepted risk, 2026-10-13. Recorded, not reversed.** Raised by the fleet lead
+(`claude-04`) during review of `codex-01`'s in-flight read-everywhere change; **that change was
+uncommitted and in review at the time of writing.** Numbering assigned by the lead, who owns
+D-### allocation.
+
+**The decision.** The operator authorized reading across all websites without the project origin
+allowlist. The implementation is careful and the lead raised no objection to it: `readAnyOrigin`
+defaults to `false`, it is opt-in, origin shape is re-validated rather than trusted from a
+string, unlisted origins receive read-only policy, and no trust or standing grants transfer
+across a site change. Its guiding comment — *"Reading everywhere does not grant acting rights
+anywhere"* — is the correct principle and is correctly implemented.
+
+**The gap that principle does not cover.** It prevents an untrusted site from being **acted on**.
+Prompt injection does not require that, because **it works through reading**:
+
+1. The operator enables read-everywhere, so the session follows the browser to any origin
+   (`sessionFollows` returns true for any origin once `readAnyOrigin === true`).
+2. The agent reads a hostile page. Its text enters the model's context. Read-only policy is
+   fully honoured — nothing is acted on at that origin, and no gateway rule is violated.
+3. The same conversation later acts on an allowlisted, **trusted** site, where actions *are*
+   granted.
+
+The injected instructions and the action rights now sit in the **same model context**. The
+gateway cannot detect this, because no policy boundary is crossed *at the gateway* — the
+boundary is crossed inside the model. **What changed:** before this, the origin allowlist bounded
+what text could ever reach the model's context. It no longer does. `README.md` risk #3 already
+names prompt injection as "the single biggest unsolved risk for every AI browser agent"; this
+decision materially enlarges that exposure, and the README should say so.
+
+**Why it was accepted.** The operator's reasoning (2026-10-13): actions on specific sites are
+blocked or ask-first by default, so reading broadly is acceptable. That is sound as far as it
+goes, and the per-site capability tiering it relies on **does exist** — `MODES` of `read-only` /
+`fill-only` / `trusted`, with an unlisted origin defaulting to the *most* restrictive tier and
+unknown values collapsing to `read-only` at both ends.
+
+**The caveat that must not be lost.** Per-site tiers **bound the blast radius; they do not close
+the path.** A page read under `read-only` can still place text in the model's context that steers
+an action on a `trusted` site in the same conversation. **The ask-prompt is the only control that
+actually interrupts this** — and `README.md` risk #4 records approval fatigue as a real failure
+mode, so that control is exactly as strong as the operator's habit of reading prompts. Treating
+"it is read-only" as the whole mitigation would be a misreading of this decision.
+
+**Consequent open work.** The operator asked on 2026-10-13 whether actions could be configured
+per site as allowed / ask / denied. That is an *approval disposition*, a different axis from the
+capability tier, and today it is **`standingGrants`, a single global boolean**
+(`SAFARI_STANDING_GRANTS`) — there is no per-site "ask every time" versus "allow silently". That
+is **D-021**, still open. D-021 is therefore both what the operator requested and the strongest
+available mitigation for the risk accepted here; the two should be read together.
+
+**Next action.** Update `README.md` risk #3 to state the enlarged surface explicitly. Do not
+treat this entry as a substitute for the independent security review, which remains an open gate
+for D2-01.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

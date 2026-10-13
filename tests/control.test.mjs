@@ -92,7 +92,8 @@ test('Managed gateway start, settings restart, read-everywhere and stop use real
     runTs:async()=>({stdout:'{}'}),spawnProcess:()=>{const c=fakeChild();children.push(c);return c;}});
   const base=`http://127.0.0.1:${port}`;
   try{
-    await manager.start();assert.equal((await manager.status()).phase,'running');
+    await manager.start();const status=await manager.status();assert.equal(status.phase,'running');
+    assert.equal(status.installUrl,'https://raw.githubusercontent.com/SearchingFool/Safari-ai-agent/main/scripts/safari-ai-agent-remote.user.js');
     const creds=Object.fromEntries(readFileSync(join(f.root,'.env.mac-tailscale'),'utf8').trim().split('\n').map(line=>line.split('=')));
     const device=body=>fetch(base+'/device/poll',{method:'POST',headers:{Authorization:'Bearer '+creds.DEVICE_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({origin:'https://unlisted.test',instanceId:'test-tab-one',visibility:'visible',...body})});
     const first=await device();assert.equal(first.status,200);const policy=(await first.json()).policy;

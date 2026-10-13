@@ -92,7 +92,10 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
     const external=!gateway&&await occupied(port);
     return {phase:external?'external':phase,error:lastError,busy,settings:config,
       localUrl:'http://127.0.0.1:8788',controlUrl:`https://${host}:8443`,
-      gatewayUrl:`https://${host}`,mcpUrl:`https://${host}/mcp`,demoUrl:`https://${host}/demo`,installUrl:`https://${host}/install/safari-ai-agent-remote.user.js`,
+      gatewayUrl:`https://${host}`,mcpUrl:`https://${host}/mcp`,demoUrl:`https://${host}/demo`,
+      // Userscripts re-fetches outside Safari's Basic-auth session. The public
+      // artifact contains source code only; all credentials remain in GM storage.
+      installUrl:'https://raw.githubusercontent.com/SearchingFool/Safari-ai-agent/main/scripts/safari-ai-agent-remote.user.js',
       browser:gateway?.status()||null,readEverywhere:true};
   }
   async function stopInternal(){

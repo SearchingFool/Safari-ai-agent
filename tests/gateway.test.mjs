@@ -22,6 +22,37 @@ async function testGateway(fn, options={}) {
   try{return await fn({g,base,post,rpc,device})}finally{await g.close()}
 }
 const call=(name,args={})=>({name,arguments:args});
+test('Updated userscript installation requires the distinct demo login and never exposes runtime tokens',()=>testGateway(async({base})=>{
+  const path=base+'/install/safari-ai-agent-remote.user.js';
+  assert.equal((await fetch(path)).status,401);
+  assert.equal((await fetch(path,{headers:{Authorization:'Bearer '+mcpToken}})).status,401);
+  const response=await fetch(path,{headers:{Authorization:'Basic '+Buffer.from('safari-demo:'+demoPassword).toString('base64')}});
+  assert.equal(response.status,200);const script=await response.text();assert.match(script,/==UserScript==/);
+  assert.doesNotMatch(script,new RegExp(mcpToken));assert.doesNotMatch(script,new RegExp(deviceToken));
+}));
+test('Read everywhere pairs an unlisted site but never grants it action rights',()=>testGateway(async({rpc,device})=>{
+  const site='https://unlisted.example';
+  const poll=await payload(await device('poll',{origin:site}));
+  assert.equal(poll.policy.mode,'read-only');assert.equal(poll.policy.values,false);
+  for(const name of ['browser_fill','browser_click','browser_navigate']){
+    const args=name==='browser_fill'?{ref:'e1',value:'x'}:name==='browser_click'?{ref:'e1'}:{url:site+'/next'};
+    assert.equal((await payload(await rpc('tools/call',call(name,args)))).result.isError,true);
+  }
+  const pending=inFlight(rpc('tools/call',call('browser_inspect'),900));
+  const command=await awaitCommand(device,site);
+  assert.equal(command.action,'browser_inspect');
+  assert.equal((await device('result',{origin:site,id:command.id,result:{success:true,data:{title:'Unlisted'}}})).status,200);
+  assert.equal(output(await payload(await pending)).data.title,'Unlisted');
+  assert.equal((await device('disconnect',{origin:site})).status,200);
+  for(const origin of ['null','file:///tmp/a','javascript:alert(1)','https://x.test/path'])assert.equal((await device('poll',{origin})).status,403);
+},{readAnyOrigin:true}));
+test('Read-everywhere follows a visible new website only after the old one goes hidden',()=>testGateway(async({device})=>{
+  await device('poll',{origin:'https://first.test'});
+  assert.equal((await device('poll',{origin:'https://next.test',instanceId:'tab-next-two'})).status,409);
+  await device('poll',{origin:'https://first.test',visibility:'hidden'});
+  const next=await device('poll',{origin:'https://next.test',instanceId:'tab-next-two'});
+  assert.equal(next.status,200);assert.equal((await next.json()).policy.mode,'read-only');
+},{readAnyOrigin:true}));
 const payload=async r=>(await r.json());
 const output=x=>JSON.parse(x.result.content[0].text);
 

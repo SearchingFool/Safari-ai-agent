@@ -11,6 +11,8 @@
   const K_URL = 'safari-agent:gateway-url';
   const K_TOKEN = 'safari-agent:device-token';
   const K_SITE = `safari-agent:enabled:${location.origin}`;
+  const K_EVERYWHERE = 'safari-agent:read-everywhere';
+  const K_ACTIVE = 'safari-agent:active';
   // Per-TAB identity. sessionStorage is scoped to one tab and survives
   // same-tab navigation and reload, which is exactly the lifetime of a paired
   // session: a new tab gets a new id, but navigating within this tab keeps it,
@@ -631,6 +633,7 @@
     renderGrants();
     // Persist the explicit stop before asking the gateway to revoke this device.
     await GM.setValue(K_SITE,false);
+    await GM.setValue(K_ACTIVE,false);
     show('Stopping and revoking queued commands...');
     try {
       if(url && token) await request('/device/disconnect',identity());
@@ -687,6 +690,7 @@
       <div class="mode">Site mode: read-only</div>
       <div class="status" role="status">Disabled on this site</div>
       <label class="soundrow"><input id="sound" type="checkbox" checked> Sound when approval is needed</label>
+      <label class="soundrow"><input id="everywhere" type="checkbox" checked> Connect across websites (unlisted sites are read only)</label>
       <div class="grants"></div></section>
       <section class="approval" role="alertdialog" aria-modal="true" aria-label="Browser agent approval" hidden></section>`;
     shadow.append(style,root);document.documentElement.appendChild(host);
@@ -694,6 +698,9 @@
     approvalBox=root.querySelector('.approval');grantList=root.querySelector('.grants');modeLine=root.querySelector('.mode');
     renderGrants();
     const soundBox=root.querySelector('#sound');
+    const everywhereBox=root.querySelector('#everywhere');
+    void GM.getValue(K_EVERYWHERE,true).then(value=>{everywhereBox.checked=value!==false;});
+    everywhereBox.addEventListener('change',()=>void GM.setValue(K_EVERYWHERE,everywhereBox.checked));
     // Default ON. An approval nobody notices is the failure this exists to
     // prevent, so the quiet default is the unsafe one.
     void GM.getValue(K_SOUND,true).then(value=>{soundEnabled=value!==false;soundBox.checked=soundEnabled;});
@@ -715,7 +722,7 @@
         show('Configuration saved in Userscripts extension storage.');
       }catch(e){show(String(e.message||e));}
     });
-    root.querySelector('#connect').addEventListener('click',async()=>{try{await start()}catch(e){show(String(e.message||e))}});
+    root.querySelector('#connect').addEventListener('click',async()=>{try{await GM.setValue(K_ACTIVE,true);await start()}catch(e){show(String(e.message||e))}});
     root.querySelector('#stop').addEventListener('click',()=>void stop());
     // Takeover is deliberately operator-driven: the gateway will never move a
     // session between tabs on its own, because the moving tab may be one the
@@ -728,7 +735,12 @@
     });
     void (async()=>{try{
       root.querySelector('#gateway').value=String(await GM.getValue(K_URL,''));
-      if(await GM.getValue(K_SITE,false))await start();
+      const active=await GM.getValue(K_ACTIVE,null);
+      const siteEnabled=await GM.getValue(K_SITE,false);
+      // Legacy per-site opt-ins remain valid until the first new Connect/Stop.
+      // An explicit global Stop must outrank every old per-site opt-in.
+      if((active===null&&siteEnabled) ||
+         (active===true&&(siteEnabled||await GM.getValue(K_EVERYWHERE,true))))await start();
     }catch(e){show(String(e.message||e))}})();
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();

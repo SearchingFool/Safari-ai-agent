@@ -8,7 +8,7 @@
  */
 import {createServer} from 'node:http';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
-import {appendFileSync, mkdirSync} from 'node:fs';
+import {appendFileSync, mkdirSync,readFileSync} from 'node:fs';
 import {dirname} from 'node:path';
 import {serveDemo} from './demo-pages.mjs';
 import {createDiagnostics} from './diagnostics.mjs';
@@ -168,7 +168,7 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -181,6 +181,15 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     if(!allowed.has(origin))throw Error(`Field-value policy names ${origin}, which is not an allowed origin`);
   }
   const modeFor=origin=>normalizeMode(modes.get(origin));
+  // Reading everywhere does not grant acting rights anywhere. Unlisted sites
+  // still receive read-only policy; only explicit site entries can grant actions.
+  const acceptsOrigin=origin=>{
+    if(typeof origin!=='string')return false;
+    if(allowed.has(origin))return true;
+    if(readAnyOrigin!==true)return false;
+    try { return new URL(origin).origin===origin && /^https?:/.test(origin); }
+    catch { return false; }
+  };
   // Re-checked here rather than trusted from parse time, so a future change to
   // how modes are stored cannot leave a stale `trusted` decision behind.
   const valuesFor=origin=>valueOrigins.has(origin)&&modeFor(origin)===MODES.TRUSTED;
@@ -267,8 +276,9 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   //     because two simultaneously visible tabs (Split View, a second window)
   //     is a real conflict and the gateway cannot tell which one the operator
   //     means;
-  //   - SAME ORIGIN only - a different allowlisted origin is a genuine
-  //     conflict, not a tab switch, and keeps the existing takeover UI.
+  //   - Same origin, unless the operator enabled read-everywhere. That mode
+  //     follows the visible website too, but its own policy is applied anew;
+  //     no trust or standing grants transfer from the old site.
   //
   // The already-stale case needs no entry here: `sessionFresh()` is false once
   // the owner ages out of deviceFreshMs, so the poll simply succeeds. The
@@ -276,7 +286,7 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   // the instance id is sessionStorage-backed and survives same-tab navigation.
   function sessionFollows(b,visibility){
     return visibility==='visible'
-        && current?.origin===b.origin
+        && (current?.origin===b.origin || readAnyOrigin===true)
         && current.visibility!=='visible';
   }
   async function call(tool,args){
@@ -317,12 +327,16 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     try{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/health'&&req.method==='GET')return json(res,200,{ok:true});
-      if(['/demo','/demo/product'].includes(url.pathname)){
+      if(['/demo','/demo/product','/install/safari-ai-agent-remote.user.js'].includes(url.pathname)){
         if(req.method!=='GET'||!demoPassword)return fail(res,404,'Not found');
         if(!demoMatches(req.headers.authorization,demoPassword)){
           // Minimal challenge, no data in the response body or server details.
           res.writeHead(401,{'WWW-Authenticate':'Basic realm="Safari AI Agent Test", charset="UTF-8"','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
           return res.end();
+        }
+        if(url.pathname==='/install/safari-ai-agent-remote.user.js'){
+          res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});
+          return res.end(readFileSync(new URL('../scripts/safari-ai-agent-remote.user.js',import.meta.url)));
         }
         return serveDemo(req,res,url.pathname);
       }
@@ -382,7 +396,7 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         trace.deviceVisibility=b.visibility==='visible'?'visible':'hidden';
         const owns=current && current.origin===b.origin && current.instanceId===b.instanceId;
         if(url.pathname==='/device/disconnect'){
-          if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
+          if(!acceptsOrigin(b.origin))return fail(res,403,'Origin not allowlisted');
           // A tab may only revoke its own session, never another tab's - even
           // one on the same origin. Takeover is an explicit, separate act.
           if(sessionFresh() && !owns)return json(res,409,{error:'A different tab owns the device session',code:'DEVICE_SESSION_CONFLICT',...conflictBody(b),requestId});
@@ -392,7 +406,7 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           return json(res,200,{disconnected:true,generation});
         }
         if(url.pathname==='/device/poll'){
-          if(typeof b.origin!=='string'||!allowed.has(b.origin))return fail(res,403,'Origin not allowlisted');
+          if(!acceptsOrigin(b.origin))return fail(res,403,'Origin not allowlisted');
           const visibility=b.visibility==='visible'?'visible':'hidden';
           if(sessionFresh() && !owns){
             const follows=sessionFollows(b,visibility);
@@ -509,6 +523,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     // SAFARI_SITE_POLICY="https://a.example=trusted,https://b.example=fill-only".
     // Anything not named here is read-only, which is why there is no default.
     sitePolicy:process.env.SAFARI_SITE_POLICY,
+    readAnyOrigin:process.env.SAFARI_READ_ANY_ORIGIN!=='0',
     // SAFARI_FIELD_VALUES="https://a.example,https://b.example". Opt-in, per
     // origin, and only for origins already nominated `trusted` - the gateway
     // refuses to start otherwise rather than dropping the entry silently.

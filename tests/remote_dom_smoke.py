@@ -963,6 +963,36 @@ def main():
         page.evaluate("window.__settings['safari-agent:enabled:null']=false")
         print('PASS: remote script mock-GM inspect/fill/constraints/approval/click/verify')
         print('PASS: describeControl identifies toggles, form submits, pseudo-links and external targets')
+        # READ-01: auto-connect across websites, and global Stop must override
+        # legacy per-site opt-ins. Use fresh pages: this is a boot behavior.
+        for active, legacy, everywhere, expected in [
+            (True, False, True, True), (False, True, True, False),
+            (None, True, True, True), (None, False, True, False),
+            (True, False, False, False)
+        ]:
+            fresh = browser.new_page()
+            fresh.set_content('<h1>Public reading fixture</h1>')
+            fresh.evaluate('''([active,legacy,everywhere]) => {
+              window.__polls=0;
+              const attach=Element.prototype.attachShadow;
+              Element.prototype.attachShadow=function(init){const root=attach.call(this,{...init,mode:'open'});window.__panel=root;return root;};
+              window.__settings={'safari-agent:gateway-url':'https://gateway.test',
+                'safari-agent:device-token':'D'.repeat(48),'safari-agent:active':active,
+                'safari-agent:read-everywhere':everywhere,['safari-agent:enabled:'+location.origin]:legacy};
+              window.GM={getValue:(k,d)=>Promise.resolve(window.__settings[k]??d),
+                setValue:(k,v)=>{window.__settings[k]=v;return Promise.resolve();},
+                xmlHttpRequest:details=>{if(details.url.endsWith('/device/poll'))window.__polls++;
+                  return Promise.resolve({status:200,responseText:JSON.stringify({command:null,policy:{mode:'read-only',grants:true,version:'read-test'}})});}};
+            }''', [active, legacy, everywhere])
+            fresh.add_script_tag(content=core)
+            fresh.add_script_tag(content=remote)
+            if expected:
+                fresh.wait_for_function('window.__polls>0', timeout=5000)
+            else:
+                fresh.wait_for_timeout(150)
+                assert fresh.evaluate('window.__polls') == 0, (active, legacy, everywhere)
+            fresh.close()
+        print('PASS: cross-website auto-connect is opt-in, and global Stop overrides legacy site opt-ins')
         browser.close()
 
 if __name__=='__main__':main()

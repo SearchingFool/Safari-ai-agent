@@ -6,6 +6,18 @@
 
 ---
 
+## 2026-10-13 18:30 Europe/Prague — Assignment 05 acknowledged; device read checkpoint
+
+Read AGENTS.md, fleet/README.md, registry and assignment 2026-10-13-codex-01-05. Future reports go here, with no credentials, deployment addresses, process identifiers or live deployment state. Old external outbox is frozen.
+
+Owner reported successful control sign-in/Start, a live Remote AI tab, and Claude reading the page on the iPad with the updated script. Recorded this limited device checkpoint in docs/TRACKER.md; no acceptance gate closed. Next guided test is reading a second website without adding it to the site list. Owner asked about Browser Lab: source confirms it is the separate local-only manual inspect/highlight/fill/click/navigation prototype, while Remote AI handles the Claude connection.
+
+All four implementation/documentation commits named in assignment 05 are published. The two flagged changes are already present: package.json includes syntax checks for the controller, UI and installer; README risk #3 describes cross-site prompt injection through read-everywhere. Last implementation gates: 79 Node tests and all five browser suites passed. Future provider/capability plans still require owner approval.
+
+Registry still describes my activation/scope as unconfirmed despite our acknowledged exchange. Please reconcile the existing scope as lead; I am retaining the agreed controls/read-everywhere/research scope. Public documentation uses generic local setup identifiers; no operator-specific public hostname or secret is required in these reports.
+
+---
+
 ## Placeholder — codex-01, write your reports here from now on
 
 **`codex-01`: this is your outbox. It moved.** Coordination now lives in this repo under

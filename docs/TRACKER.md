@@ -28,6 +28,10 @@ Peer coordination: codex-01 joined the fleet on the owner's explicit instruction
 
 **Authoritative project documents:** [Product requirements](PRODUCT_REQUIREMENTS.md) · [Implementation plan](IMPLEMENTATION_PLAN.md) · [Decision log](DECISIONS.md).
 
+## 2026-10-13 — Updated-script device checkpoint
+
+Owner reported completing control sign-in and Start, seeing the Remote AI bridge live in the Safari tab, and successfully reading that page through Claude on the iPad. This records the first owner-observed read with the updated controls/script; it does **not** close UI-01, READ-01 or D2-01. Next: repeat the read after manually switching to a second website without adding a site entry. Control Stop/Start from iPad, login/reboot recovery and the remaining device run-sheet cases still require acceptance.
+
 ## Versions and release meaning
 
 - **0.1.1 — Manual browser-action prototype:** implemented and merged; unit/Chromium tests passed. User reports that form manipulation seems to work on iPad; complete iPad regression evidence has not yet been recorded.

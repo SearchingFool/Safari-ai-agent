@@ -46,6 +46,21 @@ test('Read everywhere pairs an unlisted site but never grants it action rights',
   assert.equal((await device('disconnect',{origin:site})).status,200);
   for(const origin of ['null','file:///tmp/a','javascript:alert(1)','https://x.test/path'])assert.equal((await device('poll',{origin})).status,403);
 },{readAnyOrigin:true}));
+test('Ask default queues unlisted actions, disables grants and preserves explicit read-only',()=>testGateway(async({rpc,device})=>{
+  const site='https://unlisted.example';
+  const poll=await payload(await device('poll',{origin:site}));
+  assert.equal(poll.policy.mode,'ask');assert.equal(poll.policy.grants,false);assert.equal(poll.policy.values,false);
+  for(const name of ['browser_fill','browser_click','browser_navigate']){
+    const args=name==='browser_fill'?{ref:'e1',value:'x'}:name==='browser_click'?{ref:'e1'}:{url:site+'/next'};
+    const pending=inFlight(rpc('tools/call',call(name,args)));
+    const command=await awaitCommand(device,site);assert.equal(command.action,name);
+    await device('result',{origin:site,id:command.id,result:{success:false,error:'User denied'}});
+    assert.equal((await payload(await pending)).result.isError,true);
+  }
+  await device('disconnect',{origin:site});
+  await device('poll',{origin});
+  assert.equal((await payload(await rpc('tools/call',call('browser_click',{ref:'e1'})))).result.isError,true);
+},{readAnyOrigin:true,defaultSiteMode:'ask',sitePolicy:{[origin]:'read-only'}}));
 test('Read-everywhere follows a visible new website only after the old one goes hidden',()=>testGateway(async({device})=>{
   await device('poll',{origin:'https://first.test'});
   assert.equal((await device('poll',{origin:'https://next.test',instanceId:'tab-next-two'})).status,409);

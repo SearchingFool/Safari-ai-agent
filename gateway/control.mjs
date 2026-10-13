@@ -28,7 +28,7 @@ export function normalizeSites(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||typeof raw.autoStart!=='boolean'||!Array.isArray(raw.sites)||raw.sites.length>100)throw Error('Invalid settings');
   const sites=[],seen=new Set();
   for(const entry of raw.sites){
-    if(!entry||typeof entry.url!=='string'||!['read-only','fill-only','trusted'].includes(entry.mode))throw Error('Invalid website or permission mode');
+    if(!entry||typeof entry.url!=='string'||!['read-only','fill-only','trusted','ask'].includes(entry.mode))throw Error('Invalid website or permission mode');
     const url=new URL(entry.url);
     if(!['https:','http:'].includes(url.protocol)||url.username||url.password)throw Error('Use an HTTP(S) webpage URL without a username or password');
     if(seen.has(url.origin))throw Error('This website is already in the list');
@@ -115,7 +115,7 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
       const allowed=Object.keys(modes);
       mkdirSync(join(root,'logs'),{recursive:true});
       gateway=makeGateway({clientToken:credentials.MCP_CLIENT_TOKEN,deviceToken:credentials.DEVICE_TOKEN,
-        demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,
+        demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,defaultSiteMode:'ask',
         diagnostics:createDiagnostics({enabled:true,clientTokenLength:64,deviceTokenLength:64,allowedOrigins:allowed,
           append:line=>appendFileSync(join(root,'logs/gateway-diagnostics.jsonl'),line,{mode:0o600})})});
       await listen(gateway.server,port);

@@ -155,8 +155,16 @@
       case 'browser_inspect': lastSnapshot=core.inspect(policy); return {success:true,data:lastSnapshot};
       case 'browser_fill': {
         const verdict=core.decideFill(policy);
-        if(verdict.decision!=='allow')throw new Error(`Refused: ${verdict.reason}`);
+        if(!['allow','prompt'].includes(verdict.decision))throw new Error(`Refused: ${verdict.reason}`);
         if(!lastSnapshot?.elements.some(x=>x.ref===a.ref))throw new Error('Inspect before filling a field');
+        if(verdict.decision==='prompt'){
+          const field=lastSnapshot.elements.find(x=>x.ref===a.ref);
+          const answer=await requestApproval({verb:'fill field',target:field.label||field.name||a.ref,
+            tier:'elevated',category:'field-fill',reasons:['This website asks before every action.'],
+            grantable:false,expiresAt:command.expiresAt});
+          const refusal=refusalFor(answer,'fill field');if(refusal)throw new Error(refusal);
+          if(policy.mode==='read-only')throw new Error('Site permission changed while approval was open');
+        }
         return {success:true,data:core.fill(a.ref,a.value)};
       }
       case 'browser_verify': {

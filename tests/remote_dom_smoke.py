@@ -149,6 +149,19 @@ def main():
         assert snap['title']=='Safari AI Agent Test Page'
         assert 'never-share-me' not in json.dumps(snap)
         refs={item['label']:item['ref'] for item in snap['elements']}
+        set_policy({'mode':'ask','grants':True,'values':True,'version':'ask-test'})
+        set_answer('deny')
+        before=page.locator('#person').input_value()
+        denied=command('browser_fill',{'ref':refs['Name'],'value':'should not fill'})
+        assert not denied['success'], denied
+        assert page.locator('#person').input_value() == before
+        assert page.evaluate('window.__dialogSeen') > 0
+        assert 'approve-always' not in page.evaluate('window.__offered')
+        set_answer('once')
+        assert command('browser_fill',{'ref':refs['Name'],'value':'approved fill'})['success']
+        assert page.evaluate('window.__dialogSeen') > 0
+        assert 'approve-always' not in page.evaluate('window.__offered')
+        set_policy({'mode':'trusted','grants':True,'version':'test-1'})
         assert command('browser_fill',{'ref':refs['Name'],'value':'MCP test'})['success']
         assert page.locator('#person').input_value() == 'MCP test'
         assert command('browser_fill',{'ref':refs['Preferred delivery time'],'value':'14:30'})['success']

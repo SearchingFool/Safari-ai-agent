@@ -3,9 +3,10 @@ import {readFile, writeFile} from 'node:fs/promises';
 const header=`// ==UserScript==
 // @name         Safari AI Agent Remote MCP
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.2.2
+// @version      0.2.3
 // @description  Opt-in MCP gateway bridge. Only use on safe websites; never put credentials in webpage context.
 // @match        https://*/*
+// @match        http://*/*
 // @run-at       document-idle
 // @noframes
 // @inject-into   content

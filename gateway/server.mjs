@@ -29,7 +29,7 @@ const TOOL_DEFS = [
   // means "not disclosed", never "the field is empty".
   {name:'browser_inspect',description:'Inspect visible page content and controls in the paired iPad Safari tab. A control carries its current value only if the operator enabled field values for that site and nominated the site as trusted; password, payment-card, hidden and one-time-code fields never report a value, and nor does any field sharing a form with one. When values are reported the snapshot sets fieldValues:true, so a missing value then means the field was excluded rather than empty.',inputSchema:{type:'object',properties:{},additionalProperties:false},
    annotations:{title:'Inspect page',readOnlyHint:true,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
-  {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false},
+  {name:'browser_fill',description:'Fill a referenced text, time, select or editable field. Requires current browser_inspect. Ask mode requires approval in Safari for each fill; fill-only and trusted allow ordinary fills without a prompt; read-only refuses.',inputSchema:{type:'object',properties:{ref:{type:'string'},value:{type:'string'}},required:['ref','value'],additionalProperties:false},
    annotations:{title:'Fill a field',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
   // The only tool that can cause an irreversible side effect on the page.
   // This description is read by the MODEL and shapes how it reasons about what
@@ -38,7 +38,7 @@ const TOOL_DEFS = [
   // is blocked by default" for one release after D-019 narrowed the hard
   // ceilings and that stopped being true (D-034). Keep it matched to
   // src/core.js; tests/gateway.test.mjs pins it against drifting back.
-  {name:'browser_click',description:'Click a referenced control. Every click needs explicit operator confirmation in the iPad tab, and is refused outright unless the operator has nominated this site as trusted. Payment, account-deletion and credential or security controls are refused on every site, trusted ones included. A form submit is NOT blocked: on a trusted site it proceeds once the operator confirms it, and it always needs its own confirmation - a standing approval can never cover it.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
+  {name:'browser_click',description:'Click a referenced control. Ask mode requires explicit operator confirmation in Safari for every click. Trusted mode can offer standing approval for routine controls. Read-only and fill-only refuse clicks. Payment, account-deletion and credential or security controls are refused on every site. A form submit is NOT blocked in ask or trusted mode: it proceeds once the operator confirms it, and it always needs its own confirmation - a standing approval can never cover it.',inputSchema:{type:'object',properties:{ref:{type:'string'}},required:['ref'],additionalProperties:false},
    annotations:{title:'Click a control',readOnlyHint:false,destructiveHint:true,idempotentHint:false,openWorldHint:true}},
   {name:'browser_navigate',description:'Navigate only to an approved same-origin HTTP(S) URL; verify by inspecting after navigation.',inputSchema:{type:'object',properties:{url:{type:'string'}},required:['url'],additionalProperties:false},
    annotations:{title:'Navigate same-origin',readOnlyHint:false,destructiveHint:false,idempotentHint:true,openWorldHint:true}},
@@ -64,7 +64,7 @@ const TOOL_DEFS = [
 // purpose. The gateway and the bridge validate the mode independently, and a
 // DOM engine import would couple a network service to browser code. Both ends
 // collapse an unrecognised value to read-only.
-const MODES = Object.freeze({READ_ONLY:'read-only', FILL_ONLY:'fill-only', TRUSTED:'trusted'});
+const MODES = Object.freeze({READ_ONLY:'read-only', FILL_ONLY:'fill-only', TRUSTED:'trusted',ASK:'ask'});
 const MODE_VALUES = new Set(Object.values(MODES));
 // Default for an unlisted origin is the MOST restrictive, not the least. An
 // origin being on the connection allowlist says the operator will let the agent
@@ -82,7 +82,7 @@ function parseSitePolicy(raw){
     try{valid=new URL(key).origin===key&&/^https?:/.test(key);}catch{valid=false;}
     if(!valid)throw Error(`Site policy key must be an exact HTTP(S) origin: ${key}`);
     const value=String(mode).trim();
-    if(!MODE_VALUES.has(value))throw Error(`Unknown site mode "${value}" for ${key}; use read-only, fill-only or trusted`);
+    if(!MODE_VALUES.has(value))throw Error(`Unknown site mode "${value}" for ${key}; use ask, read-only, fill-only or trusted`);
     out.set(key,value);
   }
   return out;
@@ -122,6 +122,7 @@ function parseValueOrigins(raw,modes){
 // on the other having checked.
 const MODE_ALLOWS = Object.freeze({
   [MODES.READ_ONLY]: new Set(['browser_inspect','browser_verify']),
+  [MODES.ASK]: new Set(['browser_inspect','browser_verify','browser_fill','browser_navigate','browser_click']),
   [MODES.FILL_ONLY]: new Set(['browser_inspect','browser_verify','browser_fill','browser_navigate']),
   [MODES.TRUSTED]:   new Set(['browser_inspect','browser_verify','browser_fill','browser_navigate','browser_click'])
 });
@@ -162,13 +163,13 @@ function validate(args,tool,allowed){
   if(Object.values(args).some(v=>typeof v!=='string'||v.length>10000))return 'Invalid argument';
   if(args.ref && !/^e\d{1,3}$/.test(args.ref))return 'Invalid element reference';
   if(tool==='browser_navigate'){
-    try{const u=new URL(args.url);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||!allowed.has(u.origin))return 'Destination not allowed';}
+    try{const u=new URL(args.url);if(!['https:','http:'].includes(u.protocol)||u.username||u.password||!allowed.has(u.origin))return 'Destination not allowed: use an HTTP(S) URL without credentials on the connected website. Open a different website manually in Safari.';}
     catch{return 'Invalid navigation URL';}
   }
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,defaultSiteMode='read-only',standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -180,9 +181,10 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   for(const origin of valueOrigins){
     if(!allowed.has(origin))throw Error(`Field-value policy names ${origin}, which is not an allowed origin`);
   }
-  const modeFor=origin=>normalizeMode(modes.get(origin));
-  // Reading everywhere does not grant acting rights anywhere. Unlisted sites
-  // still receive read-only policy; only explicit site entries can grant actions.
+  if(!['read-only','ask'].includes(defaultSiteMode))throw Error('Default site mode must be read-only or ask');
+  const modeFor=origin=>normalizeMode(modes.has(origin)?modes.get(origin):defaultSiteMode);
+  // Managed controls choose ask for unlisted sites. Legacy callers retain
+  // read-only. Ask never offers standing grants or discloses field values.
   const acceptsOrigin=origin=>{
     if(typeof origin!=='string')return false;
     if(allowed.has(origin))return true;
@@ -197,13 +199,13 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   // one, so the bridge needs to be able to tell that it changed. The stamp is
   // derived from the configuration, not from a clock, so it is stable across a
   // restart with identical config and differs the moment config differs.
-  const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#grants=${standingGrants!==false}`+
+  const policyVersion=[...modes.entries()].sort().map(([o,m])=>`${o}=${m}`).join('|')+`#default=${defaultSiteMode}#grants=${standingGrants!==false}`+
     `#values=${[...valueOrigins].sort().join('+')}`;
   // `values` is a BOOLEAN for the asking origin, never a list and never a field
   // selector. The widest statement the gateway can make is "this origin is
   // opted in"; which fields that reaches is decided in src/core.js from the
   // live DOM, where the network cannot touch it.
-  const policyFor=origin=>({mode:modeFor(origin),grants:standingGrants!==false,values:valuesFor(origin),version:policyVersion});
+  const policyFor=origin=>({mode:modeFor(origin),grants:modeFor(origin)!==MODES.ASK&&standingGrants!==false,values:valuesFor(origin),version:policyVersion});
   // Diagnostics are injectable so tests can capture events without touching disk.
   const diag = diagnostics || createDiagnostics({
     enabled:false,clientTokenLength:clientToken.length,deviceTokenLength:deviceToken.length,
@@ -292,13 +294,16 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   async function call(tool,args){
     if(tool==='browser_status')return toolOK(status());
     if(tool==='browser_cancel'){cancelAll();return toolOK({success:true,cancelled:true});}
-    const err=validate(args,tool,allowed);if(err)return toolError(err);
+    const navigationOrigins=new Set(allowed);
+    if(current?.origin&&acceptsOrigin(current.origin))navigationOrigins.add(current.origin);
+    const err=validate(args,tool,navigationOrigins);if(err)return toolError(err);
     if(!status().connected)return toolError('No active iPad Safari device. Open the test tab and enable Remote Control.');
     // Fail fast rather than queueing for a tab that is not on screen. Without
     // this the command sits unclaimed for the full commandTimeoutMs and comes
     // back as "outcome may be uncertain" - the one class of failure a caller
     // cannot safely retry. A hidden tab is a known, certain refusal.
     if(current.visibility!=='visible')return toolError('The paired Safari tab is not visible. Bring it to the front, then retry.');
+    if(tool==='browser_navigate'&&new URL(args.url).origin!==current.origin)return toolError('Cross-site navigation is blocked. Open the destination manually in Safari, then reconnect or wait for Remote AI to connect.');
     // D-020 mode gate. The bridge enforces the same rule from the live DOM;
     // this one stops the command ever being queued, so a refusal costs one
     // round trip instead of an approval prompt the operator has to decline.
@@ -521,8 +526,10 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     clientToken:process.env.MCP_CLIENT_TOKEN,deviceToken:process.env.DEVICE_TOKEN,
     demoPassword:process.env.DEMO_PASSWORD,allowedOrigins:origins,
     // SAFARI_SITE_POLICY="https://a.example=trusted,https://b.example=fill-only".
-    // Anything not named here is read-only, which is why there is no default.
+    // The CLI follows the owner-approved ask default; legacy API callers
+    // retain read-only unless they explicitly choose the ask default.
     sitePolicy:process.env.SAFARI_SITE_POLICY,
+    defaultSiteMode:process.env.SAFARI_DEFAULT_SITE_MODE||'ask',
     readAnyOrigin:process.env.SAFARI_READ_ANY_ORIGIN!=='0',
     // SAFARI_FIELD_VALUES="https://a.example,https://b.example". Opt-in, per
     // origin, and only for origins already nominated `trusted` - the gateway
@@ -541,7 +548,7 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
     })
   });
   if(diagEnabled)console.log(`Diagnostics ON -> ${appendLine?logFile:'console only'}  (npm run diagnose for a report)`);
-  console.log(`Site policy: ${process.env.SAFARI_SITE_POLICY||'(none - every origin is read-only)'}`);
+  console.log(`Site policy: ${process.env.SAFARI_SITE_POLICY||'(no site overrides)'}; default: ${process.env.SAFARI_DEFAULT_SITE_MODE||'ask'}`);
   console.log(`Field values: ${process.env.SAFARI_FIELD_VALUES||'(off everywhere - snapshots omit what fields contain)'}`);
   const port=Number(process.env.PORT||8787);
   const host=process.env.BIND_ADDRESS||'127.0.0.1';

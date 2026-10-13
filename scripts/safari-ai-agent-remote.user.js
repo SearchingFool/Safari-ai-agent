@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name         Safari AI Agent Remote MCP
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.2.2
+// @version      0.2.3
 // @description  Opt-in MCP gateway bridge. Only use on safe websites; never put credentials in webpage context.
 // @match        https://*/*
+// @match        http://*/*
 // @run-at       document-idle
 // @noframes
 // @inject-into   content
@@ -44,8 +45,8 @@
   // gateway sends can turn a BLOCKED classification into an allowed action.
   // ---------------------------------------------------------------------------
   const TIERS = Object.freeze({BLOCKED: 'blocked', ELEVATED: 'elevated', ROUTINE: 'routine'});
-  const MODES = Object.freeze({READ_ONLY: 'read-only', FILL_ONLY: 'fill-only', TRUSTED: 'trusted'});
-  const MODE_VALUES = new Set([MODES.READ_ONLY, MODES.FILL_ONLY, MODES.TRUSTED]);
+  const MODES = Object.freeze({READ_ONLY: 'read-only', FILL_ONLY: 'fill-only', TRUSTED: 'trusted', ASK: 'ask'});
+  const MODE_VALUES = new Set(Object.values(MODES));
 
   // HARD CEILINGS. Genuinely irreversible categories. Never grantable, not even
   // on a site the operator has nominated as trusted, and not overridable by any
@@ -139,7 +140,7 @@
       // them off entirely but can never switch them on by itself, and it can
       // never create one: this flag only decides whether the local panel is
       // allowed to OFFER "Always allow" to a human.
-      grantsOffered: source.grants !== false,
+      grantsOffered: mode !== MODES.ASK && source.grants !== false,
       version: typeof source.version === 'string' || typeof source.version === 'number' ? String(source.version) : '0'
     });
   }
@@ -488,7 +489,7 @@
         return {decision: 'refuse', grantable: false, mode: p.mode,
                 reason: `${classification.category} actions are never permitted on any site, including trusted ones`};
       }
-      if (p.mode !== MODES.TRUSTED) {
+      if (p.mode !== MODES.TRUSTED && p.mode !== MODES.ASK) {
         return {decision: 'refuse', grantable: false, mode: p.mode,
                 reason: `clicking is not permitted on this site (site mode: ${p.mode}). Nominate it as trusted to allow completion.`};
       }
@@ -502,7 +503,7 @@
       if (p.mode === MODES.READ_ONLY) {
         return {decision: 'refuse', mode: p.mode, reason: 'this site is read-only; fields cannot be filled'};
       }
-      return {decision: 'allow', mode: p.mode};
+      return {decision: p.mode === MODES.ASK ? 'prompt' : 'allow', mode: p.mode};
     }
 
     function decideNavigate(policy) {
@@ -798,8 +799,16 @@
       case 'browser_inspect': lastSnapshot=core.inspect(policy); return {success:true,data:lastSnapshot};
       case 'browser_fill': {
         const verdict=core.decideFill(policy);
-        if(verdict.decision!=='allow')throw new Error(`Refused: ${verdict.reason}`);
+        if(!['allow','prompt'].includes(verdict.decision))throw new Error(`Refused: ${verdict.reason}`);
         if(!lastSnapshot?.elements.some(x=>x.ref===a.ref))throw new Error('Inspect before filling a field');
+        if(verdict.decision==='prompt'){
+          const field=lastSnapshot.elements.find(x=>x.ref===a.ref);
+          const answer=await requestApproval({verb:'fill field',target:field.label||field.name||a.ref,
+            tier:'elevated',category:'field-fill',reasons:['This website asks before every action.'],
+            grantable:false,expiresAt:command.expiresAt});
+          const refusal=refusalFor(answer,'fill field');if(refusal)throw new Error(refusal);
+          if(policy.mode==='read-only')throw new Error('Site permission changed while approval was open');
+        }
         return {success:true,data:core.fill(a.ref,a.value)};
       }
       case 'browser_verify': {

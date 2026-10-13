@@ -95,7 +95,8 @@ test('Managed gateway start, settings restart, read-everywhere and stop use real
     await manager.start();assert.equal((await manager.status()).phase,'running');
     const creds=Object.fromEntries(readFileSync(join(f.root,'.env.mac-tailscale'),'utf8').trim().split('\n').map(line=>line.split('=')));
     const device=body=>fetch(base+'/device/poll',{method:'POST',headers:{Authorization:'Bearer '+creds.DEVICE_TOKEN,'Content-Type':'application/json'},body:JSON.stringify({origin:'https://unlisted.test',instanceId:'test-tab-one',visibility:'visible',...body})});
-    const first=await device();assert.equal(first.status,200);assert.equal((await first.json()).policy.mode,'read-only');
+    const first=await device();assert.equal(first.status,200);const policy=(await first.json()).policy;
+    assert.equal(policy.mode,'ask');assert.equal(policy.grants,false);assert.equal(policy.values,false);
     await manager.save({autoStart:true,sites:[{url:'https://unlisted.test/page',mode:'trusted'}]});
     assert.equal(children.length,4);assert.equal(children[0].signalCode,'SIGTERM');
     assert.equal((await (await device()).json()).policy.mode,'trusted');

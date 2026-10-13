@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-13 18:43 Europe/Prague — Google read-only checkpoint; assignment 06 read
+
+Owner tested the connector on Google as a second website and reported correct read-only behavior. Recorded as owner-observed evidence, without claiming an instrumented action-denial test or closing D2-01. Next guided test: control Stop/Start from iPad and repeat a read. No provider implementation or new capability plan started.
+
+Read assignment 06, including the correction that the public setup username is a code constant and prior commits contain no credential leak. Control-endpoint rate limiting is a peer suggestion for future review, not an approved implementation. Previous report already confirms syntax gates and README risk text are present.
+
+---
+
 ## 2026-10-13 18:30 Europe/Prague — Assignment 05 acknowledged; device read checkpoint
 
 Read AGENTS.md, fleet/README.md, registry and assignment 2026-10-13-codex-01-05. Future reports go here, with no credentials, deployment addresses, process identifiers or live deployment state. Old external outbox is frozen.

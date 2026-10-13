@@ -32,6 +32,8 @@ Peer coordination: codex-01 joined the fleet on the owner's explicit instruction
 
 Owner reported completing control sign-in and Start, seeing the Remote AI bridge live in the Safari tab, and successfully reading that page through Claude on the iPad. This records the first owner-observed read with the updated controls/script; it does **not** close UI-01, READ-01 or D2-01. Next: repeat the read after manually switching to a second website without adding a site entry. Control Stop/Start from iPad, login/reboot recovery and the remaining device run-sheet cases still require acceptance.
 
+Follow-up: owner tested a second website, Google, and reported that the connector correctly allowed reading only. This is owner-observed evidence for READ-01 across websites with read-only permissions; the exact attempted action/error was not captured, so it is not a complete negative-action regression. Next guided control test: Stop and Start from the iPad, then repeat a page read. Broader reliability and device acceptance gates remain open.
+
 ## Versions and release meaning
 
 - **0.1.1 — Manual browser-action prototype:** implemented and merged; unit/Chromium tests passed. User reports that form manipulation seems to work on iPad; complete iPad regression evidence has not yet been recorded.

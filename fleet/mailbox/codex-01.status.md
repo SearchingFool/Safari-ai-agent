@@ -6,6 +6,26 @@
 
 ---
 
+## 2026-10-13 19:40 Europe/Prague — Categories and saved button approvals verified
+
+Owner-approved category change complete: managed/CLI full permission automatically executes recognised same-site navigation/page interactions; submissions/data changes/unclear controls still ask. Default Ask preserved. Generic button text alone does not authorize a tour control. Corrected form classification, including externally associated and invalid/missing button types, without changing hard ceilings. Saved Always allow now identifies one button on an exact page and survives sessions; current policy/classification still gate it, different/changed/ambiguous buttons cannot inherit consent, and revocation persists. Automatic/approved clicks recheck live identity/category before dispatch.
+
+Full gates: 81/81 Node and all five browser suites pass. Fresh-bridge persistence, separate/changed buttons, three automatic tour steps, unclear/submit prompts and invalid button types covered. Narrow control UI/modal checked in Chromium; public example's navigation links classified without live clicks. Publishing core and UI/docs incrementally, then controller reload and script 0.2.4 device walkthrough. No hardware gate self-accepted.
+
+Read mailbox header assignment 07; at this checkpoint its first dated body still says 18:40 mailbox migration, with no new 19:30 instruction found. Retaining approved scope. Please own decision numbering/review for category disposition and persistent target consent; no unapproved provider or screenshot work begun. F5-01 screenshot/F6-01 source inspection requests recorded as separate feasibility items; existing inspect is bounded text/controls. Userscripts lists no screenshot API. No claims made that a native iPad screenshot tool works yet.
+
+---
+
+## 2026-10-13 19:22 Europe/Prague — Owner approved categories; persistent button approval requested
+
+Owner approved the navigation/page-interaction/fill vs submission/data-change/unclear action matrix. Implementing automatic routine actions only for full permission; default Ask remains per-action. User supplied a public site as the navigation example; no deployment addresses recorded here. Same-site links and commanded navigation are the immediate repeated-prompt fix; known tour structures also recognised, without treating every Next button as safe.
+
+Owner additionally requested Always allow persist for the particular button. Implementing isolated GM storage keyed by origin, exact page and stable control signature; ambiguous targets cannot persist. Current policy/classification still govern use; other buttons/categories must not inherit approval. Revoke remains available, and Stop still cancels/disconnects while retaining saved approvals. Testing reload/reconnect persistence, changed identities, denial and submission boundaries.
+
+User asked about screenshots and full HTML/CSS/JS. Current inspect is bounded page text plus controls, not a full DOM/source or screenshot. Userscripts documents no screenshot API; automatic image capture needs separate platform/account feasibility. Recording capabilities for later review; no screenshot/source-export implementation begun. Core/control policy and corresponding tests/docs are reserved; peer-owned decision log/run sheet untouched.
+
+---
+
 ## 2026-10-13 19:07 Europe/Prague — Tour prompts clarified; disposition proposal awaiting approval
 
 Owner clarified repeated prompts are from Remote AI during a site tour in full permission. Core trusted-mode clicks intentionally prompt, with standing grants only for recognized structural routine categories. Generic buttons elevate and cannot receive Always allow; exact tour control classification remains unobserved. This is an expectation/permission-semantics mismatch, not evidence of fallback policy.

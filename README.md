@@ -2,7 +2,7 @@
 
 **Integration candidate — Claude/iPad workflow proven; final reliability and security acceptance remain open.**
 
-**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is 0.2.2. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
+**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is 0.2.4. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
 
 An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
@@ -20,7 +20,7 @@ When the agent looks at a page, that page's visible text goes to the AI company'
 
 It uses your existing browser session — your cookies, your login. The website has no idea an agent is involved; it sees you. There is no server-side permission check anywhere, and the site's audit log will record your name, not the agent's.
 
-This differs fundamentally from a normal integration, where a service checks a token it issued and can refuse. **Here, the only thing standing between the AI and your account is you clicking "allow".**
+This differs fundamentally from a normal integration, where a service checks a token it issued and can refuse. **Your website permissions and approvals authorize the agent to act in your session.** Full permission executes recognised navigation and page interactions without an individual prompt; submissions, data changes and unclear controls still ask. Classification cannot prove what a website's JavaScript will do.
 
 ### 3. Web pages can try to hijack the agent
 
@@ -32,7 +32,7 @@ This is the single biggest unsolved risk for every AI browser agent, including w
 
 ### 4. Approval fatigue is a real failure mode
 
-You approve each click. After the twentieth prompt, people stop reading them. The prompt now names the control — *"Delete account" (submits a form)* rather than *"click e37"* — specifically so a glance is enough. **Still read them.**
+Ask mode prompts before each action. Full permission avoids prompts for recognised navigation and page interactions. The remaining prompts name the target and action category. **Read them before approving.** “Always allow this button on this page” saves a control-specific approval in isolated Userscripts storage; revoke saved approvals in Remote AI. Stop cancels execution and disconnects; it does not erase those saved preferences.
 
 ### 5. Some actions cannot be undone
 
@@ -77,7 +77,7 @@ A **prototype for supervised use on pages you trust**, by the person who set it 
 | `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Tested through gateway; actual Safari flow pending |
 | `Dockerfile` | Node 22 container gateway, non-root runtime | Created; image build needs Docker-equipped environment |
 
-The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Managed controls and the CLI default to asking in Safari before every fill, click and same-site navigation, with no standing approvals. Explicit website entries can restrict actions to reading, allow ordinary fills and navigation without clicks, or enable trusted-site actions with standing approval for routine controls. Generic form submissions always require their own approval. Payment, account-deletion and credential/security controls remain refused. Remote script 0.2.3 is required for ask mode; older scripts safely refuse actions in that mode.
+The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Managed controls and the CLI default to asking in Safari before every fill, click and same-site navigation, with no standing approvals. Explicit website entries can restrict actions to reading, allow ordinary fills and navigation without clicks, or automatically execute recognised navigation and page interactions. Generic form submissions always require their own approval. Payment, account-deletion and credential/security controls remain refused. Remote script 0.2.4 is required for category-based full permission and persistent button approvals; older scripts retain their previous approval behavior until updated.
 
 ## Run automated checks
 

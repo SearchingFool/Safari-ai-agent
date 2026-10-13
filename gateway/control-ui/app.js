@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let csrf='',sites=[],dirty=false,working=false;
-const modes={ask:'Ask every time','read-only':'Read only','fill-only':'Fill and navigate; no clicks',trusted:'Clicks, fills and navigation'};
+const modes={ask:'Ask every time','read-only':'Read only','fill-only':'Fill and navigate; no clicks',trusted:'Full permission — routine actions automatic'};
 function message(text){$('message').textContent=text;}
 function renderSites(){
   $('sites').replaceChildren();
@@ -39,7 +39,7 @@ async function act(path,data={}){
 async function refresh(){if(working)return;try{render(await request('/api/status'));}catch(error){message(error.message);}}
 $('start').onclick=()=>act('/api/start');$('stop').onclick=()=>act('/api/stop');
 $('auto').onchange=()=>{dirty=true;};
-$('mode').onchange=()=>{$('permission-help').textContent={ask:'Read freely. Ask in Safari before every action. No Always allow.', 'read-only':'Read page content. All actions are blocked.','fill-only':'Fill ordinary fields without asking; navigation asks. All clicks are blocked.',trusted:'Fill ordinary fields without asking; clicks and navigation ask. Routine actions may offer Always allow.'}[$('mode').value];};
+$('mode').onchange=()=>{$('permission-help').textContent={ask:'Read freely. Ask in Safari before every action. No Always allow.', 'read-only':'Read page content. All actions are blocked.','fill-only':'Fill ordinary fields without asking; navigation asks. All clicks are blocked.',trusted:'Fill, navigate and use recognised page controls automatically. Submissions, data changes and unclear buttons ask.'}[$('mode').value];};
 $('permission-details').onclick=()=>$('permissions-dialog').showModal();
 $('close-permissions').onclick=()=>$('permissions-dialog').close();
 $('add').onsubmit=event=>{

@@ -10,7 +10,7 @@ Updated: 2026-10-13. Implemented and locally verified; public control forwarding
 4. Click **Start gateway**. The MCP URL stays the same, so the existing Claude connector needs no URL change.
 5. On the iPad, open the panel's **iPad controls** URL (the same Mac hostname with `:8443`), sign in with the control credential, and bookmark it. Transfer the password with Universal Clipboard or AirDrop if necessary; keep it out of chats. You can now start or stop the gateway from either device.
 6. From the panel, open **Install the updated remote userscript** on the iPad. It serves the local build at `/install/safari-ai-agent-remote.user.js`, protected by the existing catalog demo login. Accept Userscripts' install/replace prompt. This avoids waiting for a GitHub push; the raw GitHub file remains the older build until changes are published.
-7. Install remote script **0.2.3** for ask-mode support. On a webpage, enable Userscripts in Safari if needed, then tap **Remote AI → Connect**. Leave **Connect across websites** enabled. Newly opened websites allow reads and ask before actions. Safari and Claude must remain visible together for page execution.
+7. Install remote script **0.2.4** for category permissions and saved button approvals. On a webpage, enable Userscripts in Safari if needed, then tap **Remote AI → Connect**. Leave **Connect across websites** enabled. Newly opened websites allow reads and ask before actions. Safari and Claude must remain visible together for page execution.
 
 The Mac must stay awake, online, signed in to Tailscale and logged in. The gateway uses `caffeinate` while running. iPad requests use the public HTTPS endpoint and do not require the iPad to belong to the tailnet. Test with the iPad's Tailscale app on and off separately. This does not support Tailscale being off on the hosting Mac, waking a sleeping Mac, or starting before Mac login.
 
@@ -24,14 +24,20 @@ Enter a webpage URL or hostname under **Websites**, choose a permission, click *
 |---|---|
 | Ask every time (default) | Read freely; each fill, click and same-site navigation asks in Safari; no standing grants or existing field-value disclosure |
 | Read only | Inspect and verify; no fills, commanded navigation or clicks |
-| Fill and navigate — no clicks | Fill ordinary fields without asking; navigation asks and can offer standing approval; no clicks, including search buttons |
-| Clicks, fills and navigation | Fill ordinary fields without asking; clicks and navigation ask, routine actions can offer standing approval; generic submits always require a separate approval |
+| Fill and navigate — no clicks | Fill ordinary fields without asking; navigation asks each time; no clicks, including search buttons |
+| Full permission | Fill ordinary fields, navigate within the site and use recognised links, disclosures, tabs, menus and tour steps automatically; submissions, data changes and unclear actions ask |
 
-Unlisted websites default to **Ask every time**. Set an explicit **Read only** entry to block actions without prompting. Removing an entry restores the ask default. A settings save automatically restarts a panel-owned gateway, cancels pending work, and discards old policy/grants. Reconnect Safari afterward. After a code update, restart the controller login service to load the new gateway implementation before testing. An old script does not recognise ask and safely refuses actions until updated.
+Unlisted websites default to **Ask every time**. Set an explicit **Read only** entry to block actions without prompting. Removing an entry restores the ask default. A settings save automatically restarts a panel-owned gateway, cancels pending work and refreshes policy; saved button approvals remain in isolated Userscripts storage. Reconnect Safari afterward. After a code update, restart the controller login service to load the new gateway implementation before testing. An old script does not recognise ask and safely refuses actions until updated.
 
 Navigation is currently same-origin only; crossing to another hostname or scheme remains blocked. Local HTML served over HTTP is supported by the script's HTTP match rule, with hardware validation still needed. On an iPad, localhost refers to the iPad itself, so use an address reachable from the iPad for a server running on the Mac. Direct `file://` pages and documents are not supported by this connector; the disabled local-file choice makes that limit explicit pending clarification and a scoped design.
 
 ## Automation and shutdown
+
+### Saved button approvals
+
+When Remote AI offers **Always allow this button on this page**, it saves approval in isolated Userscripts storage for that identifiable control on that exact origin, path and query. Reloads, reconnects, controller restarts and Stop do not erase it. A different button does not inherit it; changes to the label, ID, link destination or page may require a new approval. Ambiguous/unnamed controls cannot receive saved approval. Current site policy and classification are always checked first. Submissions, data changes, unclear and blocked actions cannot use a saved approval. Revoke individual approvals or **Revoke all** in Remote AI. Stop disconnects and cancels execution; it preserves these saved preferences.
+
+Full permission already executes recognised routine controls automatically, so those actions need no Always allow prompt. The stored approvals apply where a permitted routine action still prompts, such as a legacy gateway configuration without automatic routine actions. Commanded navigation has no button identity and asks each time outside full permission.
 
 The controller starts at Mac login; the gateway starts only when requested, unless you enable **Start the gateway automatically when I log in** and save. Startup settings and site permissions persist privately in `.gateway-control.json`.
 

@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-13 19:42 Europe/Prague — Enhancement plans drafted; lead inbox notified; install-fetch fix
+
+Owner explicitly requested making the peer aware and dividing enhancement work with clear plans before implementation. Draft package catalog at docs/plans/ENHANCEMENTS-2026-10-13.md and formal discovery steps at docs/plans/enhancement-discovery-2026-10-13.yaml cover acceptance, markup/CSS/JS, find/scroll/site-search, visible feedback, screenshots, local files, ChatGPT/Gemini and background options. Proposed split: Codex connector modules/shared integration; Claude disjoint feasibility reports/device evidence/review. Message written in claude-04.md with plan links and a request to acknowledge/confirm. No acknowledgment yet; new implementations remain unapproved.
+
+While planning, owner reported installer Failed to fetch. iPad mirror confirmed Safari displays 0.2.4 source; diagnostics show successful page loads followed by unauthenticated 401 requests. Public GitHub download matched the local build byte for byte. Control installUrl now uses the existing public source artifact; protected local route/auth remain. Owner given the GitHub link, no login needed. Full gates passed: 81/81 Node and all five browser suites. Plan YAML validated for required step fields and dependency references. No account change, endpoint expansion or provider feature begun.
+
+---
+
 ## 2026-10-13 19:40 Europe/Prague — Categories and saved button approvals verified
 
 Owner-approved category change complete: managed/CLI full permission automatically executes recognised same-site navigation/page interactions; submissions/data changes/unclear controls still ask. Default Ask preserved. Generic button text alone does not authorize a tour control. Corrected form classification, including externally associated and invalid/missing button types, without changing hard ceilings. Saved Always allow now identifies one button on an exact page and survives sessions; current policy/classification still gate it, different/changed/ambiguous buttons cannot inherit consent, and revocation persists. Automatic/approved clicks recheck live identity/category before dispatch.

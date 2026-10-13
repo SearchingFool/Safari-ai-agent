@@ -2,6 +2,12 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
+## 2026-10-13 — Enhancement planning and installer follow-up
+
+Owner requested an explicit work division with the Claude agent and clear plans before new implementation. [Package plans](plans/ENHANCEMENTS-2026-10-13.md) and [discovery steps](plans/enhancement-discovery-2026-10-13.yaml) are **draft for owner approval**. Codex proposed markup/source, search/scroll and visible-feedback modules; Claude proposed screenshot/local-file/provider/background feasibility, device acceptance and review. Peer inbox notified; acknowledgment and ownership confirmation pending. No new enhancement implementation has started.
+
+Installer issue: owner reported Failed to fetch after opening the authenticated script page. Device mirror showed source 0.2.4 loaded; subsequent requests received HTTP 401. Control install link changed to the existing published raw GitHub artifact, whose bytes matched the local build. The authenticated local development route remains protected. **81/81 Node and all five browser suites passed**; owner-side successful installation not yet reported. This operational fix is separate from the unapproved enhancement packages.
+
 ## 2026-10-13 — Approved categories and persistent button approvals
 
 Owner approved the category matrix: full permission automatically executes recognised same-site navigation and page interactions, while default Ask requests individual approval and submissions/data changes/unclear actions continue to ask. Implemented gateway `routineActions` policy for managed controls/CLI and independently checked in the DOM engine. Legacy direct gateway callers retain explicit opt-in behavior. Actual form submits are distinct from non-submit controls; known links/disclosures/tabs/menus/tour-step structures are routine, generic button labels alone are not proof. Payment/account-deletion/credential ceilings remain enforced. Remote prompts name the action type; control modal and model descriptions reflect the categories. Remote script **0.2.4** required.

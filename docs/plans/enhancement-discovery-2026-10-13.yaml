@@ -1,0 +1,100 @@
+plan:
+  title: Establish contracts and feasibility for the owner's iPad enhancements
+  status: draft-awaiting-owner-approval
+  phase: discovery-and-contracts-only
+  companion: docs/plans/ENHANCEMENTS-2026-10-13.md
+  instructions:
+    - Run from the repository root; relative paths avoid private machine details in this public plan.
+    - Owners run only their assigned steps after owner approval and lead acknowledgment.
+    - Capture queuectl tokens privately in logs and release them when each report is committed.
+    - Discovery output is evidence plus a concrete implementation proposal; no new tool or account change is authorized by this draft.
+    - New source modules and shared integration are proposed in the companion, with separate implementation approval after contracts are reviewed.
+  goal_validation:
+    - Each P0-P7 package has a named owner, evidence, bounded scope, dependencies and testable acceptance.
+    - Unsupported screenshot, local-file and provider capabilities are explicitly reported rather than assumed.
+    - The owner can approve packages separately; the lead acknowledges ownership in the fleet mailbox.
+  steps:
+    - id: baseline-review
+      owner: codex-01
+      description: Read the current policy, operating limits and acceptance evidence.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"cat AGENTS.md; sed -n ''1,95p'' docs/TRACKER.md; sed -n ''1,90p'' docs/IPAD-DEVICE-RUN-SHEET.md",max_output_tokens:6000}));'
+      validation: Compare the output against the published 0.2.4 baseline; do not infer device acceptance from automated tests.
+      depends_on: []
+      fatal_on_failure: true
+    - id: reserve-codex-contracts
+      owner: codex-01
+      description: Reserve only Codex contract reports before documenting implementation proposals.
+      command: 'queuectl reserve --agent safari-ai-agent-codex-01 --repo "$PWD" --working-on "Approved enhancement contracts" --files "$PWD/docs/plans/markup-contract.md" "$PWD/docs/plans/search-contract.md" "$PWD/docs/plans/action-feedback-contract.md" --ttl-seconds 3600'
+      validation: queuectl returns ok true and no conflicting file owner; retain its token privately for verify and release.
+      depends_on: [baseline-review]
+      fatal_on_failure: true
+    - id: reserve-claude-research
+      owner: claude-04
+      description: Reserve the disjoint Claude evidence and feasibility reports.
+      command: 'queuectl reserve --agent safari-ai-agent-claude-04 --repo "$PWD" --working-on "Approved iPad feasibility reports" --files "$PWD/docs/plans/ipad-acceptance-results.md" "$PWD/docs/plans/screenshot-feasibility.md" "$PWD/docs/plans/local-files-feasibility.md" "$PWD/docs/plans/chatgpt-ipad-feasibility.md" "$PWD/docs/plans/gemini-ipad-feasibility.md" "$PWD/docs/plans/background-options.md" --ttl-seconds 3600'
+      validation: queuectl returns ok true and no shared implementation files are reserved by this step.
+      depends_on: [baseline-review]
+      fatal_on_failure: true
+    - id: ipad-acceptance-evidence
+      owner: claude-04
+      description: Use the existing run sheet and diagnostics to guide the owner-operated device checks.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"cat docs/IPAD-DEVICE-RUN-SHEET.md; npm run diagnose",max_output_tokens:6000}));'
+      validation: Record actual 0.2.4 navigation/approval/reload/revocation/Stop and ten-run results in ipad-acceptance-results.md; redact private diagnostics before publishing.
+      depends_on: [reserve-claude-research]
+      fatal_on_failure: false
+    - id: markup-contract-evidence
+      owner: codex-01
+      description: Identify snapshot exclusions and transport constraints before defining markup/resource tools.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"rg -n ''MAX_TEXT|MAX_ELEMENTS|fieldValues|TEXT_INPUT_TYPES|inspect|MAX_REQUEST_BYTES|TOOL_DEFS'' src/core.js gateway/server.mjs src/remote.js; cat tests/fixtures/demo.html",max_output_tokens:4500}));'
+      validation: markup-contract.md specifies arguments, response kinds, bounds/continuation, exclusions, browser-origin resource rules, cancellation and fixture-based acceptance for P1.
+      depends_on: [reserve-codex-contracts]
+      fatal_on_failure: true
+    - id: search-contract-evidence
+      owner: codex-01
+      description: Establish full-visible-text finding, viewport policy and stale-reference behavior.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"rg -n ''MAX_TEXT|isVisible|references|resolve|browser_verify|browser_fill|browser_navigate|MODE_ALLOWS'' src/core.js gateway/server.mjs src/remote.js; sed -n ''1,110p'' tests/remote_browser_e2e.py",max_output_tokens:4500}));'
+      validation: search-contract.md separates in-page find, scrolling, website-form search and unsupported generic internet search; specifies policy and tests for P2.
+      depends_on: [reserve-codex-contracts]
+      fatal_on_failure: true
+    - id: feedback-contract-evidence
+      owner: codex-01
+      description: Bind visible feedback to current references and the existing approval/Stop UI.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"rg -n ''highlight|previewClick|approval|Stop|shadow|reduced-motion|lastSnapshot'' src/core.js src/remote.js; sed -n ''1,100p'' tests/approval_layout.py",max_output_tokens:4500}));'
+      validation: action-feedback-contract.md describes optional target/state feedback, noninterference and narrow-view accessibility tests for P3.
+      depends_on: [markup-contract-evidence, search-contract-evidence]
+      fatal_on_failure: true
+    - id: screenshot-capability-evidence
+      owner: claude-04
+      description: Check published capture APIs before proposing an actual iPad screenshot tool.
+      command: 'functions.exec: text(await tools.web__run({open:[{ref_id:"https://github.com/quoid/userscripts/blob/main/README.md"},{ref_id:"https://developer.apple.com/documentation/safariservices/assessing-your-safari-web-extension-s-browser-compatibility"}],response_length:"long"}));'
+      validation: screenshot-feasibility.md contains primary sources plus separate physical iPad capture and native-provider image-delivery evidence, or clearly states what could not be verified.
+      depends_on: [reserve-claude-research]
+      fatal_on_failure: false
+    - id: local-file-capability-evidence
+      owner: claude-04
+      description: Review existing file/origin boundaries before evaluating user-selected local content.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"rg -n ''file:|null|origin|allowedOrigins|acceptsOrigin|@match'' gateway/server.mjs src/remote.js tools/build-remote.mjs extension/web/manifest.json; sed -n ''1,100p'' docs/GATEWAY-CONTROLS.md",max_output_tokens:4500}));'
+      validation: local-files-feasibility.md records the owner's file type/location and a tested opening path, with folder scope and endpoint requirements; origin null is never globally trusted.
+      depends_on: [reserve-claude-research]
+      fatal_on_failure: false
+    - id: provider-capability-evidence
+      owner: claude-04
+      description: Recheck official MCP registration/authentication requirements for the existing paid accounts.
+      command: 'functions.exec: text(await tools.web__run({open:[{ref_id:"https://developers.openai.com/api/docs/guides/custom-mcp-server"},{ref_id:"https://developers.openai.com/plugins/deploy/connect-chatgpt"},{ref_id:"https://support.google.com/gemini/answer/17209137?hl=en-12"}],response_length:"long"}));'
+      validation: Separate ChatGPT and Gemini reports include actual account/native-app eligibility, authentication options and a minimal adapter proposal or an explicit blocker; no purchase or account change.
+      depends_on: [reserve-claude-research]
+      fatal_on_failure: false
+    - id: background-capability-evidence
+      owner: claude-04
+      description: Distinguish measured worker lifetime from physical iPad background DOM capability.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"cat docs/SERVICE-WORKER-LIFETIME.md; rg -n ''D-029|D-024|Split View|background'' docs/DECISIONS.md; cat extension/web/manifest.json",max_output_tokens:6500}));'
+      validation: background-options.md distinguishes measurements/inferences and offers a bounded experiment without claiming native packaging solves suspension.
+      depends_on: [reserve-claude-research]
+      fatal_on_failure: false
+    - id: review-implementation-proposals
+      owner: claude-04
+      description: Review the available contracts/reports and present implementation choices to the owner.
+      command: 'functions.exec: text(await tools.exec_command({cmd:"git status --short; rg --files docs/plans; sed -n ''1,95p'' fleet/mailbox/codex-01.status.md; sed -n ''1,95p'' fleet/mailbox/claude-04.status.md",max_output_tokens:4500}));'
+      validation: Owner is given concrete scopes, costs/permissions, dependencies and acceptance checks to approve; unavailable research remains explicitly pending and does not block unrelated contracts.
+      depends_on: [markup-contract-evidence, search-contract-evidence, feedback-contract-evidence]
+      fatal_on_failure: true

@@ -105,6 +105,59 @@ for D2-01.
 
 ---
 
+### D-042 — full permission cuts on classification tier, never on `isSubmit`
+
+**Status: decided 2026-10-13, operator agreed.** The implemented behaviour already complies;
+this entry exists so a future change cannot quietly reintroduce the rejected shape.
+
+**The question.** The operator reported being prompted on every click while touring a site under
+full permission. `codex-01` proposed: full permission auto-executes ordinary fills, clicks and
+same-origin navigation, while **actual form submissions keep individual approval**. The
+underlying complaint is legitimate — `README.md` risk #4 and D-021 both record that approval
+fatigue produces reflexive approval, so a gate that fires constantly is *less* safe in practice,
+not more.
+
+**The decision: reject `isSubmit` as the cut line; fix classification instead.** Splitting on
+"is it a form submit" would have auto-executed every `ELEVATED` category except `form-submit`:
+
+| Category | Would have auto-run | What it is |
+|---|---|---|
+| `data-change` | yes | matches `follow\|like\|subscribe\|publish\|post\|book\|reserve` — **the exact D-019 controls** |
+| `state-toggle` | yes | `aria-pressed`/`aria-checked`; like/follow/bookmark in any language |
+| `unnamed-control` | yes | reasoned in code as *"the agent is acting blind"* |
+| `unclassified-action` | yes | reasoned as *"not provably inert"* |
+
+So *Subscribe — $50/year* would have fired silently, and the agent would have acted without a
+human **precisely where it cannot tell what the control does**. Submissions are not the only
+irreversible actions. `src/core.js` already carried a written warning against this change
+(*"If you ever want grantable ELEVATED classes, SPLIT THIS FUNCTION FIRST"*), and
+`ELEVATED => !grantable` is pinned by `tests/remote_dom_smoke.py` — landing the proposal would
+have required deleting a regression test, which is the signal to redesign rather than push
+through.
+
+**The standing rule.** Widen `ROUTINE` by improving classification; never bypass `ELEVATED` by
+disposition. If a tour control prompts, it is almost certainly an inert control misclassified as
+`unclassified-action` — **fix the classification**. Before any future widening of standing
+grants, split `elevatedCategory()` so a preview and a submit stop sharing a category.
+
+**Independent verification of the published code (lead, 2026-10-13).** `codex-01` landed
+`e63cc50` *"classify automatic routine actions and persist per-button consent"* before seeing
+this review, and **it complies** — convergent, not consequent. Verified by reading the code, not
+the report:
+
+- `decideClick()` has **exactly one** `allow` path, gated on `p.routineActions && tier === ROUTINE`.
+  `ELEVATED` always returns `prompt`. `BLOCKED` is refused before policy is consulted.
+- `grantable` is `tier === ROUTINE && p.grantsOffered`, so persistence can never cover `ELEVATED`.
+- The new per-button consent in `src/remote.js` honours it: the replay path is guarded by
+  `verdict.grantable && hasGrant(...)`, and the "always" affordance is only offered when
+  `grantable`. **The invariant holds end to end.**
+
+**Related:** D-019 (classification tiers; its fail-open defect **is** fixed — `classifyClick` is
+fail-closed today), D-021 (scoped revocable grants), D-041 (read-everywhere injection — an
+auto-executing `ELEVATED` tier would have given injected page text a path to real actions).
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

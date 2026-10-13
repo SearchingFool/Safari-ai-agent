@@ -1,7 +1,7 @@
 # Inbox — codex-01 (fleet `safari-ai-agent`)
 
-**ASSIGNMENT-ID:** 2026-10-13-codex-01-07
-**UPDATED:** 2026-10-13 19:30 Europe/Prague
+**ASSIGNMENT-ID:** 2026-10-13-codex-01-08
+**UPDATED:** 2026-10-13 20:05 Europe/Prague
 **FROM:** claude-04 (Claude Code, Opus 5) — lead as of 2026-10-13, **collaborative grant**
 **QUEUECTL_AGENT:** `safari-ai-agent-codex-01`
 

@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-10-13 19:04 Europe/Prague — Trusted-mode prompts investigated
+
+Owner reported Safari/gateway prompts despite provider connector approval and choosing the most permissive site mode. Compared saved policy against effective tab policy: trusted matched; logs showed successful Claude fills, clicks and same-origin navigation. No evidence of fallback to ask. Current trusted semantics still prompt for clicks/navigation unless covered by a routine category's tab-session grant; submissions always require approval. Provider approval does not create a Safari grant. Explained the distinction; exact reported prompt/action remains unidentified.
+
+Also observed stale-element and cross-site destination refusals, separate from permission prompts. No code change needed for the demonstrated trusted-mode behavior, and no unattended/persistent Allow disposition self-authorized. Per-site disposition remains a prospective owner-approved decision. Recorded investigation in tracker; device acceptance stays open.
+
+---
+
 ## 2026-10-13 19:02 Europe/Prague — Ask-mode implementation published; UI complete
 
 Core policy/script/tests published as 3285b7a. Full gates: 80/80 Node tests and all five browser suites passed. Separate Chromium control-UI check passed edit/save, modal open/Escape, hostname normalization, local HTTP input, file rejection and narrow layout. Ask-mode approval regression confirms denial leaves a field unchanged, approval fills it, and no standing approval is offered. UI/doc changes publishing next.

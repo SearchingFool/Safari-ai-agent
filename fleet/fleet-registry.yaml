@@ -172,7 +172,13 @@ open_defects:
           is unmeasured. codex-01 pushed back on my initial 'closed' reading 2026-10-13 and
           was right. The ten-run work (r1) is what would actually close this."
   D-017: "Two connected tabs deadlock; losing tab polls 409 forever with no takeover path."
-  D-019: "PARTIALLY FIXED 2026-10-11 — prompt now names the control. The fail-open tiering is NOT fixed."
+  D-019: "FAIL-OPEN TIERING IS FIXED — corrected by the lead 2026-10-13 after reading
+          src/core.js. classifyClick() is now fail-closed: hardCeiling -> BLOCKED, recognised
+          inert -> ROUTINE, EVERYTHING ELSE -> ELEVATED with unclassified-action reasoned as
+          'not provably inert, so it is treated as consequential'. The earlier 'NOT fixed'
+          text was fleet-formation staleness. ELEVATED => !grantable is load-bearing and
+          pinned by tests/remote_dom_smoke.py; see the warning comment at src/core.js ~L415
+          before any change that widens standing grants."
   D-020: "Read-only vs interactive capability tiers by site trust. Not started."
   D-021: "Allow-once vs allow-always, scoped and revocable. Not started."
   D-023: "Session bound to origin not tab; new window breaks or hijacks it. Safety bug, not just UX."

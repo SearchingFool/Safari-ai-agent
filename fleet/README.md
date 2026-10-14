@@ -75,13 +75,29 @@ printed — all unchanged.
   reconstruct the current state from these files alone?
 - **Stay inside your declared `OWNS`.** Never write another agent's files. Ask in their inbox.
 - **Workers do not assign each other work.** Peers coordinate; only the lead assigns.
+- **The `ASSIGNMENT-ID` is not a delivery receipt — the body is.** If you insert a message by
+  anchoring on an existing string, **assert that the anchor matched** and fail loudly if it did
+  not. A silent no-op paired with a successful header bump produces the worst possible outcome: a
+  message that looks delivered, is not, and leaves the recipient reporting a symptom the sender
+  reads as confusion. **Verified failure, 2026-10-13:** `claude-04` anchored on a section header
+  typed `18:50` where the file read `18:40`; Python's `.replace()` matched nothing and raised
+  nothing, while a separate regex still advanced the `ASSIGNMENT-ID`. Two messages never arrived,
+  `codex-01` reported exactly that twice, and it cost most of an evening. **When a peer says it
+  cannot see your message, believe it and check the body before re-explaining.**
 
 ## Participants
 
 | Agent | Harness | Role | Inbox / Outbox |
 |---|---|---|---|
-| `claude-04` | Claude Code (Opus 5) | **Lead** — priority, gates, D-### numbering, integration | `mailbox/claude-04.*` |
-| `codex-01` | Codex CLI | Gateway control plane, read-everywhere, provider research | `mailbox/codex-01.*` |
+| `claude-9a` | Claude Code (Opus 5) | **Lead** (from 2026-10-14) — priority, gates, D-### numbering, integration | `mailbox/claude-9a.*` |
+| `claude-04` | Claude Code (Opus 5) | Worker — **outgoing lead**; owns the iPad device run sheet and results analysis | `mailbox/claude-04.*` |
+| `codex-01` | Codex CLI | **All shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research | `mailbox/codex-01.*` |
+
+**Lead seat history.** Granted to `claude-04` 2026-10-13, to `claude-9a` 2026-10-14. The second
+grant was made on the premise that `claude-04` was idle, which was incomplete — it was live and
+working. It verified the newer instruction, **stood down voluntarily** rather than contesting it
+(`6422307`), and neither agent edited the other's registry entry. If you inherit this seat, that
+is the precedent: reconcile with a live peer, do not impose.
 
 Roles, write scopes and the project gates are in [`fleet-registry.yaml`](fleet-registry.yaml).
 

@@ -30,6 +30,14 @@ leadership:
     UNMODIFIED by claude-9a — the incoming lead does not rewrite a live peer's self-declared
     entry. If claude-04 is still working, this seat transfer must be reconciled with it rather
     than imposed: same collaboration_clause, applied in that direction too.
+  seat_transfer_resolved: >
+    RESOLVED SAME DAY, 2026-10-14. claude-04 confirmed the 2026-10-14 instruction was newer than
+    its own 2026-10-13 grant, held no contrary one, and STOOD DOWN VOLUNTARILY (commit 6422307)
+    rather than contest it — its words: "two agents acting as lead is worse than either one
+    leading." It removed only its OWN duplicate claude-9a entry and left claude-9a's entry and
+    this leadership block untouched; claude-9a likewise never edited claude-04's entry. Neither
+    agent edited the other's self-declared entry in either direction. Seat is uncontested.
+    PRECEDENT for a future transfer: reconcile with a live peer, never impose on one.
   collaboration_clause: >
     The 2026-10-13 grant is explicitly COLLABORATIVE. codex-01 was mid-build when this seat was
     filled. Lead authority here is: set priority, run the gate, own D-### numbering, integrate.

@@ -13,6 +13,69 @@
 
 ---
 
+## 2026-10-14 — HANDOFF. Lead seat resolved; D-043/D-044/D-045 recorded; rig is UP and waiting on the iPad.
+
+**Operator signed off mid-session.** This entry is the resume point. **Read this first, then
+`claude-04.status.md` and `codex-01.status.md`, then `docs/TRACKER.md`.**
+
+### Operator's framing, which must not be lost in a handoff
+
+**This product WORKS.** It was proven end-to-end on the iPad on 2026-10-11 (17 tool calls, full
+multi-page workflow, no copy/paste) and was in active use on 2026-10-13. The operator's words
+today: *"we already have it working but we are just updating the latest changes."* A successor
+must not read the open-gate list below and conclude the system is unproven — **what is missing is
+a reliability MEASUREMENT, not basic function.**
+
+### Lead seat: RESOLVED, uncontested
+
+`claude-04` stood down voluntarily (`6422307`) after verifying the 2026-10-14 grant was newer than
+its own. Neither agent edited the other's registry entry. `claude-9a` is lead; `claude-04` is a
+worker owning the device run sheet and results analysis; `codex-01` owns all shared
+implementation.
+
+### Recorded this session
+
+- **D-043** — Stop does not clear saved approvals; implementation knowingly diverges from D-021.
+  **Deliberately left undecided** — device case A2-8 tests the operator's expectation and
+  produces the input. Do not resolve it by reading the code; the code is not in question.
+- **D-044** — saved-grant cap of 100, revocation only via the panel. Known limit, no action.
+- **D-045** — unattended rig recovery belongs to the login agent plus `autoStart`, **never** to
+  Tailscale `serve` persistence. Includes the standing rule and the one unverified gap.
+- **Delivery-receipt rule** added to `fleet/README.md`: the `ASSIGNMENT-ID` is not a receipt, the
+  body is. From `claude-04`'s verified 2026-10-13 silent-`.replace()` failure.
+- `fleet/README.md` participants table and seat history brought current.
+
+### Live rig state at sign-off — VERIFIED, not assumed
+
+Gateway and controller **running**; `autoStart` **true**; both Funnels up as controller children;
+public gateway `/health` → `200`, `/mcp` → `401` (correct); published userscript on GitHub is
+**byte-identical** (sha256) to the local 0.2.4 build. Site permissions untouched — two entries,
+both `trusted`.
+
+**`browser.connected` is `false`, `generation 0`.** Enabling `autoStart` restarted the gateway by
+design, which dropped the iPad session. **The iPad must reconnect — nothing is broken.**
+
+### The one thing that may block the operator remotely
+
+They were away from the Mac at sign-off. If the iPad still holds its saved `DEVICE_TOKEN` they can
+reconnect unaided; if that field is blank they are blocked until they are physically at the Mac,
+**by design** — a setup page that displayed the device token was considered and deliberately
+rejected, because it would collapse two separate secrets into one. Do not "helpfully" build one,
+and **never** put a token in this repo or in a chat.
+
+### Next actions, priority order
+
+1. **Operator + physical iPad: the device session.** Ten-run reliability is **still zero runs** —
+   the one dimension the goal names. Run `docs/IPAD-DEVICE-RUN-SHEET.md`, **Part A2 before Part A**
+   (safety before reliability; a safety failure voids the number anyway). `claude-04` takes the
+   results analysis.
+2. **One real reboot** to close D-045's cold-boot gap. A 1-minute check, not a session.
+3. **codex-01 relay** — cross-harness, needs the operator to paste a nudge. Assignment 09 is open.
+4. **P7** (`docs/plans/background-options.md`) — unstarted, assigned to the lead. Scopes whether
+   the Split View limit can be lifted. Not on the reliability critical path; do it after 1–3.
+
+---
+
 ## 2026-10-14 — Mac rig made reboot-survivable. `autoStart` enabled; Funnel persistence REJECTED as actively harmful.
 
 **Operator asked for the Mac-side gateway configuration and authorized "fully reboot-survivable".**

@@ -158,6 +158,105 @@ auto-executing `ELEVATED` tier would have given injected page text a path to rea
 
 ---
 
+### D-043 — Stop does not clear saved per-button approvals; implementation knowingly diverges from D-021
+
+**Status: open, decision deferred pending device evidence. Numbered 2026-10-14 by the lead
+(`claude-9a`); found by `claude-04`.** Not classified as a defect.
+
+**The divergence.** `src/remote.js` states the behaviour plainly: *"Stop cancels execution and
+resets policy to read-only. Saved approvals remain in isolated storage until explicitly
+revoked."* **D-021 proposed the opposite** — grants "time-boxed to the current connected session,
+revoked by Stop". The implementation chose durable-until-revoked deliberately, and nothing
+recorded that it had departed from the recorded design. This entry is that record.
+
+**Why it is not being called a defect.** The blast radius is genuinely bounded by D-042's
+invariant: only `ROUTINE` controls can ever be saved, and `ROUTINE` is the provably-inert tier.
+A leaked saved grant cannot reach a submit, a payment, a `data-change` or an unnamed control.
+Revocation also exists, per-approval and all-at-once, in the panel.
+
+**Why it still needs deciding.** **Stop is the panic button.** Its value is that the operator
+knows what it does under pressure. If the operator believes Stop forgets everything and it does
+not, the gap is in the operator's model rather than in the code — and that is the dangerous kind,
+because it is invisible until the moment it matters. What Stop forgets must match what the
+operator thinks it forgets.
+
+**Why no decision yet, and this is deliberate.** Deciding now would mean guessing the operator's
+expectation. `claude-04` wrote it into the device run sheet as **case A2-8**, framed to test the
+*operator's expectation* rather than the code's behaviour. The device run therefore produces the
+input to this decision instead of an agent inventing it. **Do not resolve D-043 from a reading of
+the code — the code is not in question.**
+
+**Next action.** Run A2-8 on device. Then either change Stop's semantics to match D-021, or amend
+D-021 and say so in the UI where Stop is presented.
+
+---
+
+### D-044 — saved-grant storage is capped at 100 with revocation only through the panel
+
+**Status: known limit, accepted, no action pending. Numbered 2026-10-14 by the lead
+(`claude-9a`); found by `claude-04`.**
+
+Saved per-button approvals are capped at 100, after which saving fails with *"Cannot save this
+approval; revoke an existing approval and retry."* The cap is reachable through ordinary use over
+time rather than only through abuse, and the control panel is the only place to revoke.
+
+Recorded so it stops being folklore. The failure is explicit, fails closed, and tells the
+operator what to do, so it is a usability ceiling rather than a safety problem. Related: D-021
+(scoped revocable grants), D-043 (what clears them).
+
+---
+
+### D-045 — unattended recovery of the Mac rig belongs to the login agent plus `autoStart`, never to Tailscale `serve` persistence
+
+**Status: decided and implemented 2026-10-14, operator authorized ("fully reboot-survivable").**
+Lead (`claude-9a`).
+
+**The problem.** The iPad path had no unattended recovery. The control server already survived a
+reboot — a `launchd` login agent with `RunAtLoad` and `KeepAlive` — but `autoStart` was `false`,
+so the gateway sat stopped until a human pressed Start, and both Tailscale Funnels were
+*foreground* processes with nothing persisted (`tailscale serve status` reports no config). Every
+green result on record was therefore obtained inside a window in which a human had already
+brought three things up by hand, in order. That precondition was never written down.
+
+**The rejected fix, and why it would have broken the thing it was meant to fix.** The obvious
+reading of "make it survive a reboot" is to persist the Funnels with `tailscale funnel --bg`.
+**That would have disabled the control server's own automation on both ports**, because the
+server raises both Funnels itself and guards against double-binding:
+
+- `startInternal()` spawns `funnel --https=443 <gateway port>` as its child and **refuses to start
+  at all** when 443 is already in Tailscale's persisted config — *"Tailscale HTTPS port 443 is
+  already in use."* `autoStart` calls that same path, so it would have failed on every boot.
+- `main()` spawns `funnel --https=8443 <control port>` the same way and skips iPad controls
+  entirely when 8443 is already persisted.
+
+**The standing rule: persistence in this design lives in the login agent plus `autoStart`, not in
+Tailscale.** Do not add `serve`/`funnel --bg` entries for 443 or 8443. If a future change makes
+persisted Tailscale config desirable, the two guards must be redesigned **first**, in the same
+change.
+
+**What was done.** Exactly one setting: `autoStart` `false` → `true`, written through the loopback
+control API so the running server owned the change rather than having its state file edited
+underneath it. Site permissions were left untouched; no origin added, no new endpoint exposed, no
+Tailscale config written.
+
+**Verified empirically, not asserted.** The login agent was killed with `launchctl kickstart -k`
+to simulate a login. Within three seconds, unattended: control server back (`runs = 2`), gateway
+health `200`, **both** Funnels respawned as fresh children. End-to-end through the public path:
+gateway `/health` → `200`, `/mcp` → `401` (correct), public controls → `401` (correct). Tailscale
+serve config still empty, so both guards remain satisfied.
+
+**Known gap — not verified.** This tested a **login**, not a **cold boot**. The control server
+refuses to start until Tailscale is signed in and reports a `ts.net` name, so a real reboot may
+lose that race. Reading the launchd config, it *should* self-heal — the process exits and
+`KeepAlive` retries every ~10 s until Tailscale is up — but that is **inference, not evidence**.
+A single real reboot closes it. Until then, do not claim cold-boot survivability.
+
+**What this does not close.** No device gate. Ten-run reliability remains at zero runs. This
+removes a rig precondition that silently underpinned earlier results; it is not evidence about
+the product.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

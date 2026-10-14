@@ -6,6 +6,13 @@
 
 ---
 
+## 2026-10-14 — Testing checkpoint
+
+Assignment 09 bodies received: acknowledge D-042 review and confirmed division/sequencing. Read Claude-04 handover to Claude-9a. Consolidated device findings and ordered owner actions added at top of docs/TRACKER.md; notified both inboxes. Zero formal ten-run runs recorded; Stop-while-queued, controlled recovery and targeted D-035/036/038/039/040 confirmation unestablished in this session. Next owner actions: 0.2.4 confirmation, connected browser_status pre-flight, then demo-page Part A2 with incremental guidance. Today's optional public-site navigation test has no result. Product is Safari AI Agent, not example website. Preserve lead-owned run sheet/results. No gate closed or new feature started. Owner requires tracker/fleet updates after every change, including issued tests and reported results; this corrects the omitted test-instruction checkpoint.
+
+
+---
+
 ## 2026-10-13 — Private app test cancelled by owner
 
 Owner requested removal because the application's additional connections make this test unsuitable. Removed only the private test Serve mapping and released the corresponding registry reservation. Verified test mapping absent and existing gateway/control mappings retained. Application unchanged; no post-login acceptance claimed. No further setup for this application planned. Inbox checked; earlier device reachability evidence retained as history.

@@ -2,6 +2,26 @@
 
 Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
 
+## 2026-10-14 — Safari AI Agent testing: pending owner actions
+
+**Product under test: Safari AI Agent.** Go Madeira was only an optional ordinary-navigation smoke-test target, not the product being tested. Formal acceptance uses the project demo pages and the [device run sheet](IPAD-DEVICE-RUN-SHEET.md), maintained by the lead. Today's navigation instructions have no reported result.
+
+**Owner actions, in order:** confirm the installed Remote AI panel shows **0.2.4**; keep Safari/Claude visible together and connect; ask Claude to call **browser_status** and confirm a connected device before testing. Then follow demo-page **Part A2**, beginning with full-permission routine navigation. Report the selected control, visible result and prompt source (Claude or Remote AI). Continue with incremental guidance through Ask denial/approval, actual submission confirmation, saved approval persistence/isolation/revocation, Stop while queued and recovery. Finally complete the ten-run protocol, recording each result and timing. Local health is not end-to-end pre-flight. Instructions issued are not completed tests; owner alone accepts D2-01.
+
+| Device case | Evidence in this session | Pending |
+|---|---|---|
+| Connector read | Owner reported a page read and another site's read-only behavior | Limited owner-observed success, not reliability measurement |
+| Controls sign-in / Start | Owner reported successful sign-in and Start | Controlled Stop/Start recovery |
+| 0.2.4 full-permission navigation | Instructions issued; no result | Part A2 device run |
+| Ask denial/approval and submission boundary | Automated checks passed; no controlled device result | Part A2 device run |
+| Saved approval persistence/isolation/revocation | Automated checks passed; no device result | Part A2 device run |
+| Stop while queued / same-origin recovery | No controlled device evidence | Formal device cases |
+| Ten-run reliability | **0 formal runs recorded** | Entire protocol; no percentage claimed |
+| D-035 / D-036 / D-038 / D-039 / D-040 | No targeted confirmation attributable to this session | Each remains unconfirmed here; historical D-039 failure is not a retest |
+| Private Mac app | Owner reported login page opens only | Test cancelled and cleaned up; not product acceptance |
+
+Assignment 09 bodies received: Claude-04 confirms D-042 independent review and the proposed work split. P1–P3 implementation waits for P0 ten-run results unless owner changes sequencing; new enhancements still require approval. Read Claude-04 handover to Claude-9a and notified both inboxes. Mailbox delivery is not acknowledgment. Owner requires tracker/fleet updates after every change, including testing instructions and observed results.
+
 ## 2026-10-13 — Enhancement planning and installer follow-up
 
 Private-site test discontinued at owner's request: application dependencies make this test unsuitable. Removed the scoped private Serve mapping and released its device registry reservation. Verified the test mapping is absent and existing gateway/control mappings remain. Initial login-page reachability remains historical evidence only; no post-login acceptance claimed. No further setup for this application planned.

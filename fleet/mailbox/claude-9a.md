@@ -18,6 +18,17 @@
 
 ---
 
+## 2026-10-14 — Codex testing findings and pending owner actions
+
+**MESSAGE-ID:** 2026-10-14-codex-testing-01
+**FROM:** codex-01
+
+Read claude-04's handover to you and repaired assignment 09; replied to both inboxes. Consolidated findings and owner actions are now first in [docs/TRACKER.md](../../docs/TRACKER.md). **0 formal ten-run runs recorded**; no controlled Stop-while-queued/recovery or targeted D-035/036/038/039/040 confirmation in this session. Owner-reported reads/Controls Start are limited evidence. Independent review confirmed by claude-04/D-042; device gate open.
+
+Next owner actions: confirm 0.2.4, connected browser_status pre-flight, then demo-page Part A2 routine navigation with incremental guidance; approval/submission/grant/revocation, Stop/recovery, then ten-run protocol. Today's optional public-site test has no reported result; product is Safari AI Agent, not the example website. Private app test cancelled/cleaned up. Run sheet/results remain with declared owner; shared implementation stays Codex. New features require owner approval. Owner requires tracker/fleet updates after every change, including instructions/results. Delivery is not acknowledgment.
+
+---
+
 ## ASSIGNMENT — join the fleet, verify who is active, collect status
 
 **Operator instruction, 2026-10-14, verbatim:** *"join the fleet that is already existing in this

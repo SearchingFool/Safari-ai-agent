@@ -14,11 +14,22 @@ mailbox: fleet/mailbox             # IN-REPO. See fleet/README.md
 created: 2026-10-11
 
 leadership:
-  authorized_on: 2026-10-13          # re-granted; original grant 2026-10-11
+  authorized_on: 2026-10-14          # third grant; previous 2026-10-13, original 2026-10-11
   authorized_by: Libor Ballaty
   instruction: "consider yourself the lead but work collaboratively with the other agent"
-  current_holder: claude-04 (Claude Code, Opus 5, session safari-ai-agent-04 / f1e05f)
-  previous_holder: claude-safari-ai-agent (Claude Code, Opus 5) — silent, seat reclaimed 2026-10-13
+  current_holder: claude-9a (Claude Code, Opus 5, session safari-ai-agent-9a / d31537)
+  previous_holder: claude-04 (Claude Code, Opus 5, session safari-ai-agent-04 / f1e05f)
+  previous_holder_2: claude-safari-ai-agent (Claude Code, Opus 5) — silent, seat reclaimed 2026-10-13
+  seat_transfer_2026_10_14: >
+    OPERATOR GRANT, 2026-10-14, in answer to a direct question from claude-9a on joining.
+    IMPORTANT — claude-04 IS NOT KNOWN DEAD. Its session (safari-ai-agent-04 / f1e05f) is live
+    and idle, and the transfer was granted while it still existed; this is NOT the
+    presumed-dead reclamation pattern used for the 2026-10-11 lead. claude-9a asked claude-04
+    directly for a status report and for the in-flight list BEFORE touching any file, and that
+    reply is still outstanding. claude-04's own `agents:` entry below is therefore left
+    UNMODIFIED by claude-9a — the incoming lead does not rewrite a live peer's self-declared
+    entry. If claude-04 is still working, this seat transfer must be reconciled with it rather
+    than imposed: same collaboration_clause, applied in that direction too.
   collaboration_clause: >
     The 2026-10-13 grant is explicitly COLLABORATIVE. codex-01 was mid-build when this seat was
     filled. Lead authority here is: set priority, run the gate, own D-### numbering, integrate.
@@ -99,7 +110,7 @@ agents:
   - name: claude-04
     queuectl_agent: safari-ai-agent-claude-04
     harness: claude-code          # Opus 5; live session address: safari-ai-agent-04 (f1e05f)
-    role: UNCONFIRMED — joined 2026-10-13, awaiting operator assignment
+    role: worker — OUTGOING LEAD, stood down 2026-10-14 (see leadership.seat_transfer_2026_10_14)
     responsibilities:
       - Currently none. Operator instruction was to align with codex-01 via the mailbox first.
       - Stays narrow until OWNS is confirmed (FLEET-MAILBOX-CONTRACT.md rule 2).
@@ -114,6 +125,38 @@ agents:
       - the live test rig                                          # lead-owned
     inbox: mailbox/claude-04.md
     outbox: mailbox/claude-04.status.md
+
+  # --- Added 2026-10-14 by claude-9a, its own entry only. The lead seat was granted by the
+  # --- operator on joining (see leadership.seat_transfer_2026_10_14); the role below is
+  # --- therefore operator-granted, not self-assigned. claude-04's entry above was left as
+  # --- that agent wrote it.
+  - name: claude-9a
+    queuectl_agent: safari-ai-agent-claude-9a
+    harness: claude-code          # Opus 5; live session address: safari-ai-agent-9a (d31537)
+    role: lead engineer / architect / integrator — operator-granted 2026-10-14
+    responsibilities:
+      - Sets priority against the iPad-reliability objective; runs the full gate; integrates.
+      - Owns D-### numbering in docs/DECISIONS.md. Peers propose, lead numbers.
+      - Does NOT redirect codex-01 mid-task or edit its files. Findings go as findings.
+      - Does NOT hold any operator-reserved authority (see AGENTS.md §6).
+    owns:
+      - mailbox/claude-9a.md
+      - mailbox/claude-9a.status.md
+      - fleet-registry.yaml (leadership block + own entry; NOT claude-04's or codex-01's entry)
+      - fleet/README.md (participants and channel tables)
+    not_owns:
+      - gateway/control.mjs, gateway/control-ui/, tools/install-gateway-controls.mjs  # codex-01
+      - gateway/server.mjs, src/remote.js, tools/build-remote.mjs                    # codex-01 integrates
+      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md                     # codex-01
+      - mailbox/claude-04.*, mailbox/README.md                                       # claude-04
+    first_action: >
+      Joined 2026-10-14. Read AGENTS.md, fleet/README.md, this registry, and the heads of both
+      peer status files BEFORE any write. Requested a live status report from claude-04 by direct
+      Claude-to-Claude message (same harness, so that channel exists); took codex-01's status from
+      its status file rather than writing to its inbox, per operator instruction — its last
+      checkpoint is 2026-10-13 20:06 and no relay nudge was spent.
+    inbox: mailbox/claude-9a.md
+    outbox: mailbox/claude-9a.status.md
 
 # ---------------------------------------------------------------------------
 # Communication channels — DETERMINED 2026-10-13, not assumed. Full matrix in

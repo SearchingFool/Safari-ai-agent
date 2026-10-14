@@ -13,6 +13,71 @@
 
 ---
 
+## 2026-10-14 — Mac rig made reboot-survivable. `autoStart` enabled; Funnel persistence REJECTED as actively harmful.
+
+**Operator asked for the Mac-side gateway configuration and authorized "fully reboot-survivable".**
+Delivered, but **not** the way the request was literally framed — the literal version would have
+broken the thing it was meant to fix. Recording the reasoning because the next agent will
+otherwise re-propose it.
+
+### What was actually wrong
+
+The iPad path had no unattended recovery. Three layers, checked independently:
+
+1. **Control server — already survived.** A `launchd` login agent is installed and loaded, with
+   `RunAtLoad` and `KeepAlive` both true. It restarts at login *and* is revived if it crashes.
+2. **Gateway — did NOT.** `autoStart` was `false`, so after a reboot the control server came back
+   and the gateway sat stopped until a human pressed Start.
+3. **Public exposure — did NOT.** Both Funnels are foreground `tailscale funnel` processes and
+   `tailscale serve status` reports no persisted config.
+
+### Why persisting the Funnels was the wrong fix — read `gateway/control.mjs` before re-proposing
+
+Persisting either Funnel in Tailscale's own serve config would have **disabled the control
+server's automation on both ports**, because the server raises both Funnels itself and guards
+against double-binding:
+
+- `startInternal()` spawns `funnel --https=443 <gateway port>` as its own child, and **refuses to
+  start at all** if port 443 is already in Tailscale's persisted config ("Tailscale HTTPS port 443
+  is already in use").
+- `main()` spawns `funnel --https=8443 <control port>` the same way, and skips iPad controls
+  entirely if 8443 is already persisted.
+
+So `--bg` persistence would have produced a boot that fails *every* time with a confusing error,
+and `autoStart` would have failed with it. **Persistence already exists in this design — it lives
+in the login agent plus `autoStart`, not in Tailscale.** My own earlier framing of layer 3 implied
+the opposite and was wrong; this is the correction.
+
+### Change made
+
+Exactly one: `autoStart` `false` → `true`, written through `POST /api/settings` on the loopback
+control API so the running server owned the change rather than having its state file edited
+underneath it. **Site permissions were deliberately left untouched** — both entries remain as the
+operator set them. No origin added, no new endpoint exposed, no Tailscale config written.
+
+Side effect, as designed and documented in the code: saving settings restarts the gateway, which
+discards session policy and in-flight commands. No device session was live, so nothing was lost.
+
+### Verified by test, not by assertion
+
+The claim "survives a reboot" was **tested**, not reasoned about — this repo's own precedent
+(D-039 passed its tests and was silent on hardware) makes an untested claim worthless. Killed the
+login agent with `launchctl kickstart -k` to simulate a login. **Within 3 seconds, unattended:**
+control server back (new pid, `runs = 2`), gateway health `200`, **both** Funnels respawned as
+fresh children. Then end-to-end through the public path: gateway `/health` → `200`; `/mcp` → `401`
+(correct — auth required); public controls → `401` (correct). Tailscale serve config still empty,
+so the start guards remain satisfied.
+
+### What this does NOT close
+
+**No device gate is closed and ten-run reliability is still zero runs.** This removes a *rig*
+precondition that was silently underpinning every green result on record — every one was obtained
+inside a window where a human had already brought three things up by hand. It makes the rig
+trustworthy enough that a device run measures the product. It is not itself evidence about the
+product.
+
+---
+
 ## 2026-10-14 — Joined; liveness verified; lead seat is CONTESTED and unresolved
 
 **Joined this fleet today.** Read `AGENTS.md`, `fleet/README.md`, `fleet/fleet-registry.yaml`

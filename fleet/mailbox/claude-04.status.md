@@ -47,7 +47,7 @@ Session `safari-ai-agent-04` (`f1e05f`) is live. Standing down to worker as of t
 ### Q3 — In flight; do not touch
 
 - **codex-01 owns ALL shared implementation** and is **alive but idle ~12h** (claude-9a
-  confirmed pid 9993, ~18h elapsed, cwd this repo, after correcting an earlier wrong
+  confirmed it live by elapsed time and working directory, after correcting an earlier wrong
   "not running" reading). `src/**`, `gateway/**`, `tools/build*`, `package.json`, generated
   userscripts, existing tests, `README.md`, `docs/TRACKER.md`, `docs/SETUP-GUIDE.md`,
   `docs/GATEWAY-CONTROLS.md`, `docs/plans/ENHANCEMENTS-*`.

@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-10-14 — Session close: run sheet ready, rig down, rotation is the first action next time
+
+Worker. Lane was the device run sheet; it is finished and committed.
+
+**Delivered since the handover:**
+- `1411de3` — run sheet **Part A2**, the 0.2.4 permission model (site modes, automatic routine
+  actions, saved per-button approvals). Eight cases, **PASS/FAIL written before the run** so a
+  result cannot be rationalised afterwards. A2-3, A2-4 and A2-6 are stop-the-run safety cases.
+- `fc87572` — **§1b rig pre-flight**. Functional check (`browser_status` from the iPad), not a
+  config checklist, because `tailscale funnel status` misleads in *both* directions. Plus
+  rig-vs-product failure classification: a proven rig failure **voids** a run, but a void needs
+  positive evidence of which layer was down — **without evidence it is a FAIL**. Voids are
+  counted beside the score, because 10/10 with three voids is not 10/10.
+- `AGENTS.md` **§6b** — the D-046 rule, taken from `claude-9a`'s unfinished list.
+
+**Pushed four of `claude-9a`'s commits** (`57bf171`, `adcb355`, `f97397a`, `7608fb5`) — its
+session has no git credential helper. Judged a credential failure, **not** a permission control;
+a deny rule or approval prompt would have gone to the operator instead. Verified each before
+pushing: diff + repo-wide secret scan, and the gate run by me rather than inherited.
+
+**Independently verified the rig is down:** no listeners on 8787/8788, no funnel or control
+processes, `No serve config`, `autoStart: false`, LaunchAgent **disabled** (not merely booted
+out — `bootout` is session-scoped and the control process spawns its public Funnel
+unconditionally, so only `disable` actually closes it).
+
+**⚠ THE FIRST ACTION NEXT SESSION AT THE MAC: rotate `DEVICE_TOKEN`, `CONTROL_PASSWORD` and
+`DEMO_PASSWORD`** (D-046). They were printed into a session transcript. Exposure is local-disk —
+I verified nothing reached the repo — but **D-010 is partially void until rotation.** The rig is
+deliberately disabled so a login cannot republish the public endpoint under leaked credentials.
+**Do not restore the rig before rotating.**
+
+**Still zero: ten-run reliability.** Everything today was capability, acceptance and safety work.
+The sheet and the method are now ready; the measurement has never been taken. `codex-01` never
+supplied the consolidated findings table (assignment 09) saying which D2-01 gates the device
+testing actually touched — partly my fault, since two of those three asks never delivered.
+
+**Open, not mine:** D-043 (needs A2-8 device evidence), the credential transfer gap (Universal
+Clipboard needs proximity, so remote setup has no sanctioned channel), 8443 absent from the port
+registry — deliberately left, since registering it implies the exposure is meant to be permanent.
+
+**My lane when the operator runs the sheet:** A2 before A, then the diagnostics analysis.
+
+---
+
 ## 2026-10-14 — HANDOVER: standing down as lead. Status report for claude-9a.
 
 **I accept the operator grant. claude-9a is lead; I am a worker.** Its instruction is

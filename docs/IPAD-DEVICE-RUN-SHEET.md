@@ -5,7 +5,7 @@
 **Author:** claude-04 (Claude Code, Opus 5)
 **Created:** 2026-10-13
 **Last Updated:** 2026-10-14
-**Last Updated By:** claude-04 (added Part A2 for the 0.2.4 permission model)
+**Last Updated By:** claude-04 (added Part A2 for the 0.2.4 permission model; added the §1b rig pre-flight)
 
 ---
 
@@ -55,6 +55,79 @@ pair the device, and confirm `browser_status` returns from Claude before startin
 
 ---
 
+## 1b. PRE-FLIGHT — prove the rig is up before you test the product
+
+**Do this immediately before A2-1, and again after any Mac reboot, Mac sleep, iPad sleep, or
+network change.** It takes under a minute.
+
+**Why this exists.** The iPad path depends on three layers that a human brought up by hand, and
+**not all of them come back on their own**:
+
+| Layer | Survives a reboot? |
+|---|---|
+| Control server (LaunchAgent) | **yes** |
+| Gateway | **no** — `.gateway-control.json` has `autoStart: false`, so it sits stopped until someone presses Start |
+| Public Funnel endpoint | **no** — the mappings are held by *foreground* `tailscale funnel` processes and are **not persisted** |
+
+Every green result on record was obtained inside a window where all three happened to be up.
+**Without this check, a dead rig produces results that look exactly like a broken product**, and
+the ten-run measurement is worthless — you would be measuring the rig.
+
+### The only check that actually proves it: end to end
+
+From Claude on the iPad, call **`browser_status`**.
+
+- **PASS:** it returns and reports a connected device. **The rig is up. Begin testing.**
+- **FAIL:** anything else. **Do not start testing.** Diagnose below.
+
+This is deliberately a *functional* check, not a configuration check. Configuration can look
+correct while the path is dead, and — as below — it can also look broken while the path is fine.
+
+### If pre-flight fails, diagnose in this order
+
+```bash
+# Layer 2/1 — is anything listening locally?
+lsof -nP -iTCP:8787 -sTCP:LISTEN     # gateway
+lsof -nP -iTCP:8788 -sTCP:LISTEN     # control server
+# (these may be the SAME process — the control server can host the gateway in-process)
+
+# Layer 3 — is the public path alive?
+tailscale funnel status
+```
+
+> **⚠ Read `tailscale funnel status` carefully — the first line is misleading.** It prints
+> `# Funnel on:` and then `No serve config`. **`# Funnel on:` does not mean your mapping is
+> alive**, and `No serve config` does not necessarily mean it is dead: it means nothing is
+> *persisted*. A live foreground `tailscale funnel` process can be serving correctly while this
+> still reports `No serve config`. **Neither line is authoritative — `browser_status` is.**
+
+**Fix order:** control server → gateway (press **Start** in the control panel) → Funnel
+(restart the foreground process). Then re-run pre-flight. If the gateway was stopped, the
+`autoStart: false` setting is why.
+
+### Mid-run: re-check after any interruption
+
+If a run fails, **re-run pre-flight before recording the result.** A rig that died between runs
+is the single most likely cause of an unexplained failure, and it is invisible from the iPad —
+it presents as "the agent is broken".
+
+### Classifying a failure: rig or product
+
+This matters for the integrity of the ten-run number, in both directions.
+
+- **A rig failure VOIDS the run.** It is not a pass and not a fail. Re-run it and note the void.
+  Counting a dead Funnel as a product failure understates reliability.
+- **⚠ A void requires positive evidence.** Record *which layer* was down and what the diagnosis
+  above showed. **Without that evidence, the run counts as a FAIL.** "It was probably the rig" is
+  the obvious way to rationalise a bad number into a good one, and it is not available here.
+- **Record every void.** If the rig died three times in ten runs, that is itself a finding about
+  whether this setup is usable, even though it says nothing about the product code.
+
+**Do not fix the rig and silently continue.** Note the time, the layer, and whether the run was
+voided, so the diagnostics can be read afterwards against the same timeline.
+
+---
+
 ## 2. Part A — the ten-run reliability measurement
 
 > **Run Part A2 (the permission model) FIRST if you have limited time.** A2-3, A2-4 and A2-6 are
@@ -77,12 +150,12 @@ session-establishment flakiness this is meant to catch.
 
 ### What to record per run — use this table
 
-| Run | Completed end-to-end? | Tool calls | Failures / refusals (verbatim) | Re-pair needed? | Approval latencies (s) | Wall-clock |
-|---|---|---|---|---|---|---|
-| 1 | | | | | | |
-| 2 | | | | | | |
-| … | | | | | | |
-| 10 | | | | | | |
+| Run | Completed end-to-end? | Tool calls | Failures / refusals (verbatim) | Re-pair needed? | Approval latencies (s) | Wall-clock | Void? (layer + evidence) |
+|---|---|---|---|---|---|---|---|
+| 1 | | | | | | | |
+| 2 | | | | | | | |
+| … | | | | | | | |
+| 10 | | | | | | | |
 
 **Record every approval latency**, not just a typical one. This is what closes D-016 properly —
 the existing three samples (3.6 / 5.5 / 6.8 s against a 25 s timeout) are *not a distribution*,
@@ -90,6 +163,11 @@ and the figure that matters is the **worst** one, under a slow network and a dis
 
 **Do not discard a failed run.** A run that fails is the most valuable data on the sheet. Record
 what it did, do not retry-until-green, and move to the next run.
+
+**The one exception is a proven rig failure — see §1b.** If the rig was down, the run is **void**:
+re-run it, and count it as neither pass nor fail. **This requires positive evidence of which
+layer was down.** Without that evidence it is a FAIL, not a void. Add a `Void? (layer + evidence)`
+column to the table and fill it in at the time, not afterwards.
 
 ### Reading the result
 
@@ -100,6 +178,9 @@ npm run diagnose -- --raw         # raw JSONL if you need to dig
 ```
 
 **Interpretation — agree this before you start, not after:**
+
+**Score over completed (non-void) runs, and state the void count alongside it** — "10/10 with 3 voids"
+is a materially weaker result than "10/10 with 0 voids" and must not be reported as the same thing.
 
 - **10/10** — reliability claim supported for *this* workflow on *this* network. Nothing more.
 - **8–9/10** — **not reliable.** A 10–20% failure rate on a seven-step workflow is a broken

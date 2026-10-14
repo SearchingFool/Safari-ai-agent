@@ -9,8 +9,21 @@ logs/
 # Per-session agent scaffolding (deferred command queue, checkpoints)
 .agent/
 
-# Claude Code's native ephemeral subagent worktrees (auto-cleaned)
-.claude/worktrees/
+# Harness-written directories. Ignored BROADLY and deliberately, because this repo is
+# public and these are surfaces an agent harness writes into without being asked:
+# Claude Code's ephemeral subagent worktrees, settings.local.json (which can carry an MCP
+# server API key), and saved session transcripts (which can carry anything that was on
+# screen). A single `git add -A` by any agent would otherwise publish them permanently.
+#
+# These were previously covered only by the operator's machine-local ~/.gitignore_global,
+# which does NOT travel with a clone — so on any other machine, or a fresh clone, they were
+# committable. Same reasoning that moved fleet coordination in-repo: protection that lives
+# outside the repository does not protect the repository. See D-046.
+#
+# `.claude/*` rather than `.claude/` so a deliberately shared file can be re-admitted later
+# with a negation (e.g. `!.claude/settings.json`). Nothing under it is tracked today.
+.claude/*
+.llm_sessions/
 
 # Local credentials and deployment environment files
 .env

@@ -13,6 +13,69 @@
 
 ---
 
+## 2026-10-14 — RIG IS FULLY SHUT DOWN AND PERSISTENTLY DISABLED, by operator instruction. Restore steps below.
+
+**THE RIG IS DOWN ON PURPOSE. DO NOT "FIX" IT BY RESTARTING IT.** It is down because three live
+secrets were exposed (D-046) and must be rotated before anything is published again. Restarting it
+before rotation republishes a public endpoint authenticated by a leaked password.
+
+**Operator instruction, verbatim:** *"first thing we need to do next time is change the credentials
+and not expose them next time so for now shut down the gateway and controller."*
+
+### What was done, in order
+
+1. **`autoStart` → `false`.** Deliberately reverting the change made earlier today (D-045). A
+   login would otherwise have silently restarted the gateway **and republished port 443 with the
+   leaked credentials** — which would defeat the entire point of the shutdown. Acting on the
+   literal instruction alone would have left that hole open, so this is intent over wording.
+2. **Gateway stopped** via the control API (`POST /api/stop`), which also tore down its `443`
+   Funnel child and the `caffeinate` sleep-prevention process.
+3. **Controller unloaded** with `launchctl bootout`, so `KeepAlive` could not revive it.
+4. **Login agent `launchctl disable`d** — `bootout` alone is **session-scoped**, so at the next
+   login the controller would have returned and `main()` republishes the `8443` control endpoint
+   *unconditionally*, independent of `autoStart`. That endpoint is authenticated by the leaked
+   `CONTROL_PASSWORD`. `disable` persists across logins and closes it.
+
+### Verified down — every layer, not just the gateway
+
+No listeners on 8787/8788 · zero `Tailscale funnel` processes · zero `gateway/control` processes ·
+no `caffeinate` · both public endpoints return `000` / no response · `funnel status` reports no
+serve config · `print-disabled` lists the agent as `disabled`.
+
+**Nothing was destroyed.** The plist remains at
+`~/Library/LaunchAgents/com.searchingfool.safari-gateway-control.plist` and site permissions are
+untouched. The Mac can now sleep again (sleep prevention is off).
+
+### Restore — ONLY AFTER ROTATING THE THREE SECRETS (D-046)
+
+```sh
+launchctl enable  gui/$(id -u)/com.searchingfool.safari-gateway-control
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.searchingfool.safari-gateway-control.plist
+```
+
+Then re-enable `autoStart` in the control panel (or `POST /api/settings` with
+`autoStart: true`) to get back the unattended recovery that D-045 delivered. **Rotation first,
+restore second, `autoStart` third.** Re-read D-045 before touching Tailscale config — do **not**
+add `serve`/`funnel --bg` entries for 443 or 8443.
+
+### Also hardened this session: `.gitignore` (public-repo exposure, same failure shape as D-046)
+
+`claude-04` spotted that `.claude/worktrees/` was ignored but `.claude/` was not. Verified and
+found worse: **`.claude/settings.local.json` and `.llm_sessions/` were covered only by the
+operator's machine-local `~/.gitignore_global`, which does not travel with a clone.** On another
+machine or a fresh clone of this **public** repo both were committable, and one `git add -A` would
+have published an MCP server key or a saved transcript permanently. Broadened `.gitignore` to
+`.claude/*` and `.llm_sessions/`. Additive only — `git ls-files` confirms nothing under either
+path was tracked, so there is no un-tracking side effect. Used `.claude/*` rather than `.claude/`
+so a deliberately shared file can be re-admitted with a negation later. `codex-01` was notified in
+its inbox **without** bumping its `ASSIGNMENT-ID`, since this is an FYI and not an assignment.
+
+A redacted session transcript was saved to the (now repo-ignored) `.llm_sessions/`, with the three
+secret values and the `.ts.net` hostname replaced by placeholders and the redaction verified by
+grep.
+
+---
+
 ## 2026-10-14 — FINAL HANDOFF. Agent error: secrets printed unasked. ROTATION IS THE FIRST ACTION NEXT SESSION.
 
 **Read this before anything else. The entry below it is the full workstream handoff and remains

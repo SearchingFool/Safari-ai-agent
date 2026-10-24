@@ -13,6 +13,19 @@
 >
 > **Read [the risks](../README.md#risks-you-must-understand-before-you-start) first.** This software lets an AI assistant click and type inside your web browser while you are logged in. That is genuinely useful and genuinely risky. Ten minutes of reading now is worth it.
 
+## The three procedures in this guide
+
+Work through them in order the first time. After that, come back to whichever you need.
+
+| | Procedure | When you need it | Where |
+|---|---|---|---|
+| **1** | **Install everything** | Once, at the start | Parts 1, 2, 3 |
+| **2** | **Test it on your first website** | Straight after installing, before trusting it with anything that matters | Part 3b |
+| **+** | **Run it safely day to day** | Every session | Part 4 |
+| **3** | **Update any part of the system** | Whenever a new version lands, or a password changes | Part 5 |
+
+Each part says **which device you are on**. If a step does not name a device, it is the Mac.
+
 ## What you are building
 
 **UI setup added 2026-10-13:** For gateway Start/Stop from the Mac or iPad, automatic startup, and website permissions without editing scripts, use [Gateway controls](GATEWAY-CONTROLS.md). The older Terminal setup below remains available. The new controller is separately authenticated and stays available when the gateway is stopped; reading does not need a site-list entry.
@@ -47,7 +60,7 @@ Your Mac must stay **awake and online** the whole time. The iPad Safari tab must
 
 ---
 
-# Part 1 — The Mac
+# Part 1 — PROCEDURE 1: install, step one — the Mac
 
 ### Step 1.1 — Get the code
 
@@ -115,7 +128,7 @@ Demo username: safari-demo
 
 ---
 
-# Part 2 — Connect Claude
+# Part 2 — PROCEDURE 1: install, step two — connect Claude
 
 ### Step 2.1 — Copy the password Claude needs
 
@@ -160,7 +173,7 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
 
 ---
 
-# Part 3 — The iPad
+# Part 3 — PROCEDURE 1: install, step three — the iPad
 
 > ### Already set up the Mac and Claude? Start here.
 >
@@ -272,7 +285,142 @@ Call browser_status, then browser_inspect.
 
 ---
 
-# Part 4 — Stopping safely
+# Part 3b — PROCEDURE 2: test it on your first website
+
+**Do this before pointing it at anything you care about.** It takes about ten minutes and teaches
+you what the permission settings actually do — which is much harder to learn on a site where a
+mistake matters.
+
+We use **neutral public websites** below. Do not start on your bank, your email, or your own
+business site.
+
+## 3b.1 — Read a page that cannot break (`example.com`)
+
+`example.com` is a reserved test domain. It is a single inert page with no account and no buttons.
+
+1. **In the control panel**, add `example.com` with permission **Read only**
+2. **On the iPad**, open `https://example.com` in Safari and tap **Remote AI** → **Connect**
+3. **In Claude**, ask: *"What does this page say?"*
+
+**Expected:** Claude reads it back. **No approval prompt** — reading never asks.
+
+If this fails, nothing else will work. Run `npm run gateway:status` on the Mac before going on.
+
+## 3b.2 — Read a real page (`en.wikipedia.org`)
+
+A real site: lots of text, links, structure. Still nothing you can break by reading.
+
+1. Add `en.wikipedia.org` as **Read only**
+2. Open any article on the iPad, **Connect**
+3. Ask Claude: *"Summarise this page"*, then *"What links are in the first section?"*
+
+**Expected:** it reads the page. **Now try an action** — ask it to *"click the first link"*.
+
+**Expected:** it is **refused**, and says the site is read-only. **That refusal is the feature.**
+Read only means read only, and the agent cannot talk its way past it.
+
+## 3b.3 — See an approval prompt (`duckduckgo.com`)
+
+Now one that lets the agent act, but asks you first.
+
+1. Change `duckduckgo.com` to **Ask every time**
+2. Open it on the iPad, **Connect**
+3. Ask Claude: *"Search for the weather in Lisbon"*
+
+**Expected:** a prompt appears **on the iPad** naming the control. Nothing happens until you
+answer.
+
+- **Tap Deny** → the action does not happen and Claude is told you refused
+- **Ask again and tap Allow** → the text is typed into the search box
+
+**Try both.** Denying is the one you most need to trust, and the only way to trust it is to watch
+it work.
+
+> **The prompt names the control**, not a code — *"Search" (submits a form)* rather than
+> *"click e37"*. If it ever shows you something you did not expect, that is the moment to deny.
+
+## 3b.4 — Watch what full permission does and does not do
+
+1. Change `duckduckgo.com` to **Full permission**
+2. Reconnect and ask Claude to *"search for Lisbon, then open the first result"*
+
+**Expected:** ordinary steps — typing, following links, paging — now run **without prompting**.
+That is what full permission is for.
+
+**But ask it to do something consequential** on any site with a Follow, Subscribe or Like button,
+and **it still prompts.** That is deliberate: full permission means *"this is a site I trust"*,
+not *"every button here is safe"*. Form submissions, follow/subscribe controls, toggles and any
+button the agent cannot identify always ask. Payment, account-deletion and credential controls are
+**refused on every site**, including this one.
+
+## 3b.5 — What you have just learned
+
+| You saw | Meaning |
+|---|---|
+| Reading never prompts | Inspecting a page is always allowed on a listed site |
+| Read only refused a click | The mode is enforced at the gateway, not suggested |
+| Deny stopped the action | You are genuinely in the loop, not rubber-stamping |
+| Full permission still prompted sometimes | Risk is judged per *control*, not per *site* |
+
+**Now choose a real site**, and start it at **Read only**. Raise it only once you have watched the
+agent behave at the lower setting. You can lower it again at any time in the control panel, and
+**Stop** always ends everything immediately.
+
+> **Remember what leaves your device:** the text of every page the agent reads is sent to
+> Anthropic. Only use this on pages you would be comfortable pasting into a chat window.
+
+# Part 4 — Using the controls as safety tools
+
+**The controller and the gateway are not just conveniences — they are the controls you actually
+have.** The approval prompt is the last line; these are the ones in front of it.
+
+## 4.1 — The four things that reduce risk most
+
+| Habit | Why it matters |
+|---|---|
+| **Stop the gateway when you finish** | While it runs, your Mac has a public web address. Stopped, there is nothing to attack. **This is the single biggest one.** |
+| **Keep sites at the lowest mode that works** | Read only cannot click. Most tasks are reading. Raise for one task, then lower it again |
+| **Add sites deliberately, one at a time** | An unlisted site defaults to *ask*, and cannot act without you. Never add a site "just in case" |
+| **Revoke saved approvals you no longer want** | "Always allow" persists until revoked — it survives reloads, reconnects and **Stop** |
+
+## 4.2 — Stop and start from wherever you are
+
+The control panel is a **separate service with its own password**, and it stays up when the
+gateway is down. That is deliberate: it means stopping the gateway never strands you.
+
+- **From the iPad or phone** — open the controls address, press **Stop**. No Mac needed
+- **From the Mac** — the same page, or Ctrl+C in the Terminal window
+- **Panic** — **Stop** in the Remote AI panel on the page itself: it cancels the queued command,
+  resets the site to read-only for that session, and tells the gateway to drop the device
+
+> **Stop does not clear saved approvals** (D-043) — deliberately, but it may not be what you
+> expect from a panic button. To clear them, use **Revoke all** in the panel.
+
+## 4.3 — Check what actually happened
+
+```sh
+npm run diagnose
+```
+
+Every request the gateway saw: what was asked, what was approved, what was refused, how long you
+took to answer. **If you are ever unsure whether something acted, this is the answer** — not the
+chat transcript, which only shows what the model *says* it did.
+
+## 4.4 — Decide about automatic startup deliberately
+
+The control panel can start at login and bring the gateway up by itself. **Convenient, and a real
+trade-off:** it means your Mac publishes a public address after every reboot without you
+choosing to. Leave it off unless you want that.
+
+## 4.5 — One tab, and keep it in front
+
+Only one tab can hold the session. A second is refused and offered **Take over**. **Close tabs
+you are finished with** — a stale tab retries silently and makes things look broken.
+
+On iPadOS, keep the tab visible in **Split View**. If it is not in front the agent pauses and the
+gateway refuses to hand it work, rather than raising a prompt where you cannot see it.
+
+# Part 4b — Stopping safely
 
 **When you finish, stop it.** The web address is public while it runs.
 
@@ -300,7 +448,7 @@ For now, **Universal Clipboard is the recommended shortcut** and needs no new co
 
 ---
 
-# Part 5 — Updating it later
+# Part 5 — PROCEDURE 3: updating any part of the system
 
 **Nothing updates itself.** When a new version lands you update three things by hand, and they
 are separate: the **code on the Mac**, the **script on the iPad**, and occasionally the

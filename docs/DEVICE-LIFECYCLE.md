@@ -1,6 +1,6 @@
 # Adding and removing an iPad
 
-**File:** /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/DEVICE-LIFECYCLE.md
+**File:** docs/DEVICE-LIFECYCLE.md
 **Description:** How to add an iPad as a paired device, and — more importantly — how to remove everything from one before it leaves your hands. Written so an AI assistant on the device itself can follow it with you, step by step, without needing anything from the Mac except two values.
 **Author:** Claude Code (Opus 5)
 **Created:** 2026-10-11

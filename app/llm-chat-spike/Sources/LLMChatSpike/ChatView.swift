@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Sources/LLMChatSpike/ChatView.swift
+// File: app/llm-chat-spike/Sources/LLMChatSpike/ChatView.swift
 // Description: The chat surface. Transcript, composer, and a status line that shows the request id
 //              and token counts so every run leaves visible evidence. Errors render with their
 //              code and ref rather than as a generic failure message.

@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Sources/LLMChatCore/ChatMessage.swift
+// File: app/llm-chat-spike/Sources/LLMChatCore/ChatMessage.swift
 // Description: The conversation turn, and the model identifiers the spike can target.
 //              Kept free of UI and transport types so the same value flows from the view model
 //              into the wire encoder without translation.

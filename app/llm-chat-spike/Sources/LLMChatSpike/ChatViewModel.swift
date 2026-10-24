@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Sources/LLMChatSpike/ChatViewModel.swift
+// File: app/llm-chat-spike/Sources/LLMChatSpike/ChatViewModel.swift
 // Description: Conversation state for the chat spike. Owns the transcript, the in-flight flag and
 //              the last error. The API key lives here in memory only — it is never written to
 //              disk, never put in UserDefaults and never logged, because this repo has already

@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Tests/LLMChatCoreTests/AnthropicClientTests.swift
+// File: app/llm-chat-spike/Tests/LLMChatCoreTests/AnthropicClientTests.swift
 // Description: Request/response/error coverage for AnthropicClient using an injected transport,
 //              so the whole path is exercised with no network call and no API key. Covers the
 //              failure modes that actually happen in the field — a rejected key, a rate limit, a

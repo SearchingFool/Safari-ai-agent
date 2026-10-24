@@ -1,6 +1,6 @@
 # Gateway diagnostics and observability contract
 
-**File:** /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/DIAGNOSTICS.md
+**File:** docs/DIAGNOSTICS.md
 **Description:** How to see what is actually happening inside the MCP gateway — the request classifier, the durable event log, the human report, and the rules any new error path must follow.
 **Author:** Claude Code (Opus 5)
 **Created:** 2026-10-11

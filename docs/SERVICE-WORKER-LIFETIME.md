@@ -1,6 +1,6 @@
 # Service Worker Lifetime Measurement
 
-**File:** `/Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/SERVICE-WORKER-LIFETIME.md`
+**File:** `docs/SERVICE-WORKER-LIFETIME.md`
 **Description:** Measured lifetime of the MV3 background service worker that
 D-024 (native Safari Web Extension, F-01) depends on, together with what the
 numbers mean for the "background execution" justification.
@@ -319,15 +319,15 @@ what was assumed.** Specifically:
 
 ```bash
 # 1. collector (binds 127.0.0.1:4037)
-node /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/collector.mjs active
+node extension/lifetime-probe/collector.mjs active
 
 # 2a. WebKit host — works with no Safari and no signing authorization
-bash /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/build-wk-host.sh
-/Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/wk-host/build/SWLifetimeProbeHost.app/Contents/MacOS/SWLifetimeProbeHost \
-  /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/web
+bash extension/lifetime-probe/build-wk-host.sh
+extension/lifetime-probe/wk-host/build/SWLifetimeProbeHost.app/Contents/MacOS/SWLifetimeProbeHost \
+  extension/lifetime-probe/web
 
 # 2b. OR the real Safari path (needs the human Touch ID step)
-bash /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/make-probe-xcode-project.sh
+bash extension/lifetime-probe/make-probe-xcode-project.sh
 
 # 3. drive the arms
 curl -X POST 'http://127.0.0.1:4037/mode?m=active'       # 1.2s fetch loop
@@ -337,8 +337,8 @@ curl -X POST 'http://127.0.0.1:4037/mode?m=period:0.6'   # re-arm keepalive with
 curl 'http://127.0.0.1:4037/note?t=my-arm-label'         # mark the timeline
 
 # 4. read the results
-node /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/analyze.mjs
-node /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/summarize-arms.mjs
+node extension/lifetime-probe/analyze.mjs
+node extension/lifetime-probe/summarize-arms.mjs
 ```
 
 The whole of `extension/lifetime-probe/` is test-only and can be deleted once

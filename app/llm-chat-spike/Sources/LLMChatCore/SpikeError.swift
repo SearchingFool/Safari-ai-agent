@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Sources/LLMChatCore/SpikeError.swift
+// File: app/llm-chat-spike/Sources/LLMChatCore/SpikeError.swift
 // Description: Structured error type for the chat spike. Every failure carries a machine-readable
 //              code, a human message, and the provider's request id so a log line and the text the
 //              user sees can be pivoted to the same event. Mirrors the repo's observability rule:

@@ -1,6 +1,6 @@
 # Native Safari Web Extension
 
-**File:** `/Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/NATIVE-EXTENSION.md`
+**File:** `docs/NATIVE-EXTENSION.md`
 **Description:** What the native Safari Web Extension scaffold in `extension/` is, what it unlocks over the Userscripts-based bridge, what iPadOS still forbids, how to build and run it on macOS Safari with no paid Apple Developer membership, and what a membership adds.
 **Author:** safari-ai-agent-native-extension (Claude Code, Opus 5)
 **Created:** 2026-10-11
@@ -171,7 +171,7 @@ with a "GENERATED — DO NOT EDIT" banner and the SHA-256 of the source. `backgr
 The copy is gitignored, so there is no second engine in version control. Drift is detectable:
 
 ```
-node /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/build.mjs --check
+node extension/build.mjs --check
 ```
 
 This is deliberately the same relationship the userscript has: `tools/build.mjs` concatenates
@@ -218,8 +218,8 @@ succeeds anyway.
 ### 4.1 Build
 
 ```
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
-bash /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/make-xcode-project.sh
+cd <repo root>
+bash extension/make-xcode-project.sh
 ```
 
 This stages `src/core.js`, runs `safari-web-extension-converter`, and builds with
@@ -258,7 +258,7 @@ where the operator cannot see it. The popup says `Paused` when that happens.
 ### 4.4a The test that matters most, and is not yet in the gate
 
 ```
-node --test /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/background.test.mjs
+node --test extension/background.test.mjs
 ```
 
 15 tests covering the D-028 lifetime contract (§2.1): teardown-and-resume, the persisted

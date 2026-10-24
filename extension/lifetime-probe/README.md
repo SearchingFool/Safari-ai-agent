@@ -1,6 +1,6 @@
 # Service Worker Lifetime Probe — TEST ONLY
 
-**File:** `/Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/extension/lifetime-probe/README.md`
+**File:** `extension/lifetime-probe/README.md`
 **Description:** Pointer file. This directory is a measurement harness, not product code.
 **Author:** safari-ai-agent-sw-lifetime (Claude Code, Opus 5)
 **Created:** 2026-10-11

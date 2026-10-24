@@ -187,7 +187,7 @@ Original `M1-1`–`M1-6` work is covered by A-01/A-02/A-03. Former `M2-1`–`M2-
 
 ## Mac test deployment pathway (2026-10-09)
 
-- Tailscale already installed on the user's Mac and iPad; no Verpex server is required for the initial test.
+- Tailscale already installed on the user's Mac and iPad; no separately hosted server is required for the initial test.
 - Mac launcher and [instructions](MAC_TAILSCALE_TEST.md) are committed. It binds the gateway to localhost, generates separate local secrets and uses Tailscale Funnel to expose HTTPS for remote MCP.
 - Actual Mac launch, public HTTPS endpoint, Claude account connector and device acceptance are **not yet completed**. Do not mark B1/D2 as accepted until demonstrated.
 

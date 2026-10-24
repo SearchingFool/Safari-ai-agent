@@ -1,6 +1,6 @@
 // swift-tools-version: 6.0
 //
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Package.swift
+// File: app/llm-chat-spike/Package.swift
 // Description: Package manifest for the LLM chat spike — a minimal SwiftUI chat client that
 //              proves an app can hold the agent loop itself and talk to a cloud model over
 //              plain outbound HTTPS, with no gateway, controller or Mac in the path.

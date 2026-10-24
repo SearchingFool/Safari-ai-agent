@@ -238,4 +238,4 @@ The Mac Tailscale test launcher now generates a **third, independent demo passwo
 
 ## Mac + Tailscale live MCP testing
 
-To test the hosted gateway without Verpex, use the [Mac Tailscale Funnel guide](docs/MAC_TAILSCALE_TEST.md) and the launcher `bash tools/start-mac-tailscale-test.sh`. The Mac hosts Node on localhost; Funnel provides the public HTTPS URL needed by Claude's remote MCP connector. Keep credentials on the Mac and use only the harmless demo for initial testing. **Account and iPad acceptance remain unverified.**
+To test the gateway without any separate hosting, use the [Mac Tailscale Funnel guide](docs/MAC_TAILSCALE_TEST.md) and the launcher `bash tools/start-mac-tailscale-test.sh`. The Mac hosts Node on localhost; Funnel provides the public HTTPS URL needed by Claude's remote MCP connector. Keep credentials on the Mac and use only the harmless demo for initial testing. **Account and iPad acceptance remain unverified.**

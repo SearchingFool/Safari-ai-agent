@@ -1,6 +1,6 @@
 # LLM Chat Spike
 
-**File:** `/Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/README.md`
+**File:** `app/llm-chat-spike/README.md`
 **Description:** A minimal SwiftUI chat client that proves one hop — app → cloud model over plain outbound HTTPS, with no gateway, no controller and no Mac in the path. First step of the in-app agent architecture.
 **Author:** claude-chatspike (Claude Code, Opus 5)
 **Created:** 2026-10-14
@@ -34,7 +34,7 @@ the model conversation?* — before any effort goes into the harder parts.
 ## Run it
 
 ```sh
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike
+cd app/llm-chat-spike
 swift build && swift run LLMChatSpike
 ```
 
@@ -43,7 +43,7 @@ Or open `Package.swift` in Xcode and run the `LLMChatSpike` scheme.
 Tests:
 
 ```sh
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike
+cd app/llm-chat-spike
 swift test
 ```
 

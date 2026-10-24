@@ -1,4 +1,4 @@
-# File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/.gitignore
+# File: app/llm-chat-spike/.gitignore
 # Description: Keeps SwiftPM build output and Xcode per-user state out of the repo. Scoped to this
 #   package deliberately, so the shared root .gitignore is left to whoever owns it.
 # Author: claude-chatspike (Claude Code, Opus 5)

@@ -1,4 +1,4 @@
-// File: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/app/llm-chat-spike/Sources/LLMChatCore/AnthropicClient.swift
+// File: app/llm-chat-spike/Sources/LLMChatCore/AnthropicClient.swift
 // Description: Minimal Messages API client. One outbound HTTPS POST, no streaming, no SDK, no
 //              dependencies. Transport is injectable so the whole request/response/error path is
 //              testable without a network call or a real key. This is the hop the spike exists to

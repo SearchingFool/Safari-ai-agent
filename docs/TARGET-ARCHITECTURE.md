@@ -1,6 +1,6 @@
 # Target architecture
 
-**File:** /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/TARGET-ARCHITECTURE.md
+**File:** docs/TARGET-ARCHITECTURE.md
 **Description:** Where this project is going and why — the stated goal (Claude-in-Chrome-equivalent capability on Safari, extended to Codex, Antigravity and local models), what Safari actually permits, the gap against the reference implementation, and the phasing to close it.
 **Author:** Claude Code (Opus 5), acting as fleet lead
 **Created:** 2026-10-11

@@ -4,8 +4,8 @@
 **Description:** Where this project is going and why — the stated goal (Claude-in-Chrome-equivalent capability on Safari, extended to Codex, Antigravity and local models), what Safari actually permits, the gap against the reference implementation, and the phasing to close it.
 **Author:** Claude Code (Opus 5), acting as fleet lead
 **Created:** 2026-10-11
-**Last Updated:** 2026-10-11
-**Last Updated By:** Claude Code (Opus 5)
+**Last Updated:** 2026-10-24
+**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047)
 
 ---
 
@@ -110,6 +110,59 @@ Local models need **no Funnel at all** — loopback only, removing public exposu
 
 **Phase 4 — classifier-assisted auto-approve.** Only once a local model is in the stack, so classification costs nothing external.
 
+## Two transports, one engine — the Swift alternative (2026-10-24)
+
+Everything above describes **Path A**: Claude → a Mac gateway published over Tailscale Funnel →
+a Userscripts bridge inside Safari. On 2026-10-14 a second shape appeared in the repo, and it is
+being evaluated **in parallel**, not as a replacement. See [D-047](DECISIONS.md).
+
+**Path B — Swift in-app.** A SwiftUI app holds the model conversation itself over ordinary
+outbound HTTPS and drives a **`WKWebView` it owns**. No gateway, no Funnel, no public endpoint,
+no Mac in the path.
+
+### Why it is worth evaluating
+
+It dissolves the constraint this document calls the hardest one. **D-029 — Split View is
+mandatory — exists because *Safari* is the app being backgrounded and suspended.** An app hosting
+its own web view is not subject to that. It would also remove, in one step, the Mac-uptime
+dependency, the published endpoint, D-045's rig-recovery problem and most of D-046's exposure
+surface.
+
+It does not change the goal stated at the top of this document. It changes **which process holds
+the page**.
+
+### Why it has not replaced anything
+
+**No live model call has ever been made from it.** It builds, 15 tests pass, and the API key is
+correctly held in memory only — but it has never run on an iPad, it contains **no `WKWebView`**,
+and it has **no tool calling**. Path A drove a real Safari tab through a 17-call workflow on
+hardware. *A spike that has not made one real call cannot retire that.*
+
+### The decisive test, before any further investment
+
+A `WKWebView` that logs into a real site, **survives an app restart with the session intact**, and
+runs `src/core.js` from buttons with **no model involved**.
+
+**Session persistence across restart is the specific risk.** A web view that forgets the login on
+every launch is useless for an agent, and no amount of tool-calling work repairs it. That single
+result decides whether Path B is real.
+
+### What transfers, and what does not
+
+**`src/core.js` transfers.** It is deliberately host-agnostic — the same property that made D-014
+an acceptable risk. The page engine is not the thing being rewritten.
+
+**The safety model transfers, and must.** The classification tiers (D-019, D-042), the approval
+model (D-021, D-043) and the injection analysis (D-041) are **policy, not transport**. They are
+not Userscripts artefacts and Path B does not get a clean slate. **Path B has no safety gate
+today** — it is a chat client. Any page-driving work there inherits these decisions or it is a
+regression, whatever the architecture diagram says.
+
+**The gateway's enforcement does not transfer for free.** Today the gateway is a second,
+independent check that sits outside the browser. In Path B, app and enforcement are the same
+process, so a compromise of the app is a compromise of the gate. That is a real loss and it should
+be weighed deliberately rather than discovered later.
+
 ## Explicitly rejected
 
 **Chasing Chrome parity on Userscripts.** The effort would not buy tabs, background or screenshots. Userscripts is the proving ground — it has been an excellent one — not the destination.
@@ -117,6 +170,11 @@ Local models need **no Funnel at all** — loopback only, removing public exposu
 **Relying on the client's safety model.** Defeats the provider-independence goal, as above.
 
 **A gateway-served setup page exposing the device token.** It would let the demo password reveal the device token, collapsing two independent secrets into one.
+
+> **Still rejected, and note it is Path-A-specific.** Path B has no gateway and no device token,
+> so this does not constrain it — but the credential-transfer problem it was rejected over remains
+> unsolved on Path A (Universal Clipboard needs proximity, so remote setup has no sanctioned
+> channel). Do not read Path B as solving that; it sidesteps it by not having the secret.
 
 ## Open questions blocking design
 

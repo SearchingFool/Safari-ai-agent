@@ -1,6 +1,6 @@
 # Safari AI Agent — Delivery tracker
 
-Updated: 2026-10-11 | This tracker tracks implementation evidence, not ideas.
+Updated: 2026-10-24 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047).
 
 ## 2026-10-14 — Safari AI Agent testing: pending owner actions
 
@@ -78,7 +78,24 @@ Claude second-account connection confirmed live 2026-10-13 17:31:08 Prague: `bro
 
 Peer coordination: codex-01 joined the fleet on the owner's explicit instruction, acknowledges claude-04's collaborative lead role, and has exchanged scope/findings through the shared mailbox. Lead owns registry confirmation and integration; codex-01 owns this completed change. Proposed next work: owner acceptance first, peer review, then an account-specific ChatGPT/Gemini feasibility plan for approval. No provider implementation is underway. The read-everywhere prompt-injection trade-off is documented in README; lead will own any decision numbering.
 
-**Current focus:** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
+**TWO PATHS ARE LIVE (2026-10-24, D-047).** This tracker described only the gateway path for ten
+days after a Swift alternative was committed, so read this before planning anything:
+
+- **Path A — Mac gateway + Userscripts.** Everything below. **Proven on hardware**; limited by
+  **D-029, Split View is mandatory.** Still the only path that has ever driven a real page.
+- **Path B — Swift in-app (`G-01`, `app/llm-chat-spike/`).** Would dissolve D-029 and remove the
+  Mac, the Funnel and the public endpoint entirely. **A spike only: no live model call has ever
+  been made, it has never run on an iPad, and it has no web view.**
+
+**Path B is an alternative, not a pivot — operator's framing. Neither path is cancelled.** The
+cheap decisive test is G-01's web-view stage; until it runs, do not retire Path A or scale up
+Path B.
+
+**⚠ BEFORE RESTARTING THE RIG: rotate `DEVICE_TOKEN`, `CONTROL_PASSWORD` and `DEMO_PASSWORD`**
+(D-046, outstanding since 2026-10-14). The rig is deliberately shut down and the login agent
+disabled, which is what keeps this contained. Nothing leaked publicly — verified.
+
+**Current focus (Path A):** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
 
 **Remaining for D2-01:** **Stop while a command is queued** (unblocked — it was impossible while D-036 left the Stop control covered), same-origin recovery, **ten-run reliability**, and an **independent security review**.
 
@@ -116,6 +133,7 @@ Follow-up: owner tested a second website, Google, and reported that the connecto
 | D2-01 | Device acceptance, regression, documented limits | **Partially closed 2026-10-11** | D1-01 | **Done on device:** operator denial refuses the action (twice, incl. a submit); disallowed external navigation refused by the gateway in 0 ms; stale reference refused; session survives refusals; Split View constraint characterised (D-029). **Outstanding:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, security review |
 | E-01 | **Separate post-MVP governance harness** | Deferred | MVP acceptance | Independently specified policy and capability-lease milestone |
 | F-01 | Additional provider adapters and native packaging | Future | MVP acceptance | Independently verified adapters and Safari packaging |
+| **G-01** | **Swift in-app path (ALTERNATIVE to the gateway, not a replacement)** | **Spike only — never run live** | None; runs in parallel with A–D | Builds, 15 tests pass (`cb3a36f`). **No live model call ever made, never run on iPad, contains no `WKWebView` and no tool calling.** Next and decisive: a `WKWebView` that logs into a real site, **survives an app restart**, and runs `src/core.js` from buttons with no model involved. See [D-047](DECISIONS.md) |
 
 ## Current blockers and decisions to close
 

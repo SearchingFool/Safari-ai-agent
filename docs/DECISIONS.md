@@ -1,6 +1,6 @@
 # Safari AI Agent — Decision log
 
-Updated: 2026-10-11. Each entry is a project decision or an explicitly unresolved design question. A recommendation is not an already-verified implementation.
+Updated: 2026-10-24. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047). Each entry is a project decision or an explicitly unresolved design question. A recommendation is not an already-verified implementation.
 
 | ID | Status | Decision / question | Basis and next action |
 |---|---|---|---|
@@ -324,6 +324,68 @@ would let the demo password alone reveal the device token, collapsing two separa
 one. That rejection still stands. So the answer is neither the forbidden chat channel nor the
 rejected page: **a remote transfer that preserves secret separation is unsolved and should be
 designed before the next remote setup.** Do not solve it by building the rejected page.
+
+---
+
+### D-047 — the Swift in-app path is an ALTERNATIVE under evaluation, not a pivot
+
+**Status: open, under evaluation. Numbered 2026-10-24.** Both paths are live. Nothing is
+cancelled by this entry.
+
+**Numbering note:** D-### is lead-owned. The 2026-10-14 lead (`claude-9a`) and `codex-01` have
+both ended, and no other agent is active in this repo, so `claude-04` assigned this number as the
+only live agent. Renumber freely if a lead returns and disagrees.
+
+**Why this entry exists.** On 2026-10-14 `cb3a36f` added a SwiftUI app under `app/llm-chat-spike/`
+that talks to the Messages API directly. It was committed **with no decision record and no tracker
+entry**, while `docs/TRACKER.md` still named closing D2-01 — the gateway path — as the current
+focus. For ten days the canonical documents and the code disagreed about what this project was.
+Anyone reading the docs would have worked on the wrong thing. **The operator's framing, 2026-10-24:
+this is an alternative, not a pivot.** This entry records that, so neither path is silently
+abandoned and neither is silently assumed.
+
+**The two paths.**
+
+| | Path A — Mac gateway + Userscripts | Path B — Swift in-app |
+|---|---|---|
+| Shape | Claude → Mac gateway over Funnel → userscript in Safari | Claude ← app → `WKWebView` inside the app |
+| Proven | **Yes, on hardware 2026-10-11** — 17 tool calls, full workflow, no copy/paste | **No live model call has ever been made** |
+| Blocker | **D-029: Split View is mandatory.** iPadOS suspends a backgrounded tab | The web-view stage is unattempted |
+| Infrastructure | Mac must be up, gateway running, Funnel published | None — plain outbound HTTPS |
+| Cost | Free; uses the Claude subscription | **Metered API usage, not covered by the subscription** |
+
+**Why Path B is worth evaluating.** It would dissolve D-029. Split View is mandatory only because
+*Safari* is the thing being suspended; an app hosting its own `WKWebView` is not subject to that,
+and it also removes the Mac, the Funnel and the public endpoint — and with them D-045, D-046's
+exposure surface and the whole rig-liveness problem the run sheet's §1b exists to catch.
+
+**Why it is NOT yet a pivot — the honest status.** Verified by reading `cb3a36f`, 2026-10-24:
+builds on Swift 6.4, 15 tests pass, no dependencies, and the API key is correctly held in memory
+only. But **no live API round trip has ever run** (needs an operator-supplied key; spending is
+operator-reserved under `AGENTS.md` §6), **it has never run on an iPad**, and **it contains no
+`WKWebView` and no tool calling at all.** Its own README says the web-view stage *"is the one that
+can still kill the architecture."* **A spike that has not made one real call cannot retire a path
+proven on hardware.**
+
+**What this decision does and does not do.**
+
+- **Does:** record Path B as a tracked alternative (`G-01`), with the cheap decisive test named.
+- **Does NOT** cancel Path A, close D2-01, or retire the run sheet. Ten-run reliability remains
+  unmeasured and still applies to Path A.
+- **Does NOT** authorize spending. A live round trip needs an operator-supplied key.
+
+**The decisive test, and it is cheap.** Stage 2 of the spike's own plan: a `WKWebView` that logs
+into a real site, **survives an app restart with the session intact**, and runs `src/core.js`
+driven by buttons with no model involved. That single result tells you whether Path B is real.
+**Do not invest further in either path's architecture until it is run.** Session persistence
+across restart is the specific risk — a web view that forgets the login every launch is unusable
+for an agent, and no amount of tool-calling work fixes it.
+
+**What carries over regardless of which path wins.** `src/core.js` is deliberately host-agnostic,
+which is why D-014 accepted the Userscripts single-point-of-failure risk in the first place. The
+classification tiers (D-019, D-042), the approval model (D-021, D-043) and the injection analysis
+(D-041) are **policy, not transport** — they apply to Path B unchanged, and Path B must not be
+treated as a clean slate that escapes them. **Path B has no safety gate today.**
 
 ---
 

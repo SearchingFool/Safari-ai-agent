@@ -10,7 +10,13 @@ const password='a'.repeat(64);
 function fixture(){const root=mkdtempSync(join(tmpdir(),'safari-control-test-'));return {root,close:()=>rmSync(root,{recursive:true,force:true})};}
 test('Website settings accept pasted page URLs, preserve least rights, and persist privately',()=>{
   const f=fixture();try{
-    assert.deepEqual(readSettings(f.root),{autoStart:false,sites:[]});
+    const fresh=readSettings(f.root);
+    assert.deepEqual({autoStart:fresh.autoStart,sites:fresh.sites},{autoStart:false,sites:[]});
+    // D-049/D-050: every mitigation is a toggle, and a fresh install must come
+    // up with auditing ON. A safety default that ships off is a safety default
+    // nobody turns on.
+    assert.equal(fresh.safety.auditLog,true);
+    assert.equal(fresh.safety.actionBudget,0);
     const value=writeSettings({autoStart:true,sites:[{url:'https://example.com/a?q=b',mode:'fill-only'}]},f.root);
     assert.equal(value.sites[0].url,'https://example.com');assert.deepEqual(readSettings(f.root),value);
     assert.equal(lstatSync(join(f.root,'.gateway-control.json')).mode&0o777,0o600);

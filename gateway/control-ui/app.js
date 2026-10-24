@@ -24,7 +24,9 @@ function render(data){
   $('start').disabled=working||data.busy||data.phase!=='stopped';$('stop').disabled=working||data.busy||data.phase!=='running';
   $('mcp').value=data.mcpUrl;$('demo').href=data.demoUrl;$('ipad').href=data.controlUrl;
   $('install').href=data.installUrl;
-  if(!dirty){sites=data.settings.sites.map(s=>({...s}));$('auto').checked=data.settings.autoStart;renderSites();}
+  if(data.safetyMeta)safetyMeta=data.safetyMeta;
+  if(!dirty){sites=data.settings.sites.map(s=>({...s}));$('auto').checked=data.settings.autoStart;
+    safety={...(data.settings.safety||{})};renderSites();renderSafety();}
 }
 async function request(path,data){
   const response=await fetch(path,{cache:'no-store',...(data===undefined?{}:{method:'POST',headers:{'Content-Type':'application/json','X-Safari-CSRF':csrf},body:JSON.stringify(data)})});
@@ -50,6 +52,51 @@ $('add').onsubmit=event=>{
     sites.push({url:url.origin,mode:$('mode').value});dirty=true;renderSites();$('url').value='';message('Website added to the draft. Save settings to apply it.');
   }catch(error){message(error.message);}
 };
-$('save').onclick=()=>act('/api/settings',{autoStart:$('auto').checked,sites});
+// D-049/D-050. Render one switch per mitigation from the server's own list, so
+// a new protection appears here automatically instead of needing UI work. An
+// unbuilt one is shown DISABLED and labelled: a switch that looks live but does
+// nothing is worse than no switch, because the operator believes they are
+// protected.
+let safety={},safetyMeta={};
+function renderSafety(){
+  const box=$('safety');box.textContent='';
+  for(const [key,meta] of Object.entries(safetyMeta)){
+    const row=document.createElement('label');row.className='check';
+    const input=document.createElement('input');
+    const isNumber=typeof meta.value==='number';
+    input.type=isNumber?'number':'checkbox';
+    if(isNumber){input.min='0';input.max='10000';input.value=safety[key];}
+    else input.checked=Boolean(safety[key]);
+    input.disabled=!meta.built;
+    input.onchange=()=>{safety[key]=isNumber?Number(input.value):input.checked;dirty=true;message('Safety setting changed. Save settings to apply it.');};
+    const text=document.createElement('span');
+    text.textContent=' '+meta.label+(meta.built?'':' — not built yet');
+    row.append(input,text);box.append(row);
+  }
+}
+function renderLog(entries){
+  const box=$('log');box.textContent='';
+  if(!entries||!entries.length){box.textContent='No activity recorded yet.';return;}
+  const table=document.createElement('table');
+  const head=document.createElement('tr');
+  for(const h of ['When','Action','What it touched','Approval'])
+    {const th=document.createElement('th');th.textContent=h;head.append(th);}
+  table.append(head);
+  for(const e of entries){
+    const tr=document.createElement('tr');
+    for(const v of [e.when,e.action,e.target,e.approval]){
+      const td=document.createElement('td');
+      td.textContent=v==null?'—':String(v);   // textContent, never innerHTML: these strings come from web pages
+      tr.append(td);
+    }
+    table.append(tr);
+  }
+  box.append(table);
+}
+$('log-refresh').onclick=async()=>{
+  try{renderLog((await request('/api/activity')).entries);}
+  catch(error){message(error.message);}
+};
+$('save').onclick=()=>act('/api/settings',{autoStart:$('auto').checked,sites,safety});
 $('copy-mcp').onclick=async()=>{try{await navigator.clipboard.writeText($('mcp').value);message('Connector URL copied.');}catch{ $('mcp').select();message('Select and copy the highlighted URL.');}};
 void refresh();setInterval(refresh,3000);

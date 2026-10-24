@@ -854,13 +854,13 @@
         if(preview.href && new URL(preview.href).origin!==location.origin)throw new Error('Cross-site link blocked');
         const targetKey=core.approvalKey(a.ref);
         clickAuthorization={id:command.id,key:targetKey,category:preview.category,summary:preview.summary};
-        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,action:'click',approval:'site-permission',category:preview.category};
+        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,action:'click',approval:'site-permission',category:preview.category,target:preview.summary,tier:preview.tier};
         if(verdict.grantable)await loadGrants(true);
         // A standing grant covers only the ROUTINE class the operator granted,
         // on this origin. It is checked AFTER the tier and mode gates, so it can
         // never reach an elevated or blocked control.
         if(verdict.grantable && hasGrant(targetKey,preview.category)){
-          return {success:true,dispatched:true,verified:false,action:'click',approval:'standing-grant',category:preview.category};
+          return {success:true,dispatched:true,verified:false,action:'click',approval:'standing-grant',category:preview.category,target:preview.summary,tier:preview.tier};
         }
         // Name the control, not the opaque ref. The operator is the enforcement
         // layer here, so approving "e37" is the security control failing.
@@ -873,14 +873,14 @@
         if(refusal)throw new Error(refusal);
         if(answer==='always')await addGrant(targetKey,preview.category,preview.summary);
         // Links may cause a page unload. Caller must inspect again to verify.
-        return {success:true,dispatched:true,verified:false,action:'click',approval:answer,category:preview.category};
+        return {success:true,dispatched:true,verified:false,action:'click',approval:answer,category:preview.category,target:preview.summary,tier:preview.tier};
       }
       case 'browser_navigate': {
         const dest = new URL(a.url);
         if(!['http:','https:'].includes(dest.protocol)||dest.origin!==location.origin)throw new Error('Only same-site navigation allowed');
         const verdict=core.decideNavigate(policy);
         if(!['prompt','allow'].includes(verdict.decision))throw new Error(`Refused: ${verdict.reason}`);
-        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,url:dest.href,approval:'site-permission'};
+        if(verdict.decision==='allow')return {success:true,dispatched:true,verified:false,url:dest.href,approval:'site-permission',action:'navigate',target:dest.href,tier:'routine'};
         const answer=await requestApproval({
           verb:'navigate to', target:dest.href, tier:'routine', category:NAV_CLASS,actionType:'Navigation',
           reasons:['same-origin navigation, reversible with the back button'],

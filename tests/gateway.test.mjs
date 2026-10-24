@@ -2,6 +2,7 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {createGateway} from '../gateway/server.mjs';
+import {createDiagnostics} from '../gateway/diagnostics.mjs';
 const mcpToken = 'M'.repeat(48), deviceToken = 'D'.repeat(48), demoPassword='P'.repeat(48), origin = 'https://example.org';
 // D-020: an unlisted origin is read-only, so a test that exercises fill, click
 // or navigate must say so explicitly. Most existing tests drive an acting tool,
@@ -30,6 +31,31 @@ test('Updated userscript installation requires the distinct demo login and never
   assert.equal(response.status,200);const script=await response.text();assert.match(script,/==UserScript==/);
   assert.doesNotMatch(script,new RegExp(mcpToken));assert.doesNotMatch(script,new RegExp(deviceToken));
 }));
+test('The log records WHAT was done and whether the operator approved it (D-049)',async()=>{
+  // Before D-049 the log could say a click happened and succeeded, but not WHAT
+  // was clicked or whether consent was given -- the one thing a consent-based
+  // system must record. Capture real log lines rather than asserting a shape.
+  const written=[];
+  await testGateway(async({rpc,device})=>{
+    await device('poll',{origin});            // establish the tab session first
+    const call=rpc('tools/call',{name:'browser_click',arguments:{ref:'e1'}},9);
+    await new Promise(r=>setTimeout(r,30));
+    const claimed=await payload(await device('poll',{origin}));
+    assert.ok(claimed.command,'a command should have been queued');
+    await device('result',{id:claimed.command.id,origin,result:{
+      success:true,dispatched:true,action:'click',approval:'once',
+      category:'data-change',tier:'elevated',target:'"Subscribe" (submits a form)'}});
+    await call.catch(()=>{});
+  },{diagnostics:createDiagnostics({enabled:true,clientTokenLength:48,deviceTokenLength:48,
+      allowedOrigins:[origin],append:line=>written.push(JSON.parse(line))})});
+
+  const audited=written.find(e=>e.auditApproval);
+  assert.ok(audited,'an audited entry must be written');
+  assert.equal(audited.auditAction,'click');
+  assert.equal(audited.auditApproval,'once');          // the operator answered, just now
+  assert.equal(audited.auditTier,'elevated');
+  assert.match(audited.auditTarget,/Subscribe/);       // names the control, not "e1"
+});
 test('Help page is reachable without any credential and leaks none (D-048)',()=>testGateway(async({base})=>{
   // Unauthenticated ON PURPOSE: the instructions are needed before the demo
   // password has been transferred to the device being set up.

@@ -323,8 +323,18 @@ export function createDiagnostics(cfg) {
       // Without it a session handover (D-033) is invisible in the log: every
       // poll looks alike, so there is no way to tell which tab was serving at
       // any moment, or how long a transfer actually took.
+      // D-049 AUDIT FIELDS. Until now this was a DIAGNOSTICS log: it could say a
+      // browser_click happened and succeeded, but not WHAT was clicked or
+      // whether the operator approved it. For a system whose safety rests on
+      // informed consent, the consent was the one thing not recorded.
+      //
+      // The device already computes all of this before acting; it was simply
+      // discarded on arrival. `auditTarget` is the human summary the operator
+      // was actually shown, so the log and the prompt agree by construction.
       const extra = {rpcMethod: null, toolName: null, deviceOrigin: null,
-                     deviceInstance: null, deviceVisibility: null, isError: false, toolError: null};
+                     deviceInstance: null, deviceVisibility: null, isError: false, toolError: null,
+                     auditAction: null, auditTarget: null, auditTier: null,
+                     auditCategory: null, auditApproval: null};
       if (!enabled) return extra;
       const started = Date.now();
       const auth = req.headers.authorization;
@@ -346,6 +356,14 @@ export function createDiagnostics(cfg) {
           deviceOrigin: extra.deviceOrigin,
           deviceInstance: extra.deviceInstance,
           deviceVisibility: extra.deviceVisibility,
+          // D-049 audit fields. This object ENUMERATES what is persisted, so a
+          // field added to `extra` and not listed here is silently dropped --
+          // which is exactly what happened on the first attempt.
+          auditAction: extra.auditAction,
+          auditTarget: extra.auditTarget,
+          auditTier: extra.auditTier,
+          auditCategory: extra.auditCategory,
+          auditApproval: extra.auditApproval,
           allowedOrigins: cfg.allowedOrigins || [],
           toolName: extra.toolName,
           isError: extra.isError,

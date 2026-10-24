@@ -2,7 +2,7 @@
 import {createServer} from 'node:http';
 import {connect} from 'node:net';
 import {randomBytes,timingSafeEqual} from 'node:crypto';
-import {readFileSync,writeFileSync,renameSync,lstatSync,chmodSync,mkdirSync,appendFileSync} from 'node:fs';
+import {readFileSync,writeFileSync,renameSync,lstatSync,chmodSync,mkdirSync,appendFileSync,statSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawn,execFile} from 'node:child_process';
@@ -24,6 +24,58 @@ export function controlPassword(root=ROOT){
   if(!match)throw Error('Invalid .env.gateway-control; expected CONTROL_PASSWORD and 64 hex characters');
   return match[1];
 }
+// D-049/D-050. Every safety mitigation is a TOGGLE the operator can try and
+// change, rather than a constant compiled into the build. Two reasons: a
+// control nobody can turn off gets worked around instead of tuned, and we do
+// not yet know the false-positive rate of several of these on real sites.
+//
+// `built: false` entries are DECLARED BUT INERT. They are here so the shape is
+// settled and the UI can show what is coming, and they are validated and
+// persisted like any other — they simply have no effect yet. The panel must
+// label them so nobody believes a protection is active when it is not.
+export const SAFETY_DEFAULTS = Object.freeze({
+  auditLog:        {value: true,  built: true,  label: 'Record what the agent did and what you approved'},
+  auditRotateMb:   {value: 25,    built: true,  label: 'Start a new log file after this many MB'},
+  reconsentOnEscalation:
+                   {value: false, built: false, label: 'Ask again before acting on a trusted site if an unlisted site was read first'},
+  actionBudget:    {value: 0,     built: false, label: 'Stop and ask after this many actions in a session (0 = no limit)'},
+  amountInPrompt:  {value: false, built: false, label: 'Show any price or amount found near a control in the approval prompt'},
+  funnelAwareness: {value: false, built: false, label: 'Notice multi-step checkout flows, not just the final payment button'}
+});
+
+// D-049. Append with size-based rotation, one generation. Logging must never
+// break a request, so a failed stat or rename still falls through to the append.
+export function auditAppender(path,rotateMb){
+  const limit=Math.max(1,Number(rotateMb)||25)*1024*1024;
+  return line=>{
+    try{ if(statSync(path).size>=limit)renameSync(path,path+'.1'); }
+    catch{ /* missing file is the normal first-write case */ }
+    appendFileSync(path,line,{mode:0o600});
+  };
+}
+
+// Shape the UI renders its switches from, so adding a mitigation needs no UI change.
+export const SAFETY_META=Object.freeze(Object.fromEntries(
+  Object.entries(SAFETY_DEFAULTS).map(([k,v])=>[k,{label:v.label,built:v.built,value:v.value}])));
+
+export function normalizeSafety(raw){
+  const out={};
+  for(const [key,spec] of Object.entries(SAFETY_DEFAULTS)){
+    const given=raw && Object.prototype.hasOwnProperty.call(raw,key) ? raw[key] : undefined;
+    if(given===undefined){out[key]=spec.value;continue;}
+    if(typeof spec.value==='boolean'){
+      if(typeof given!=='boolean')throw Error(`Safety setting ${key} must be true or false`);
+      out[key]=given;
+    }else{
+      // A hostile or fat-fingered number must never disable a protection by
+      // being huge, nor thrash the disk by being tiny.
+      if(!Number.isInteger(given)||given<0||given>10000)throw Error(`Safety setting ${key} must be a whole number between 0 and 10000`);
+      out[key]=given;
+    }
+  }
+  return out;
+}
+
 export function normalizeSites(raw){
   if(!raw||typeof raw!=='object'||Array.isArray(raw)||typeof raw.autoStart!=='boolean'||!Array.isArray(raw.sites)||raw.sites.length>100)throw Error('Invalid settings');
   const sites=[],seen=new Set();
@@ -34,10 +86,10 @@ export function normalizeSites(raw){
     if(seen.has(url.origin))throw Error('This website is already in the list');
     seen.add(url.origin);sites.push({url:url.origin,mode:entry.mode});
   }
-  return {autoStart:raw.autoStart,sites};
+  return {autoStart:raw.autoStart,sites,safety:normalizeSafety(raw.safety)};
 }
 export function readSettings(root=ROOT){
-  return normalizeSites(JSON.parse(privateFile(join(root,'.gateway-control.json'),()=>JSON.stringify({autoStart:false,sites:[]})+'\n')));
+  return normalizeSites(JSON.parse(privateFile(join(root,'.gateway-control.json'),()=>JSON.stringify({autoStart:false,sites:[],safety:normalizeSafety(null)})+'\n')));
 }
 export function writeSettings(value,root=ROOT){
   const normalized=normalizeSites(value),path=join(root,'.gateway-control.json');
@@ -119,8 +171,13 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
       mkdirSync(join(root,'logs'),{recursive:true});
       gateway=makeGateway({clientToken:credentials.MCP_CLIENT_TOKEN,deviceToken:credentials.DEVICE_TOKEN,
         demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,defaultSiteMode:'ask',routineActions:true,
-        diagnostics:createDiagnostics({enabled:true,clientTokenLength:64,deviceTokenLength:64,allowedOrigins:allowed,
-          append:line=>appendFileSync(join(root,'logs/gateway-diagnostics.jsonl'),line,{mode:0o600})})});
+        // D-049. Operator-chosen, not env-only: the panel is where these live.
+        logRotateMb:config.safety.auditRotateMb, auditLog:config.safety.auditLog,
+        // D-049. The panel builds its own logger, so the operator's toggles must
+        // be honoured HERE -- wiring them only into the standalone gateway would
+        // leave the UI switches doing nothing for the route most people use.
+        diagnostics:createDiagnostics({enabled:config.safety.auditLog,clientTokenLength:64,deviceTokenLength:64,allowedOrigins:allowed,
+          append:auditAppender(join(root,'logs/gateway-diagnostics.jsonl'),config.safety.auditRotateMb)})});
       await listen(gateway.server,port);
       const log=join(root,'logs/gateway-control.log');
       funnel=spawnProcess(ts,['funnel','--https=443',String(port)],{env:tsEnv,stdio:['ignore','pipe','pipe']});
@@ -164,7 +221,31 @@ export function createControl({password,manager,origins,uiRoot=join(ROOT,'gatewa
     }
     try{
       const path=new URL(req.url,'http://localhost').pathname;
-      if(req.method==='GET'&&path==='/api/status')return json(res,200,{...await manager.status(),csrf});
+      if(req.method==='GET'&&path==='/api/status')return json(res,200,{...await manager.status(),csrf,safetyMeta:SAFETY_META});
+      // D-049. A basic viewer. Deliberately NOT a log browser: it reads the
+      // tail, shows only the audited action fields, and points at the real file
+      // for anything more. Building a full viewer here would duplicate
+      // `npm run diagnose`, which is already better at it.
+      if(req.method==='GET'&&path==='/api/activity'){
+        let entries=[];
+        try{
+          const file=join(root,'logs/gateway-diagnostics.jsonl');
+          // Read the tail only: this file is capped at tens of MB and the panel
+          // must not pull all of it into memory to show twenty rows.
+          const raw=readFileSync(file,'utf8');
+          const lines=raw.split('\n').filter(Boolean).slice(-400);
+          for(const line of lines){
+            let e;try{e=JSON.parse(line);}catch{continue;}
+            if(!e.auditAction&&!e.toolName)continue;
+            if(e.path==='/device/poll')continue;            // one a second; never interesting
+            entries.push({when:e.ts,action:e.auditAction||e.toolName,
+                          target:e.auditTarget||e.deviceOrigin||null,
+                          approval:e.auditApproval||null,tier:e.auditTier||null});
+          }
+          entries=entries.slice(-25).reverse();
+        }catch{ /* no log yet, or auditing is off */ }
+        return json(res,200,{entries});
+      }
       if(req.method==='POST'&&['/api/start','/api/stop','/api/settings'].includes(path)){
         if(!allowed.has(req.headers.origin)||new URL(req.headers.origin).host!==req.headers.host||!same(req.headers['x-safari-csrf'],csrf))return json(res,403,{error:'Control-panel origin and confirmation token required'});
         if(req.headers['content-type']!=='application/json')return json(res,415,{error:'Expected JSON'});

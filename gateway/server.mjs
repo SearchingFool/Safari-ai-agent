@@ -8,7 +8,7 @@
  */
 import {createServer} from 'node:http';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
-import {appendFileSync, mkdirSync,readFileSync} from 'node:fs';
+import {appendFileSync, mkdirSync,readFileSync,statSync,renameSync} from 'node:fs';
 import {dirname} from 'node:path';
 import {serveDemo,serveHelp} from './demo-pages.mjs';
 import {createDiagnostics} from './diagnostics.mjs';
@@ -169,7 +169,7 @@ function validate(args,tool,allowed){
   if(tool==='browser_verify' && !args.textIncludes && !args.urlIncludes)return 'Specify textIncludes or urlIncludes';
   return null;
 }
-export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,defaultSiteMode='read-only',routineActions=false,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics}={}) {
+export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigins,sitePolicy,fieldValueOrigins,readAnyOrigin=false,defaultSiteMode='read-only',routineActions=false,standingGrants=true,commandTimeoutMs=25000,deviceFreshMs=45000,clock=()=>Date.now(),diagnostics,auditLog=true,logRotateMb=25}={}) {
   if(!clientToken||!deviceToken||clientToken===deviceToken||clientToken.length<24||deviceToken.length<24)throw Error('Two distinct random tokens of at least 24 characters required');
   const allowed=new Set(allowedOrigins||[]);
   if(allowed.size===0||[...allowed].some(x=>{try{return new URL(x).origin!==x||!/^https?:/.test(x)}catch{return true}}))throw Error('Provide exact HTTP(S) allowed origins');
@@ -529,6 +529,21 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           // to, so a sibling tab cannot answer for work it did not perform.
           if(b.instanceId!==p.instanceId)return fail(res,403,'Instance mismatch');
           const response=b.result;
+          // D-049. Record WHAT was done and WHETHER the operator agreed, from
+          // the fields the device already sends. Truncated hard: a control
+          // summary is page-derived text and must not become a way to write
+          // arbitrary content into the operator's log file.
+          if(response&&typeof response==='object'&&!Array.isArray(response)){
+            const str=(v,n)=>typeof v==='string'?v.slice(0,n):null;
+            trace.auditAction=str(response.action,32);
+            trace.auditTarget=str(response.target||response.summary,200);
+            trace.auditTier=str(response.tier,16);
+            trace.auditCategory=str(response.category,48);
+            // 'site-permission' = allowed by the site's mode without asking.
+            // 'standing-grant'  = covered by a saved Always-allow.
+            // 'once' / 'always' = the operator answered the prompt just now.
+            trace.auditApproval=str(response.approval,24);
+          }
           if(!response||typeof response!=='object'||Array.isArray(response)||JSON.stringify(response).length>50000)return fail(res,400,'Invalid result');
           if(response.requiresApproval && !response.approved)return fail(res,400,'Approval not granted');
           p.resolve(response.success===false?toolError(response.error||'Browser action failed'):toolOK(response));dispose(p.id);
@@ -554,7 +569,22 @@ if(process.argv[1]&&process.argv[1].endsWith('/gateway/server.mjs')){
   if(diagEnabled){
     try{
       mkdirSync(dirname(logFile),{recursive:true});
-      appendLine=line=>appendFileSync(logFile,line,{mode:0o600});
+      // D-049. Rotate by size. Before this the file grew without bound -- it
+      // had reached 58 MB on the author's machine by 2026-10-24 -- which makes
+      // the log progressively less usable at exactly the moment you need it,
+      // and quietly consumes a disk nobody is watching.
+      //
+      // One generation only (.1). This is an operator's own machine, not a
+      // fleet: keeping ten generations of a log nobody reads is hoarding, and
+      // the previous file is enough to span a rotation boundary mid-incident.
+      const rotateBytes=Math.max(1,Number(process.env.SAFARI_LOG_ROTATE_MB||25))*1024*1024;  // standalone/CLI default; the panel overrides per-start
+      appendLine=line=>{
+        try{
+          if(statSync(logFile).size>=rotateBytes)renameSync(logFile,logFile+'.1');
+        }catch{/* missing file is the normal first-write case */}
+        // Logging must never break a request: a failed rotation still appends.
+        appendFileSync(logFile,line,{mode:0o600});
+      };
     }catch(e){
       console.warn(`Diagnostics file disabled (${e.message}); console output only.`);
     }

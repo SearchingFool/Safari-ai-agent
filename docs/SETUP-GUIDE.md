@@ -40,7 +40,7 @@ Your Mac must stay **awake and online** the whole time. The iPad Safari tab must
 |---|---|
 | A Mac | macOS 12 or later, awake and online |
 | An iPad | iPadOS 15.1 or later |
-| Tailscale | installed and signed in on **both**, same account |
+| Tailscale | **Required on the Mac** — it provides the public HTTPS address Claude needs. **Optional on the iPad**: signing in on both is recommended (a private path between your devices) but the iPad works without it, because it reaches the Mac over the same public address |
 | A Claude account | one that supports custom connectors |
 | Node.js 20+ | on the Mac only |
 | About 30 minutes | first time through |

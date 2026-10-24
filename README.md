@@ -91,10 +91,53 @@ flowchart LR
 **Full detail, with every hop and what authenticates it:**
 [Architecture and data flow](docs/ARCHITECTURE-DATAFLOW.md).
 
+## What is required, what is optional, and what Tailscale gives you
+
+**There is exactly one hard networking requirement: a public HTTPS address for your Mac.**
+Everything else is a choice.
+
+| | Required? | Why |
+|---|---|---|
+| **A public address with a trusted TLS certificate** | **Yes** | The model runs on **Anthropic's servers**. They must be able to reach your Mac. There is no way around this while the model is remote. |
+| **A private network (VPN) between your own devices** | **No — optional** | Your iPad reaches the gateway over the *same public address*. The **device token** is what authenticates it, not the network. |
+| **Tailscale specifically** | **No** | It is one way to get the above. See below. |
+
+### Why the VPN is optional, stated plainly
+
+Because the gateway is published publicly, **the device token works from anywhere.** Taking a
+device off your private network does **not** revoke its access — only
+[rotating the token](docs/SETUP-GUIDE.md) does. This is important when passing a device on; see
+[device lifecycle](docs/DEVICE-LIFECYCLE.md).
+
+A VPN is still worth having as a second layer, and there is **one place it genuinely belongs**:
+the **Start/Stop control panel** is used only by your own devices — Anthropic never touches it —
+so it does not need to be public at all.
+
+### What Tailscale is actually doing
+
+Two separate jobs that happen to arrive in one app:
+
+| Tailscale feature | What it gives you | Could something else do it? |
+|---|---|---|
+| **Funnel** | A **public** HTTPS address with a real, trusted certificate — no domain to buy, no router to configure, no certificate to renew, no hosting bill | Yes: Cloudflare Tunnel, ngrok, or port-forwarding with your own domain and Let's Encrypt |
+| **The tailnet** | A private path between your Mac, iPad and phone | Yes: WireGuard, OpenVPN, ZeroTier — or just the same Wi-Fi |
+
+**A VPN alone is not a substitute.** Swap Tailscale for plain WireGuard and your iPad still works,
+but **Claude stops entirely** — there is no longer a public address for Anthropic to call. Public
+ingress and a VPN are different capabilities; Tailscale just happens to do both.
+
+**Nothing in the permission model depends on Tailscale.** The gateway and the browser bridge
+contain no reference to it. It carries the bytes; it has no say in what the agent may do.
+
+> **Want no public address at all?** That is the one thing a different VPN cannot give you, and it
+> is the reason the [Swift in-app path](docs/DECISIONS.md) is being evaluated: an app talking to
+> Anthropic directly from the iPad needs no gateway, no tunnel and nothing exposed. See
+> [D-047](docs/DECISIONS.md).
+
 ## Installing it — start here if you are new
 
 **You need:** a **Mac** (macOS 12+, awake and online) · an **iPad** (iPadOS 15.1+) ·
-**[Tailscale](https://tailscale.com)** installed and signed into the **same account on both** ·
+**[Tailscale](https://tailscale.com)** on the **Mac** (see below — on the iPad it is optional) ·
 a **Claude account** that supports custom connectors · **Node.js 20+** on the Mac ·
 about **30 minutes**.
 

@@ -7,6 +7,22 @@ description: Check whether the Safari AI Agent gateway is running, start it on r
 
 Two questions: **is it up?** and **what do I press?**
 
+## 0. Find the repo first — do not assume the working directory
+
+This skill is used from **Claude Code** and from the **Claude desktop app**, which may start
+anywhere. Every command below runs from the repository root, so establish it first:
+
+```sh
+git rev-parse --show-toplevel 2>/dev/null || ls -d ~/LocalProjects/*/Safari-ai-agent 2>/dev/null
+```
+
+If neither resolves, **ask the operator where the repo is rather than guessing** — a wrong
+directory produces "file not found", which reads like a broken gateway and is not.
+
+**On the iPad there is no repo and no shell.** None of the commands here can run. From an iPad,
+this skill can only explain; to actually check or start the gateway, open the controls URL in
+Safari. Say so plainly rather than appearing to run a check that did not happen.
+
 ## 1. Run the doctor first, always
 
 ```sh

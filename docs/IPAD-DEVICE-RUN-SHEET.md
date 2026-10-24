@@ -207,7 +207,7 @@ do not retry until it passes and do not reclassify it.
 | `ELEVATED` | the fail-closed default — form submits, follow/like/subscribe, state toggles, unnamed buttons, anything not provably inert | **Always prompts.** Never auto-runs, never offers "Always allow" |
 | `ROUTINE` | provably inert — same-origin links, disclosures, tabs, pagination | Auto-runs **only** under full permission; the **only** tier that may be saved |
 
-Site modes: **Read only** · **Fill and navigate** · **Ask every time** · **Full permission (trusted)**.
+Site modes: **Read only** · **Fill only** (navigation still asks) · **Ask every time** · **Full permission (trusted)**.
 
 ### A2-1 — Ask every time: denial
 

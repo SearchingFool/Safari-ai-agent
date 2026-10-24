@@ -106,7 +106,7 @@ automatically.</b></p>
 <table>
 <tr><th>Mode</th><th>What the agent may do</th></tr>
 <tr><td>Read only</td><td>Look at the page. No actions at all. <b>Start here on a real site.</b></td></tr>
-<tr><td>Fill and navigate</td><td>Type into fields and follow links. No clicking buttons.</td></tr>
+<tr><td>Fill only</td><td>Type into fields without asking. <b>Navigation still asks every time.</b> Buttons cannot be clicked.</td></tr>
 <tr><td>Ask every time</td><td>Everything, but you confirm each action individually.</td></tr>
 <tr><td>Full permission</td><td>Routine actions run automatically. Form submissions still ask, and
 payment, account-deletion and credential controls are refused on every site including this one.</td></tr>

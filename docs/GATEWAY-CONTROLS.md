@@ -24,7 +24,7 @@ Enter a webpage URL or hostname under **Websites**, choose a permission, click *
 |---|---|
 | Ask every time (default) | Read freely; each fill, click and same-site navigation asks in Safari; no standing grants or existing field-value disclosure |
 | Read only | Inspect and verify; no fills, commanded navigation or clicks |
-| Fill and navigate — no clicks | Fill ordinary fields without asking; navigation asks each time; no clicks, including search buttons |
+| Fill only — navigation asks, clicks blocked | Fill ordinary fields without asking; navigation asks each time; no clicks, including search buttons |
 | Full permission | Fill ordinary fields, navigate within the site and use recognised links, disclosures, tabs, menus and tour steps automatically; submissions, data changes and unclear actions ask |
 
 Unlisted websites default to **Ask every time**. Set an explicit **Read only** entry to block actions without prompting. Removing an entry restores the ask default. A settings save automatically restarts a panel-owned gateway, cancels pending work and refreshes policy; saved button approvals remain in isolated Userscripts storage. Reconnect Safari afterward. After a code update, restart the controller login service to load the new gateway implementation before testing. An old script does not recognise ask and safely refuses actions until updated.

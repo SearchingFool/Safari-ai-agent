@@ -254,7 +254,7 @@ automatically** — as of 2026-10-24 even the demo origin defaults to *ask*.
 | Mode | What the agent may do |
 |---|---|
 | **Read only** | Look at the page. No actions. **Start here on any real site.** |
-| **Fill and navigate** | Type into fields, follow links. No button clicks. |
+| **Fill only** | Fields are typed without asking. **Navigation still asks every time.** Buttons cannot be clicked. |
 | **Ask every time** | Everything, but you confirm each action individually. |
 | **Full permission** | Routine actions run automatically. Submissions still ask; payment, account-deletion and credential controls are refused everywhere, including here. |
 

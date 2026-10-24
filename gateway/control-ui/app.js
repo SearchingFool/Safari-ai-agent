@@ -1,7 +1,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 let csrf='',sites=[],dirty=false,working=false;
-const modes={ask:'Ask every time','read-only':'Read only','fill-only':'Fill and navigate; no clicks',trusted:'Full permission — routine actions automatic'};
+const modes={ask:'Ask every time','read-only':'Read only','fill-only':'Fill only; navigation asks; clicks blocked',trusted:'Full permission — routine actions automatic'};
 function message(text){$('message').textContent=text;}
 function renderSites(){
   $('sites').replaceChildren();

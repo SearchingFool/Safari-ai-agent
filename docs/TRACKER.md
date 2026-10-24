@@ -103,7 +103,44 @@ unauthenticated by design, no credential values, pinned by test. **Userscript 0.
 show none of it.** Gate: 83/83. `gateway/demo-pages.mjs` added to the syntax gate, which had never
 covered it.
 
-**Current focus (Path A):** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
+## 2026-10-25 — Audit logging, safety toggles, docs for newcomers, and D-006 resolved empirically
+
+**Shipped (all gated at 84/84 Node, five browser suites unchanged):**
+
+- **D-048** stale-tab warnings + gateway-served instructions at `/help`. Found in live setup: a tab
+  left open across a credential rotation polled with the old token once a second and reported it
+  only in its own panel — the tab nobody was looking at. Three signals added; `/help` is
+  unauthenticated by design and carries no credentials, pinned by test. **Userscript 0.2.5.**
+- **D-049** the log recorded everything except the **consent**. It could say a click happened and
+  succeeded but not what was clicked or whether the operator approved it. Now records action,
+  target, tier, category and approval. Rotation added — the file had reached **58 MB unbounded**.
+- **D-050** every mitigation is a **toggle** in the control panel; four are declared, inert and
+  labelled "not built yet" (`reconsentOnEscalation`, `actionBudget`, `amountInPrompt`,
+  `funnelAwareness`). Records why the naive re-consent design is wrong.
+- **UI** `fill-only` renamed. "Fill and navigate — no clicks" promised navigation would be silent;
+  it prompts every time. Found by the operator hitting exactly that on github.com.
+- **Docs** three labelled procedures (install / first website / update), a first-website
+  walkthrough on **neutral public sites**, Part 5 updating (there was no upgrade documentation at
+  all), an architecture + data-flow doc drawn from observed traffic, and Part 4 reframing the
+  controls as safety tools.
+- **Disclosure sweep** removed the operator's hosting provider, home paths (29 across 16 files),
+  device addresses, hostnames and network prefixes. **HEAD only — not history.**
+
+**D-006 RESOLVED for Claude, empirically.** A Claude subscription does **not** fund direct
+Messages API calls. Same OAuth token: `/v1/models` → 200, `/v1/messages` → 400 "credit balance too
+low", twice. **Auth works; inference is unfunded.** The rule: the subscription pays when *their*
+app calls *your* server; *your* code calling *their* model is metered. See D-006, D-047 addendum.
+
+**Corrections made to this tracker and others during the session** — recorded because each was
+believed and wrong: the iPad/tailnet claim was inverted (it *is* a member); `DEVICE-LIFECYCLE`'s
+decommissioning conclusion was right for the wrong reason and survives; the setup guide's repo
+path had been "corrected" into one that breaks for every newcomer; and the README stated 0.2.5
+was required for full permission when 0.2.4 is.
+
+**Not done, and not started:** the `WKWebView` session-persistence test — still the only thing
+that can kill the Swift path, still free, still unrun.
+
+****Current focus (Path A):** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
 
 **Remaining for D2-01:** **Stop while a command is queued** (unblocked — it was impossible while D-036 left the Stop control covered), same-origin recovery, **ten-run reliability**, and an **independent security review**.
 

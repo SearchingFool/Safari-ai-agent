@@ -9,7 +9,7 @@ Updated: 2026-10-24. Last updated by Libor Ballaty <liborballaty@gmail.com>, wit
 | D-003 | Agreed | Do not require an on-iPad model or a dedicated native browser | Model hosted by eligible provider/other approved runtime |
 | D-004 | Agreed | Keep browser engine/model interface provider-agnostic | Common versioned browser capability contract |
 | D-005 | Proposed, needs technical validation | Expose browser tools through MCP where supported | First validate a real iPad client using existing subscriptions; gateway may be required |
-| D-006 | Preference, not verified | Reuse ChatGPT/Claude/Gemini subscriptions without extra API charges | Must verify each integration and billing; installed apps alone are insufficient |
+| D-006 | **RESOLVED for Claude 2026-10-25 — a subscription does NOT fund direct API calls** | Reuse ChatGPT/Claude/Gemini subscriptions without extra API charges | **Tested empirically, not inferred.** With a valid OAuth token from `ant auth login` (scopes `user:developer user:inference user:profile`): `GET /v1/models` returned **200**, and `POST /v1/messages` returned **400 "Your credit balance is too low"** — twice, with the **same token**, seconds apart. Auth succeeds; inference is refused for want of API credit. The subscription authenticates you to the API but carries no inference entitlement. **The general rule this establishes: the subscription pays when THEIR app is the client calling your server; your code calling their model is metered.** That is why the existing connector path (B1-02) is free and why any design where our own code holds the conversation is not. ChatGPT and Gemini remain unverified. |
 | D-007 | Agreed | Mac-hosted controller is optional, not mandatory | Remote or supported direct integration preferred |
 | D-008 | Agreed | Full configurable governance harness follows, not included in, initial MVP | Basic secure execution boundaries still required before remote AI actions |
 | D-009 | **Closed 2026-10-11** | Which client/provider is the first supported end-to-end tool caller? | **Claude, via a custom remote MCP connector with a static `Authorization: Bearer` header.** Verified live: full `initialize` / `tools/list` / `tools/call` handshake and a complete multi-page browser workflow. Remaining providers are optional adapters (F-01). |
@@ -540,6 +540,72 @@ thing not shown.
 `€`, `$`, `1.234,56` — so unlike keyword matching it works on a German or Japanese page without a
 word list. It changes no permission and blocks nothing; it only makes the prompt honest. The
 operator is the enforcement layer, so **the quality of what they are shown is the control.**
+
+---
+
+### D-047 addendum — the Swift path was framed wrongly; as a BROWSER HOST it keeps the subscription
+
+**Added 2026-10-25 after D-006 was resolved empirically.**
+
+D-047 describes Path B as a Swift app that **holds the model conversation**. D-006's result makes
+that version metered: our code calling the model is an API customer, whatever the auth method.
+
+**The operator's reframe, which is better:** the user is querying their own Claude app regardless,
+so the subscription pays regardless. The Swift app should be a **browser host** — replacing Safari
++ Userscripts, not replacing the Claude app or the gateway:
+
+> Claude app (subscription) → Anthropic → Mac gateway → the Swift app's `WKWebView`
+
+| | Subscription | Kills the Userscripts dependency (D-014) | Fixes Split View | Removes the Mac |
+|---|---|---|---|---|
+| Today | ✅ | ❌ | ❌ | ❌ |
+| **Swift as browser host** | **✅** | **✅** | ❌ | ❌ |
+| Swift holds the conversation | ❌ metered | ✅ | ✅ | ✅ |
+
+**What the reframe buys:** it retires **D-014**, this project's recorded single point of failure —
+Userscripts is App Store-only, effectively one maintainer, in beta since 2026-01. A native web
+view removes it, and `src/core.js` is already host-agnostic by design, which is exactly why D-014
+was an acceptable risk.
+
+**What it does NOT buy, and D-047 overstates:** Split View is **not** fixed. iOS suspends a
+backgrounded *app* as readily as a backgrounded *tab*, so the Claude app and the host app still
+both need to be on screen. The only gain is that "Safari foreground, wrong tab" disappears. The
+Mac also stays, because Anthropic must reach a public endpoint and an iPad cannot host one.
+
+**Unchanged:** the decisive test is still the `WKWebView` one — does a logged-in session survive
+an app restart? It costs nothing, needs no credits and no token, and can still kill the path.
+**Do it before spending anything.**
+
+---
+
+### D-051 — a second provider PoC exists, is uncommitted-no-longer, and is untested
+
+**Status: recorded 2026-10-25. Not endorsed, not scheduled.**
+
+Another agent built `poc-chatgpt/` — an OAuth PKCE spike, a `/v1/responses` streaming spike, a
+standalone DOM engine and a Safari MV3 extension scaffold. It was **untracked** and one `git clean`
+from being lost; committed as-is in `9c4d5b1` with its caveats attached.
+
+**Its central claim is untested.** Its own tracker puts Gate 1 at *"Ready for User Auth"* — the
+interactive login has never been run — so whether scope `chatgpt.tokens.use.direct` lets a
+ChatGPT subscription fund direct calls is **unknown**. Given D-006's result for Claude, assume
+nothing by analogy.
+
+**Two caveats recorded with it, neither fixed:**
+
+1. `spike/oauth_login.mjs` hardcodes `CLIENT_ID app_EMoamEEZ73f0CkXaXp7hrann`, **not a client this
+   project registered.** Minting subscription-backed tokens through another party's first-party
+   OAuth client is what this repo declined to do with Anthropic's `ant` client, and it breaks
+   whenever that client is rotated or restricted.
+2. `REDIRECT_PORT` is **8787 — the gateway's port.** It collides with a running gateway, and the
+   redirect URI must match whatever that client actually registered.
+
+**The sanctioned ChatGPT path is the same shape as the working Claude one:** add the existing
+gateway as a **custom MCP connector** in ChatGPT, so their app is the client and the subscription
+pays. That reuses everything already built and hardened, needs no new code and no credits, and
+directly serves D-004 (provider independence). **Untested at handoff** — the open question is
+whether ChatGPT offers a static-header auth option or requires OAuth, which the gateway does not
+implement.
 
 ---
 

@@ -1,0 +1,56 @@
+plan:
+  title: "Proof of Concept: Sign in with ChatGPT + Responses API Browser Agent for Safari"
+  goal_validation:
+    - "OAuth PKCE flow successfully exchanges code for bearer token with scope chatgpt.tokens.use.direct"
+    - "Streaming call to https://api.openai.com/v1/responses with DOM tool definitions succeeds on user's ChatGPT Plus/Pro plan"
+    - "Multi-turn agent loop successfully receives tool calls, executes DOM actions on test page, and completes task"
+    - "Safari Web Extension Manifest V3 scaffold is authored and ready for macOS/iOS Safari testing"
+  steps:
+    - id: scaffold-poc-workspace
+      description: "Create directory structure for the ChatGPT Path C PoC inside Safari-ai-agent"
+      command: "mkdir -p /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/{spike,engine,web-extension,tests}"
+      validation: "test -d /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/spike"
+      depends_on: []
+      fatal_on_failure: true
+
+    - id: author-pkce-oauth-spike
+      description: "Author standalone Node.js PKCE OAuth script for Sign in with ChatGPT"
+      command: "node -e 'console.log(\"Authoring OAuth PKCE spike in poc-chatgpt/spike/oauth_login.mjs\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/spike/oauth_login.mjs"
+      depends_on: [scaffold-poc-workspace]
+      fatal_on_failure: true
+
+    - id: author-responses-api-spike
+      description: "Author streaming Responses API client testing tool calls and token sharing"
+      command: "node -e 'console.log(\"Authoring Responses API streaming client in poc-chatgpt/spike/responses_stream_test.mjs\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/spike/responses_stream_test.mjs"
+      depends_on: [author-pkce-oauth-spike]
+      fatal_on_failure: true
+
+    - id: adapt-dom-engine-for-chatgpt
+      description: "Adapt DOM extraction and action executor from Safari-ai-agent core into standalone modules"
+      command: "node -e 'console.log(\"Adapting DOM engine in poc-chatgpt/engine/dom_bridge.mjs and dom_content.js\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/engine/dom_content.js"
+      depends_on: [scaffold-poc-workspace]
+      fatal_on_failure: true
+
+    - id: author-agent-loop-runner
+      description: "Author multi-turn agent loop coordinator connecting Responses API with the DOM engine"
+      command: "node -e 'console.log(\"Authoring agent loop runner in poc-chatgpt/spike/run_agent_loop.mjs\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/spike/run_agent_loop.mjs"
+      depends_on: [author-responses-api-spike, adapt-dom-engine-for-chatgpt]
+      fatal_on_failure: true
+
+    - id: scaffold-safari-web-extension
+      description: "Scaffold Manifest V3 Safari Web Extension packaging popup UI, background worker, and content script"
+      command: "node -e 'console.log(\"Scaffolding Safari Web Extension in poc-chatgpt/web-extension/\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/web-extension/manifest.json"
+      depends_on: [author-agent-loop-runner]
+      fatal_on_failure: true
+
+    - id: author-e2e-verification-harness
+      description: "Author local mock test page and automated runner to verify tool execution without human clicking"
+      command: "node -e 'console.log(\"Authoring verification harness in poc-chatgpt/tests/verify_loop.mjs\")'"
+      validation: "test -f /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/poc-chatgpt/tests/verify_loop.mjs"
+      depends_on: [scaffold-safari-web-extension]
+      fatal_on_failure: false

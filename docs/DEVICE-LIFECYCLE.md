@@ -109,15 +109,33 @@ Work top to bottom. **Step B1 is the one that matters**; the rest is hygiene.
 
 **B4. Delete the Userscripts app** if the next owner has no use for it.
 
-**B5. Tailscale — usually not involved, check anyway.**
+**B5. Tailscale — assume it IS involved. Corrected 2026-10-24.**
 
-An iPad reaches the gateway over the **public internet** through Tailscale Funnel, not over your tailnet. The Funnel is what makes the gateway publicly routable, so **the iPad does not need Tailscale installed at all** and normally is not a member of your network. Verify rather than assume:
+> **This section used to say the opposite and was wrong.** It claimed an iPad reaches the gateway
+> over the public internet, does not need Tailscale, and "normally is not a member of your
+> network". Checked against `tailscale status` and the gateway's own request log on 2026-10-24:
+> the iPad **is** a tailnet member and its `/device/poll` requests arrive from a **tailnet**
+> address (`100.x`), not a public one. Anthropic's requests to `/mcp` are the public ones.
+
+**The security conclusion below did not change, and it is the part that matters.** The gateway is
+published with `tailscale funnel`, which makes it reachable from the **public internet** whether or
+not a device is on your tailnet. So **removing a device from your tailnet does NOT revoke its
+access** — the device token keeps working from anywhere the Funnel is reachable. Tailnet membership
+is how the iPad *happens* to route today; it is not what is protecting the gateway.
+
+Both of these are therefore true at once, and both need doing:
 
 ```sh
 tailscale status
 ```
 
-If the device is **not** listed, there is nothing to do here. If it **is** — someone installed and signed in on it — then sign out in the Tailscale app, and also remove it from the [admin console](https://login.tailscale.com/admin/machines) from your own machine. Signing out on the device alone leaves it an authorised machine on your private network.
+**Expect the device to be listed.** Sign out in the Tailscale app on the device, and also remove it
+from the [admin console](https://login.tailscale.com/admin/machines) from your own machine. Signing
+out on the device alone leaves it an authorised machine on your private network.
+
+**Then rotate `DEVICE_TOKEN` as well** (see the Mac-side steps). Tailnet removal alone is not
+enough while the Funnel is public: a departing device still holds a token that works over the
+public internet. **Rotation is what actually revokes access; tailnet removal is housekeeping.**
 
 > While you are in `tailscale status`, look for devices you cannot identify. A machine named something generic like `localhost`, or one last seen months ago, is worth removing: you cannot make a security decision about a device you cannot name.
 
@@ -140,7 +158,7 @@ If the device is **not** listed, there is nothing to do here. If it **is** — s
 
 Stated plainly, because "I'll wipe it later" is the common failure:
 
-- The **device token** stays in extension storage and keeps working against your gateway whenever it is running. Because the gateway is reached over the **public internet** via Funnel, the device does not need to be on your network, in your home, or anywhere near you for that to be true.
+- The **device token** stays in extension storage and keeps working against your gateway whenever it is running. The iPad normally reaches the gateway over your **tailnet**, but the Funnel publishes it to the **public internet** too — so the token keeps working even after the device leaves your network, your home, or the country. **Taking a device off the tailnet does not revoke anything; rotating the token does.**
 - The **saved demo login** stays in Safari.
 - If Tailscale was installed and signed in, the device stays an **authorised machine on your private network** until removed from the admin console.
 - None of this is removed by signing out of iCloud, and none of it appears in any Apple-facing list of "things this device can access".

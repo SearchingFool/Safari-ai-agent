@@ -259,7 +259,13 @@ Measured on the **iPad Pro** (the M4 was excluded: it is being set up for anothe
 
 **Defaults audit, verified not recalled.** Every default is fail-closed and **there is no path where silence means yes**: unanswered prompt → deny; `decideClick` returns only `prompt` or `refuse`, **never `allow`**; unrecognised control → ELEVATED; unlisted origin → read-only; malformed or hostile policy → read-only; hidden tab → no command delivered; hard ceilings → refused everywhere; stale poll → cannot resurrect `visible`. The single `decision: 'allow'` in `src/core.js` is `decideFill`, which is reversible and cannot submit.
 
-**How the iPads actually connect — corrected.** They reach the gateway over the **public internet** through Funnel (`forwardedFor` is a public address), **not** over the tailnet; no iPad is a tailnet member. This matters for decommissioning: the device token keeps working from anywhere, so removing a device from the network does nothing. See [DEVICE-LIFECYCLE.md](DEVICE-LIFECYCLE.md).
+**How the iPads actually connect — ~~corrected~~ RE-CORRECTED 2026-10-24.** The claim below was wrong and is kept only to show what changed.
+
+~~They reach the gateway over the public internet through Funnel, not over the tailnet; no iPad is a tailnet member.~~
+
+**The truth, from `tailscale status` and the gateway's own request log:** the iPad **is** a tailnet member (`100.88.x`) and its `/device/poll` requests arrive from a **tailnet** address. The public requests are Anthropic's, hitting `/mcp` from `160.79.x` as `Claude-User`. The original note likely read a single `forwardedFor` from an Anthropic request and generalised it to the iPads.
+
+**The decommissioning conclusion was right for the wrong reason, and still holds:** the Funnel publishes the gateway to the public internet regardless of tailnet membership, so a departing device's token keeps working from anywhere. **Removing a device from the tailnet revokes nothing; rotating `DEVICE_TOKEN` does.** See [DEVICE-LIFECYCLE.md](DEVICE-LIFECYCLE.md) and [ARCHITECTURE-DATAFLOW.md](ARCHITECTURE-DATAFLOW.md).
 
 **Also learned the hard way:** `tailscale funnel status` prints *"No serve config"* while a **foreground** serve session is still holding port 443 — it is **not** a sufficient "am I exposed?" check. Use `tailscale serve status --json`. And Universal Clipboard silently does nothing across different Apple IDs.
 

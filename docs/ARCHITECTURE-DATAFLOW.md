@@ -15,25 +15,25 @@ Every hop below was **observed in `logs/gateway-diagnostics.jsonl`**, not inferr
 
 | Path | Source seen | Network |
 |---|---|---|
-| `/mcp` | `160.79.x`, user-agent `Claude-User` | **public internet** (Anthropic) |
-| `/device/poll`, `/device/result` | `100.88.x` | **tailnet** (your iPad) |
-| `/demo` | `100.88.x` | tailnet (your iPad) |
-| `/health` | `100.105.x` (the Mac), `85.x` | loopback and public |
+| `/mcp` | a public address, user-agent `Claude-User` | **public internet** (Anthropic) |
+| `/device/poll`, `/device/result` | a tailnet address | **tailnet** (the iPad) |
+| `/demo` | a tailnet address | tailnet (the iPad) |
+| `/health` | the Mac itself, and a public address | loopback and public |
 
 **This corrects `docs/DEVICE-LIFECYCLE.md`**, which states the iPad is not a tailnet member and
-reaches the gateway over the public internet. It is a member (`ipad-pro-12-9-6th-gen-wificellular`,
-`100.88.57.107`) and its traffic arrives over the tailnet.
+reaches the gateway over the public internet. It **is** a member, and its traffic arrives over the
+tailnet (a `100.x` CGNAT address) rather than from a public one.
 
 ## 2. Where everything runs
 
 ```mermaid
 flowchart TB
     subgraph OFF["OFF-DEVICE — not yours"]
-        ANT["Anthropic servers<br/>the Claude model + MCP client<br/>160.79.x"]
+        ANT["Anthropic servers<br/>the Claude model + MCP client"]
         WEB["The websites you visit<br/>your logged-in sessions"]
     end
 
-    subgraph IPAD["iPad — 100.88.57.107"]
+    subgraph IPAD["iPad — on your tailnet"]
         CAPP["Claude iOS app<br/>where you type"]
         SAF["Safari"]
         US["Userscripts extension<br/>bridge script 0.2.5<br/>holds DEVICE_TOKEN"]
@@ -42,7 +42,7 @@ flowchart TB
         SAF --> PAGE
     end
 
-    subgraph MAC["Mac — libors-macbook-pro-2, 100.105.148.35"]
+    subgraph MAC["Mac — must be awake and logged in"]
         TS["Tailscale<br/>funnel :443 / :8443"]
         GW["gateway  127.0.0.1:8787<br/>tools, policy, approvals"]
         CTL["control panel  127.0.0.1:8788<br/>Start / Stop / site modes"]

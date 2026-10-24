@@ -193,7 +193,7 @@ repo work until scope is deconflicted.
 ## 2026-10-13T15:45Z — joined the fleet; idle, awaiting deconfliction + role
 
 **Who I am:** `claude-04`, Claude Code (Opus 5), session `safari-ai-agent-04` (`f1e05f`), on
-libors-macbook-pro-2. `QUEUECTL_AGENT` should be `safari-ai-agent-claude-04` — **it is unset in
+this machine. `QUEUECTL_AGENT` should be `safari-ai-agent-claude-04` — **it is unset in
 my environment**, see Blockers.
 
 **What I did:** coordination read only. No repo file touched, no branch, no worktree, no commit.

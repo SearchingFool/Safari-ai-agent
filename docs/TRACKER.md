@@ -263,7 +263,7 @@ Measured on the **iPad Pro** (the M4 was excluded: it is being set up for anothe
 
 ~~They reach the gateway over the public internet through Funnel, not over the tailnet; no iPad is a tailnet member.~~
 
-**The truth, from `tailscale status` and the gateway's own request log:** the iPad **is** a tailnet member (`100.88.x`) and its `/device/poll` requests arrive from a **tailnet** address. The public requests are Anthropic's, hitting `/mcp` from `160.79.x` as `Claude-User`. The original note likely read a single `forwardedFor` from an Anthropic request and generalised it to the iPads.
+**The truth, from `tailscale status` and the gateway's own request log:** the iPad **is** a tailnet member and its `/device/poll` requests arrive from a **tailnet** address. The public requests are Anthropic's, hitting `/mcp` as `Claude-User`. The original note likely read a single `forwardedFor` from an Anthropic request and generalised it to the iPads.
 
 **The decommissioning conclusion was right for the wrong reason, and still holds:** the Funnel publishes the gateway to the public internet regardless of tailnet membership, so a departing device's token keeps working from anywhere. **Removing a device from the tailnet revokes nothing; rotating `DEVICE_TOKEN` does.** See [DEVICE-LIFECYCLE.md](DEVICE-LIFECYCLE.md) and [ARCHITECTURE-DATAFLOW.md](ARCHITECTURE-DATAFLOW.md).
 

@@ -1,6 +1,6 @@
 # Setup guide — step by step
 
-**File:** /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent/docs/SETUP-GUIDE.md
+**File:** `docs/SETUP-GUIDE.md` (repo-relative — this repo is public)
 **Description:** Complete setup walkthrough for connecting Claude to Safari on an iPad, written for someone who does not write code. Covers the Mac side, the Claude side, the iPad side, and how to stop everything.
 **Author:** Claude Code (Opus 5)
 **Created:** 2026-10-11
@@ -122,7 +122,7 @@ Demo username: safari-demo
 In a **second** Terminal window:
 
 ```sh
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
+cd ~/Documents/Safari-ai-agent
 printf 'Bearer %s' "$(awk -F= '/^MCP_CLIENT_TOKEN=/{printf "%s",$2}' .env.mac-tailscale)" | pbcopy
 ```
 
@@ -200,7 +200,7 @@ The iPad needs a **different** password from Claude's. Typing 64 random characte
 On the **Mac**:
 
 ```sh
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
+cd ~/Documents/Safari-ai-agent
 awk -F= '/^DEVICE_TOKEN=/{printf "%s",$2}' .env.mac-tailscale | pbcopy
 ```
 
@@ -300,12 +300,94 @@ For now, **Universal Clipboard is the recommended shortcut** and needs no new co
 
 ---
 
+# Part 5 — Updating it later
+
+**Nothing updates itself.** When a new version lands you update three things by hand, and they
+are separate: the **code on the Mac**, the **script on the iPad**, and occasionally the
+**passwords**. Doing one and not the others is the usual cause of "it stopped working".
+
+## 5.1 — Update the code on the Mac
+
+```sh
+cd ~/Documents/Safari-ai-agent
+git pull
+npm run check
+```
+
+`npm run check` must end with **0 failures**. If it does not, stop — do not keep going, and do
+not reinstall anything on the iPad yet.
+
+**Then restart the gateway so the new code is actually running.** Updating files changes nothing
+until you do:
+
+- **Control panel:** press **Stop**, then **Start**
+- **Terminal:** press **Ctrl+C**, then run the launcher again
+
+> A running gateway keeps using the code it started with. This is the single most common reason
+> an update "did nothing".
+
+## 5.2 — Update the script on the iPad
+
+**Check whether you need to.** On the Mac:
+
+```sh
+cd ~/Documents/Safari-ai-agent
+grep -m1 "@version" scripts/safari-ai-agent-remote.user.js
+```
+
+Compare that to the version shown in the **Remote AI** panel on the iPad. If they differ:
+
+1. On the iPad, open the install address from Step 3.2 — it serves whatever version the Mac now has
+2. Install it over the top; Userscripts replaces the old one
+3. **Reload the page**, then press **Connect**
+
+**Your device token is kept.** You do not re-enter it for a script update — only after a password
+change.
+
+> **An old script is not harmless.** It fails closed on permission modes it does not understand,
+> so the agent may refuse actions for no visible reason. If something stopped working right after
+> a Mac update, check this first.
+
+## 5.3 — Change the passwords (rarely)
+
+Only needed if a password leaked, a device was lost, or you are handing a device on. **This breaks
+every saved copy at once** — Claude, the iPad and your browser all stop working until you redo
+them, so do it **at the Mac**, never remotely.
+
+```sh
+cd ~/Documents/Safari-ai-agent
+rm .env.mac-tailscale .env.gateway-control
+```
+
+Start the gateway again and it creates new ones. Then redo **Step 2.1–2.2** (Claude connector),
+**Step 3.3** (device token) and the demo password wherever you use it.
+
+> **Close every old Safari tab first.** After a password change, tabs opened before it keep
+> retrying with the old token once a second and fail silently in a tab you are not looking at.
+> Script 0.2.5 and later warn you about this; earlier ones do not.
+
+## 5.4 — After any update, check it actually works
+
+```sh
+cd ~/Documents/Safari-ai-agent
+npm run gateway:status
+```
+
+That checks every layer and tells you what to press. If something still will not connect:
+
+```sh
+npm run diagnose -- --since 15m
+```
+
+That shows what the gateway actually saw, which tells a wrong password apart from an unreachable
+server — the error messages on screen cannot.
+
 # Troubleshooting
 
 Everything the gateway sees is logged. On the Mac, in a second Terminal:
 
 ```sh
-cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
+cd ~/Documents/Safari-ai-agent
 npm run diagnose
 ```
 

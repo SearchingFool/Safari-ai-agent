@@ -2,7 +2,7 @@
 
 **Integration candidate — Claude/iPad workflow proven; final reliability and security acceptance remain open.**
 
-**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is 0.2.4. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
+**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is **0.2.5**. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
 
 An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
@@ -56,6 +56,91 @@ The Tailscale Funnel setup makes your Mac reachable from the internet. Both entr
 
 A **prototype for supervised use on pages you trust**, by the person who set it up. It is not a product, not multi-user, and not suitable for anything sensitive, financial or irreversible. Use the bundled `/demo` pages until you understand how it behaves.
 
+## How it fits together
+
+Three pieces. **Everything runs on your Mac and your iPad except the model itself.**
+
+```mermaid
+flowchart LR
+    subgraph IPAD["iPad"]
+        C["Claude app<br/>you type here"]
+        B["Safari + Userscripts<br/>the bridge"]
+    end
+    subgraph MAC["Mac — must be awake and logged in"]
+        G["gateway<br/>tools, policy, approvals"]
+        P["control panel<br/>Start / Stop"]
+    end
+    AI["Anthropic<br/>off-device"]
+    SITE["the website<br/>your logged-in session"]
+
+    C -->|"your request"| AI
+    AI -->|"public HTTPS"| G
+    B -->|"polls over your tailnet"| G
+    B -->|"acts as you"| SITE
+    G -->|"page text + result"| AI
+    B -.->|"Start/Stop"| P
+
+    classDef mac fill:#e6f0ff,stroke:#2c5aa0
+    classDef ipad fill:#e8f8e8,stroke:#2e7d32
+    classDef off fill:#ffe6e6,stroke:#c0392b
+    class G,P mac
+    class C,B ipad
+    class AI,SITE off
+```
+
+**Full detail, with every hop and what authenticates it:**
+[Architecture and data flow](docs/ARCHITECTURE-DATAFLOW.md).
+
+## Installing it — start here if you are new
+
+**You need:** a **Mac** (macOS 12+, awake and online) · an **iPad** (iPadOS 15.1+) ·
+**[Tailscale](https://tailscale.com)** installed and signed into the **same account on both** ·
+a **Claude account** that supports custom connectors · **Node.js 20+** on the Mac ·
+about **30 minutes**.
+
+**Read the risks above first**, then follow **[the setup guide](docs/SETUP-GUIDE.md)** — it is
+written step by step for non-technical users and names which device each step happens on. It
+starts by cloning this repo; you do not need anything from here first.
+
+Roughly: **Mac** (get the code, start the gateway) → **Claude** (add a connector) →
+**iPad** (install the bridge, pair it).
+
+Once it is running, the gateway serves its own instructions at **`/help`** — open that on the
+iPad and follow along there. No password, and it contains no credentials.
+
+### Two ways to start it, once installed
+
+
+**Read the risks above first.** Then follow **[the setup guide](docs/SETUP-GUIDE.md)**, which is
+written step by step for non-technical users and covers the Mac, Claude and the iPad in order.
+
+| | Route A — control panel *(easier)* | Route B — Terminal |
+|---|---|---|
+| **Start it** | Double-click **`Safari Gateway.command`** | `bash tools/start-mac-tailscale-test.sh` |
+| **Then** | Start/Stop from a web page, including from the iPad | Leave the Terminal window open; closing it stops everything |
+| **Good for** | Everyday use | Debugging, or watching the log live |
+| **Details** | [Gateway controls](docs/GATEWAY-CONTROLS.md) | [Setup guide](docs/SETUP-GUIDE.md) Part 1 |
+
+**Once the gateway is running it serves its own instructions at `/help`** — open that address on
+the iPad and follow along there. No password, and it contains no credentials.
+
+### Updating it later
+
+Nothing updates itself, and the parts are separate — **[setup guide Part 5](docs/SETUP-GUIDE.md)**
+covers the code on the Mac, the script on the iPad, and the passwords. A running gateway keeps
+using the code it started with, so an update does nothing until you restart it.
+
+### Stuck?
+
+```sh
+npm run gateway:status
+```
+
+Checks every layer and tells you what to press. In Claude Code or the Claude desktop app,
+**`/safari-agent-gateway`** knows the whole lifecycle — install, start, update, rotate — and can
+read the gateway log, which tells a wrong password apart from an unreachable server. The error
+messages on screen cannot.
+
 ## Where to start
 
 - **[Setup guide](docs/SETUP-GUIDE.md) — step-by-step instructions, written for non-technical users. Start here if you just want to use it.**
@@ -72,12 +157,12 @@ A **prototype for supervised use on pages you trust**, by the person who set it 
 | Component | Function | State |
 |---|---|---|
 | `scripts/safari-ai-agent.user.js` | Manual **Browser Lab**; no remote AI connection | v0.1.1; previous iPad form testing |
-| `scripts/safari-ai-agent-remote.user.js` | Separately installed, opt-in remote Userscripts bridge | v0.2.1; tested with mocked Userscripts APIs in Chromium |
+| `scripts/safari-ai-agent-remote.user.js` | Separately installed, opt-in remote Userscripts bridge | **v0.2.5**; tested with mocked Userscripts APIs in Chromium |
 | `gateway/server.mjs` | Authenticated MCP Streamable HTTP gateway, per-device action queue and authorization | Local HTTP tests passed; not deployed |
 | `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Tested through gateway; actual Safari flow pending |
 | `Dockerfile` | Node 22 container gateway, non-root runtime | Created; image build needs Docker-equipped environment |
 
-The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Managed controls and the CLI default to asking in Safari before every fill, click and same-site navigation, with no standing approvals. Explicit website entries can restrict actions to reading, allow ordinary fills and navigation without clicks, or automatically execute recognised navigation and page interactions. Generic form submissions always require their own approval. Payment, account-deletion and credential/security controls remain refused. Remote script 0.2.4 is required for category-based full permission and persistent button approvals; older scripts retain their previous approval behavior until updated.
+The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Managed controls and the CLI default to asking in Safari before every fill, click and same-site navigation, with no standing approvals. Explicit website entries can restrict actions to reading, allow ordinary fills and navigation without clicks, or automatically execute recognised navigation and page interactions. Generic form submissions always require their own approval. Payment, account-deletion and credential/security controls remain refused. Remote script 0.2.5 is required for category-based full permission and persistent button approvals; older scripts retain their previous approval behavior until updated.
 
 ## Run automated checks
 

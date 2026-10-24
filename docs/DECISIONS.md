@@ -442,6 +442,107 @@ symptom** — and do not abandon a hypothesis that costs nothing to eliminate.
 
 ---
 
+### D-049 — the log recorded everything except the consent
+
+**Status: fixed 2026-10-24.** Found by the operator asking whether the system was auditable at all.
+
+**The gap.** `logs/gateway-diagnostics.jsonl` recorded method, path, status, duration, correlation
+ids, which tool ran, which tab, and errors. It did **not** record **which control was acted on**,
+**the classification tier**, or **whether the operator approved it**. So it could say *"a
+`browser_click` on example.com at 18:42 succeeded"* and could not answer *"what did it click, and
+did I say yes?"* **In a system whose entire safety model is informed consent, the consent was the
+one thing not written down.**
+
+**It was nearly free.** The device already computes all of it *before* acting —
+`approval` (`site-permission` | `standing-grant` | `once` | `always`), `category`, `tier`, and the
+human summary the operator was shown. The gateway discarded it on arrival. Capturing it means the
+log and the prompt agree **by construction** rather than by a second implementation.
+
+Strings from the page are truncated hard (target 200 chars, category 48). A control summary is
+page-derived text and must never become a way to write arbitrary content into the operator's log.
+
+**Rotation.** The file had reached **58 MB, unbounded**, which makes a log least usable exactly
+when it is most needed. Size-based, one generation. This is an operator's own machine, not a
+fleet; keeping ten generations of a log nobody reads is hoarding.
+
+**Two process failures worth keeping, because both were silent:**
+
+1. **The first implementation did nothing.** `diagnostics.mjs` *enumerates* the fields it
+   persists, so adding them to the trace object dropped them with no error. Identical in shape to
+   the mailbox `.replace()` no-op earlier the same day: **a write that reports success and changes
+   nothing.** Caught only by inspecting real output. *An object that enumerates what it persists
+   needs a comment saying so — it now has one.*
+2. **The first test was theatre.** It ended `assert.ok(true)`. That is precisely the failure
+   D-038 records, in a repo that had already learned it. Rewritten to capture real log lines and
+   assert their contents.
+
+---
+
+### D-050 — every mitigation is a switch, and four are declared but not built
+
+**Status: scaffolded 2026-10-24. Four mitigations declared, inert, and visible in the UI.**
+
+**Why switches rather than constants.** Two reasons, both practical. **A control nobody can turn
+off gets worked around instead of tuned** — the operator disables the whole feature, or stops
+using the product. And **we do not know the false-positive rate** of several of these on real
+sites; shipping them hard-wired would be guessing.
+
+**Why declare the unbuilt ones at all.** So the shape is settled, so the UI can render them from
+one list, and so the operator can see what is coming. **They are shown disabled and labelled "not
+built yet".** A switch that looks live but does nothing is worse than no switch, because it
+manufactures a belief in protection that does not exist.
+
+| Setting | Built | What it would do |
+|---|---|---|
+| `auditLog` | **yes** | Record what was done and what was approved (D-049) |
+| `auditRotateMb` | **yes** | Start a new log file at this size |
+| `reconsentOnEscalation` | no | Ask again before acting on a trusted site if an unlisted site was read first |
+| `actionBudget` | no | Stop and ask after N actions in a session |
+| `amountInPrompt` | no | Show any price or amount found near a control in the prompt |
+| `funnelAwareness` | no | Notice multi-step checkout flows, not just the final payment button |
+
+#### `reconsentOnEscalation` — the design, and why the naive version is wrong
+
+This targets D-041: a hostile page you merely *read* can put instructions in the model's context
+that steer a later action on a site where the agent *is* allowed to act. The gateway cannot see
+it, because no boundary is crossed there — the crossing happens inside the model.
+
+**The naive version — "re-consent whenever the origin changes" — would be unusable.** Under
+read-everywhere the session is *designed* to follow the visible tab across sites
+(`sessionFollows`). Ordinary browsing changes origin constantly, so this would fire on nearly
+every page and be switched off within a day. **Approval fatigue is itself a safety failure**
+(README risk #4, D-021), so a noisy control is not a cautious one.
+
+**The narrow version fires on escalation only.** Not on origin change, and not on reading:
+
+> An **unlisted or read-only origin was read** during this session, **and** an action is now
+> requested on a **trusted** origin.
+
+Reading a new site never prompts. Acting on a trusted site never prompts *unless* untrusted
+content entered the session first. That is the exact confused-deputy path and close to nothing
+else. The prompt must say **why** — *"you read example.com earlier in this session"* — because a
+re-consent the operator cannot explain is one they will click through.
+
+**Open question before building:** whether the flag resets on `Stop`, on disconnect, or never
+within a session. Leaning toward *per connected session, cleared by Stop* — but that is the same
+scope question D-043 left open, and both should be answered together.
+
+#### `amountInPrompt` — in plain English
+
+**The approval prompt tells you what a control *is*, but never what it *costs*.** It will say
+`"Confirm" (submits a form)`. It will not say the page shows **€4,500** next to it.
+
+D-019 recommended putting *"any price/destination text"* into the prompt. The destination was
+implemented; **the price was not.** So the one number most likely to change your answer is the one
+thing not shown.
+
+**Why this is worth building and cheap:** currency amounts are close to language-independent —
+`€`, `$`, `1.234,56` — so unlike keyword matching it works on a German or Japanese page without a
+word list. It changes no permission and blocks nothing; it only makes the prompt honest. The
+operator is the enforcement layer, so **the quality of what they are shown is the control.**
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

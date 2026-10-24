@@ -396,6 +396,20 @@ gateway is down. That is deliberate: it means stopping the gateway never strands
 > **Stop does not clear saved approvals** (D-043) — deliberately, but it may not be what you
 > expect from a panic button. To clear them, use **Revoke all** in the panel.
 
+## 4.3 — Turn protections on and off, and see what is coming
+
+The control panel has a **Safety settings** section. Each protection is a switch, so you can try
+one and change your mind. Some are **listed but greyed out** — those are designed and not built
+yet, shown so you can see what is planned rather than discovering it later.
+
+**On by default: recording what the agent did.** Leave it on unless you have a reason.
+
+**One known gap, stated plainly:** the approval prompt tells you what a control *is* — *"Confirm"
+(submits a form)* — but **not what it costs.** If the page shows **€4,500** beside that button,
+the prompt will not mention it. So **look at the page, not only at the prompt**, before approving
+anything involving money. Showing the amount is a planned setting (`amountInPrompt`), currently
+greyed out.
+
 ## 4.3 — Check what actually happened
 
 ```sh
@@ -406,13 +420,23 @@ Every request the gateway saw: what was asked, what was approved, what was refus
 took to answer. **If you are ever unsure whether something acted, this is the answer** — not the
 chat transcript, which only shows what the model *says* it did.
 
-## 4.4 — Decide about automatic startup deliberately
+## 4.4 — Browser Lab is a different thing, and you probably do not need it
+
+If you see a **Browser Lab** button on a page, that is the **older, separate userscript**
+(`safari-ai-agent.user.js`, version 0.1.1) — a manual tool where *you* click the buttons. **It has
+no AI connection at all.**
+
+The Claude one is labelled **Remote AI**. If both are installed you get two panels on every page,
+which is confusing and was never intended. **If you are not using the manual tool, remove it in
+the Userscripts app.**
+
+## 4.5 — Decide about automatic startup deliberately
 
 The control panel can start at login and bring the gateway up by itself. **Convenient, and a real
 trade-off:** it means your Mac publishes a public address after every reboot without you
 choosing to. Leave it off unless you want that.
 
-## 4.5 — One tab, and keep it in front
+## 4.6 — One tab, and keep it in front
 
 Only one tab can hold the session. A second is refused and offered **Take over**. **Close tabs
 you are finished with** — a stale tab retries silently and makes things look broken.

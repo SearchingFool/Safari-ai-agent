@@ -99,18 +99,26 @@ export PORT=8787 BIND_ADDRESS=127.0.0.1 SAFARI_ALLOWED_ORIGINS="$allowed_origins
 # read-only, so WITHOUT this the rig connects, reports healthy, and then refuses
 # every click - which looks like a bug rather than a policy.
 #
-# The bundled /demo is nominated `trusted` because it is the inert fixture this
-# rig exists to exercise: no real submissions, no account, no money. Anything
-# added via SAFARI_EXTRA_ORIGINS is deliberately NOT trusted - a real site has
-# to be nominated by hand, by name, every time.
+# NOTHING is nominated `trusted` automatically any more (2026-10-24). The demo
+# origin used to be, on the grounds that it is an inert fixture - but "the rig
+# grants itself full permission on startup" is the wrong default to ship, and
+# the demo is no longer where an operator is told to practise: the userscript
+# matches every site, so they choose their own and set its mode in the control
+# panel. The demo remains the automated browser-test fixture, which is its real
+# job; those suites start their own gateway and set their own policy, so they
+# are unaffected by this.
+#
+# `ask` is the default here, matching the product default: read freely, confirm
+# every action. A site has to be nominated by hand, by name, to get more.
 #
 #   SAFARI_SITE_POLICY="https://example.com=trusted,https://other.example=fill-only"
 #
 # Hard ceilings (payment, account deletion, credential and security changes) are
 # refused on every site including trusted ones, and no value here can lift them.
 if [[ -z "${SAFARI_SITE_POLICY:-}" ]]; then
-  SAFARI_SITE_POLICY="https://$host=trusted"
-  echo "Site policy: demo origin is 'trusted'; any extra origin defaults to read-only."
+  SAFARI_SITE_POLICY="https://$host=ask"
+  echo "Site policy: nothing is trusted automatically. The demo origin is 'ask' (confirm every action)."
+  echo "To practise on your own site, add it in the control panel and choose its permission there."
 else
   echo "WARNING: SAFARI_SITE_POLICY overridden: $SAFARI_SITE_POLICY"
   echo "WARNING: a 'trusted' origin lets the agent complete actions there after one approval each."

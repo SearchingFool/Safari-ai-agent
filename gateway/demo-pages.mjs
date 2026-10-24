@@ -86,9 +86,10 @@ value <b>pasted</b> (71 characters). Do not type the word Bearer; it is already 
 <ol>
 <li>Install the Userscripts extension, then install the script from
 <code>${base}/install/safari-ai-agent-remote.user.js</code> (asks for the demo password).</li>
-<li>Open <code>${base}/demo</code> and sign in as <code>safari-demo</code> with the
-<b>demo password</b> from the Mac.</li>
-<li>Tap <b>Remote AI</b> on that page.</li>
+<li><b>Open the site you want to work on.</b> Any site &mdash; the script runs on all of them.
+You do not need the bundled demo pages; they exist as the automated test fixture, not as a
+place you are expected to practise.</li>
+<li>Tap <b>Remote AI</b> on that page. The panel appears on every site.</li>
 <li><b>Base URL:</b> <code>${base}</code> &mdash; <b>nothing after it.</b> No <code>/mcp</code>,
 no <code>/demo</code>, no trailing slash.</li>
 <li><b>Device token:</b> paste the <b>device token</b> &mdash; a <i>different</i> secret from
@@ -98,6 +99,21 @@ Claude's. Check the field is not empty <b>before</b> you press Save.</li>
 land &mdash; try again.</li>
 <li><b>Connect.</b> The status should read <b>Connected</b>.</li>
 </ol>
+
+<h2>Choosing a site, and its permission</h2>
+<p>Add the site in the control panel and pick what the agent may do there. <b>Nothing is trusted
+automatically.</b></p>
+<table>
+<tr><th>Mode</th><th>What the agent may do</th></tr>
+<tr><td>Read only</td><td>Look at the page. No actions at all. <b>Start here on a real site.</b></td></tr>
+<tr><td>Fill and navigate</td><td>Type into fields and follow links. No clicking buttons.</td></tr>
+<tr><td>Ask every time</td><td>Everything, but you confirm each action individually.</td></tr>
+<tr><td>Full permission</td><td>Routine actions run automatically. Form submissions still ask, and
+payment, account-deletion and credential controls are refused on every site including this one.</td></tr>
+</table>
+<p class="warn"><b>On a site you are logged into, the agent acts as you.</b> The website cannot tell
+the difference and its audit log will show your name. Start read-only and raise the permission only
+once you have watched it behave.</p>
 
 <h2>Split View is required, not advice</h2>
 <p class="warn">iPadOS suspends a Safari tab as soon as you switch apps. Keep this tab visible in

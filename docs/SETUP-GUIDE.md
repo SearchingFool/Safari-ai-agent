@@ -208,11 +208,18 @@ If both devices use the same Apple account with Handoff on, **Universal Clipboar
 
 > **Never** email, message or type these passwords into a chat, including into Claude.
 
-### Step 3.4 — Open the demo page and connect
+### Step 3.4 — Open the site you want to work on, and connect
 
-1. In Safari on the iPad, open the `/demo` address from Step 1.3
-2. Sign in: username `safari-demo`, password = the `DEMO_PASSWORD` from the credentials file (same clipboard trick)
-3. Tap **Remote AI** on the page
+**You do not have to use the bundled demo pages.** The userscript runs on every site, so open
+whichever site you actually want the agent to work on and connect there.
+
+The demo pages still exist, but their job is to be the **automated browser-test fixture** — inert,
+deterministic, no account and no money. They are useful as a *control*: if something misbehaves on
+a real site, try the demo to tell "the agent is broken" apart from "this site is awkward".
+**They are not a required step, and nothing is granted full permission automatically any more.**
+
+1. In Safari on the iPad, open **the site you want to work on**
+2. Tap **Remote AI** on that page
 4. **Base URL:** your `.ts.net` address with **nothing after it** — no `/mcp`, no `/demo`
 5. **Device token:** paste
 6. Tap **Save** — *the token field going blank is correct and deliberate*
@@ -225,6 +232,21 @@ The status should read `Connected`.
 > **Only one tab may be connected at a time.** If a second tab tries to connect, it is refused — but it now tells you **which page currently holds the session** and offers a **Take over** button. Use that, or press **Stop** in the other tab. (Previously this was a silent hang; D-017/D-023.)
 
 > **If the tab is not in front, the agent is paused — deliberately.** The panel shows *"Paused — tab not visible"*, and the gateway will **refuse** to hand it a command rather than letting an approval prompt appear where you cannot see it. Claude will be told the tab is not visible. Bring the tab forward and it resumes on its own.
+
+### Step 3.4b — Choose the site's permission. Start read-only.
+
+Add the site in the **control panel** and pick what the agent may do. **Nothing is trusted
+automatically** — as of 2026-10-24 even the demo origin defaults to *ask*.
+
+| Mode | What the agent may do |
+|---|---|
+| **Read only** | Look at the page. No actions. **Start here on any real site.** |
+| **Fill and navigate** | Type into fields, follow links. No button clicks. |
+| **Ask every time** | Everything, but you confirm each action individually. |
+| **Full permission** | Routine actions run automatically. Submissions still ask; payment, account-deletion and credential controls are refused everywhere, including here. |
+
+> **On a site you are logged into, the agent acts as you.** The site cannot tell, and its audit log
+> records your name. Raise the permission only after watching it behave at a lower one.
 
 ### Step 3.5 — Use Split View. This is a requirement, not a tip.
 

@@ -15,7 +15,8 @@
     "handover": "node tools/analyze-handover.mjs",
     "build:remote": "node tools/build-remote.mjs",
     "test:browser": "python3 tests/browser_e2e.py && python3 tests/remote_dom_smoke.py && python3 tests/remote_gateway_integration.py && python3 tests/remote_browser_e2e.py && python3 tests/approval_layout.py",
-    "check:deployment": "node tools/check-deployment.mjs"
+    "check:deployment": "node tools/check-deployment.mjs",
+    "gateway:status": "bash tools/gateway-status.sh"
   },
   "engines": {
     "node": ">=20"

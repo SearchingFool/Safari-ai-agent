@@ -23,6 +23,9 @@ logs/
 # `.claude/*` rather than `.claude/` so a deliberately shared file can be re-admitted later
 # with a negation (e.g. `!.claude/settings.json`). Nothing under it is tracked today.
 .claude/*
+# ...but repo skills are project assets and MUST travel with a clone. `.claude/*`
+# above was chosen over `.claude/` precisely so this negation is possible.
+!.claude/skills/
 .llm_sessions/
 
 # Local credentials and deployment environment files

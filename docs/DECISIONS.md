@@ -389,6 +389,59 @@ treated as a clean slate that escapes them. **Path B has no safety gate today.**
 
 ---
 
+### D-048 — a stale tab fails silently in the one place the operator is not looking
+
+**Status: fixed 2026-10-24.** Found in live setup, not by testing.
+
+**What happened.** After a credential rotation the operator could not connect the iPad. The
+gateway logged 98 `DEVICE_TOKEN_MISMATCH` rejections in a steady once-a-second stream. The token
+was correct, the file was correct, and re-saving it changed nothing. The cause was **a second
+Safari tab left open from before the rotation**, polling forever with the old token. It took four
+rounds of live debugging, and a correct hypothesis was *abandoned mid-way* on a weak signal — the
+poll rate was 25/min rather than the ~60 expected of one tab, which is simply the bridge backing
+off.
+
+**Why it was invisible.** The bridge does report the failure — `Connection/action error: Gateway
+HTTP 401` — **in the panel of the tab that is failing.** That is precisely the tab the operator is
+not looking at. The working tab showed a healthy session throughout. The symptom that reaches a
+human is *"saving the token does nothing"*, which points at the wrong component entirely.
+
+**This is D-017's lesson a second time.** There, a bare `409` made the two-tab *session* deadlock
+undiagnosable, and the fix was to name the owner in the payload. The same failure shape was left
+unaddressed for `401`: a tab failing *authentication* got no equivalent treatment.
+
+**The fix — three signals, because each covers the others' blind spot.**
+
+1. **The gateway tells the WORKING tab.** It counts device auth failures in a rolling 60-second
+   window and reports `staleTabFailures` on successful polls, so the message appears where the
+   operator is actually looking. Threshold is **three**, not one: a single failure is an ordinary
+   race while a tab is being reconfigured, and warning on that would be noise a user learns to
+   ignore. **Honest limit:** the rejection happens *before* the body is parsed, so there is no
+   origin and no `instanceId`. The gateway can say "a tab is failing", never *which* tab — so the
+   message says *find and close it*.
+2. **The 401 names its own cause.** Instead of a bare status, it says the token does not match,
+   that a tab left open across a credential change is the usual reason, and what to do. A rejected
+   token is **not** a transient connection error and must not be worded like one: it never
+   recovers by retrying.
+3. **Tabs detect each other directly** over `BroadcastChannel`, before a single request is made —
+   the earliest and cheapest of the three. Wrapped in a `try`, because if the API is unavailable
+   the gateway-side signal still covers it.
+
+**Also shipped with this:** setup instructions served by the gateway at **`/help`**, so they can
+be read on the device being set up. **Unauthenticated deliberately** — they are needed *before*
+the demo password has been transferred — and carrying **no credential values**, which is pinned by
+a test. That constraint is not incidental: `docs/TARGET-ARCHITECTURE.md` rejects a gateway-served
+page that reveals the device token, and an *unauthenticated* leak would be worse still.
+
+**Userscript 0.2.5.** Older installs show none of these warnings.
+
+**The process lesson, which is worth more than the fix:** the gateway log identified this in one
+command (`npm run diagnose` named `DEVICE_TOKEN_MISMATCH` and its two likely causes), while the
+error text visible to the operator pointed nowhere. **Reach for the log before reasoning from the
+symptom** — and do not abandon a hypothesis that costs nothing to eliminate.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

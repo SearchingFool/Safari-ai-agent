@@ -30,6 +30,35 @@ test('Updated userscript installation requires the distinct demo login and never
   assert.equal(response.status,200);const script=await response.text();assert.match(script,/==UserScript==/);
   assert.doesNotMatch(script,new RegExp(mcpToken));assert.doesNotMatch(script,new RegExp(deviceToken));
 }));
+test('Help page is reachable without any credential and leaks none (D-048)',()=>testGateway(async({base})=>{
+  // Unauthenticated ON PURPOSE: the instructions are needed before the demo
+  // password has been transferred to the device being set up.
+  const response=await fetch(base+'/help');
+  assert.equal(response.status,200);
+  const html=await response.text();
+  assert.match(html,/Setting up Safari AI Agent/);
+  // The reason this test exists. docs/TARGET-ARCHITECTURE.md rejects a
+  // gateway-served page that reveals the device token, because the demo
+  // password would then yield it and two independent secrets collapse into one.
+  // This page is unauthenticated, so a leak here is worse still: it would need
+  // no password at all.
+  assert.doesNotMatch(html,new RegExp(mcpToken));
+  assert.doesNotMatch(html,new RegExp(deviceToken));
+  assert.doesNotMatch(html,new RegExp(demoPassword));
+}));
+test('Repeated device auth failures are reported to the authenticated tab (D-048)',()=>testGateway(async({device,base})=>{
+  // A stale tab reports its 401 only in its own panel - the one the operator is
+  // not looking at - so the working tab must be told a sibling is failing.
+  for(let i=0;i<3;i++){
+    const bad=await fetch(base+'/device/poll',{method:'POST',
+      headers:{Authorization:'Bearer '+'f'.repeat(64),'Content-Type':'application/json'},
+      body:JSON.stringify({origin,instanceId:'stale-tab-0001',visibility:'visible'})});
+    assert.equal(bad.status,401);
+    assert.match(await bad.text(),/does not match the gateway/);  // names the cause, not a bare 401
+  }
+  const poll=await payload(await device('poll',{origin}));
+  assert.equal(poll.staleTabFailures,3);
+}));
 test('Read everywhere pairs an unlisted site but never grants it action rights',()=>testGateway(async({rpc,device})=>{
   const site='https://unlisted.example';
   const poll=await payload(await device('poll',{origin:site}));

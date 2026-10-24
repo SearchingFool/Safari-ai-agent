@@ -67,6 +67,32 @@ npm run check
 
 You should see a line ending in `# fail 0`. If you see failures, stop and ask for help — do not continue.
 
+### Step 1.2b — Keep these instructions on the device you are setting up
+
+Once the gateway is running (Step 1.3), it serves this guide at **`/help`** — open that address on
+the iPad and follow along there instead of reading the Mac.
+
+**It needs no password**, deliberately: you need the instructions *before* the demo password has
+been copied across. **It contains no credential values and never will** — it names each secret and
+says where to copy it from. (A gateway page that *revealed* the device token is explicitly
+rejected; see `docs/TARGET-ARCHITECTURE.md`.)
+
+### ⚠ Step 1.2c — If you have just changed the passwords, close old tabs FIRST
+
+**Rotating credentials makes every already-open tab stale at once.** A stale tab keeps polling
+once a second, fails every time, and reports the problem **only in its own panel** — the tab you
+are not looking at. Meanwhile the tab you *are* using looks fine and still will not connect.
+
+**Close every Safari tab showing the demo page, then open exactly one.**
+
+Three things now warn you about this, but closing the tabs first avoids it entirely:
+
+- the failing tab says its device token does not match and tells you to re-save or close it
+- the **working** tab is told *"another tab is failing to authenticate (N attempts)"*
+- a tab that detects siblings says *"N tabs of this page are running the bridge"*
+
+**Requires script 0.2.5 or newer.** Older installs show none of these.
+
 ### Step 1.3 — Start it
 
 ```sh
@@ -96,7 +122,7 @@ Demo username: safari-demo
 In a **second** Terminal window:
 
 ```sh
-cd ~/Documents/Safari-ai-agent
+cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
 printf 'Bearer %s' "$(awk -F= '/^MCP_CLIENT_TOKEN=/{printf "%s",$2}' .env.mac-tailscale)" | pbcopy
 ```
 
@@ -115,6 +141,12 @@ Nothing visible happens. The password is now on your clipboard.
 > **This is the step people get wrong.** Do not type the words `Bearer <MCP_CLIENT_TOKEN>`. That is a placeholder, not a password. Paste only. The value should be 71 characters.
 >
 > **If you cannot edit the connector afterwards, delete it and make a new one.** There may be no way to correct a saved value.
+
+> **If Claude says "Couldn't reach Safari AI Agent", that usually is NOT a connection problem.**
+> A rejected token produces the same message as an unreachable server. Check with
+> `npm run diagnose` on the Mac: `MCP_TOKEN_MISMATCH` means the connector holds an old token —
+> **delete the connector and recreate it**, because a saved authentication value often cannot be
+> edited and a silently-failed edit looks identical.
 
 ### Step 2.3 — Test it
 
@@ -168,7 +200,7 @@ The iPad needs a **different** password from Claude's. Typing 64 random characte
 On the **Mac**:
 
 ```sh
-cd ~/Documents/Safari-ai-agent
+cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
 awk -F= '/^DEVICE_TOKEN=/{printf "%s",$2}' .env.mac-tailscale | pbcopy
 ```
 
@@ -251,7 +283,7 @@ For now, **Universal Clipboard is the recommended shortcut** and needs no new co
 Everything the gateway sees is logged. On the Mac, in a second Terminal:
 
 ```sh
-cd ~/Documents/Safari-ai-agent
+cd /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
 npm run diagnose
 ```
 

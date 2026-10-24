@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Safari AI Agent Remote MCP
 // @namespace    https://github.com/SearchingFool/Safari-ai-agent
-// @version      0.2.4
+// @version      0.2.5
 // @description  Opt-in MCP gateway bridge. Only use on safe websites; never put credentials in webpage context.
 // @match        https://*/*
 // @match        http://*/*
@@ -936,6 +936,10 @@
         // takes effect within one poll interval rather than at next connect.
         // A response with no policy field normalises to read-only.
         applyPolicy(p.policy);
+        // D-048. This tab is authenticated and on screen; a sibling is not. The
+        // gateway cannot say WHICH tab is failing - it rejects before parsing
+        // the body - so the message says "find it", not "close tab 3".
+        if(p.staleTabFailures)show(`Another tab is failing to authenticate (${p.staleTabFailures} attempts in the last minute). It is probably left over from a credential change - find and close it.`);
         if(!running||paused||loopId!==mine) break; // Stop/pause during an in-flight request must prevent execution.
         if(p.command){
           const command=p.command;
@@ -975,6 +979,11 @@
         show(running?`${LIVE} Live in this tab · ${lastCommand||'ready'}`:'Stopped');
       } catch(e){
         if(e.status===409 && e.payload && e.payload.code==='DEVICE_SESSION_CONFLICT')showConflict(e.payload);
+        // D-048. A rejected token is not a transient "connection error" and must
+        // not be worded like one: it never recovers by retrying, and the usual
+        // cause - a tab left open across a credential rotation - is invisible
+        // from here. Say what to DO, in the tab that can actually do it.
+        else if(e.status===401)show('This tab was rejected: its saved device token does not match the gateway. If the credentials were changed, paste the new device token above and press Save - or close this tab if another one is already connected.');
         else show(`Connection/action error: ${String(e.message||e)}`);
       }
       if(running && !paused && loopId===mine)await sleep(1200);
@@ -1306,6 +1315,24 @@
     // the 45s freshness window.
     if(url&&token)void request('/device/poll',identity()).catch(()=>{});
   }
+  // D-048. Cheapest and earliest of the three signals: tabs of the same origin
+  // can see each other directly, so a duplicate is detectable before a single
+  // request is made. Rotation makes EVERY previously-open tab stale at once,
+  // which is exactly when this bites.
+  let peerTabs=0,peerTimer=null;
+  try{
+    const bus=new BroadcastChannel('safari-agent:tabs');
+    bus.onmessage=ev=>{
+      if(ev.data==='ping'){bus.postMessage('pong');return;}
+      if(ev.data!=='pong')return;
+      peerTabs++;
+      clearTimeout(peerTimer);
+      // Collect replies, then report once - otherwise three tabs produce three
+      // separate warnings in the same panel.
+      peerTimer=setTimeout(()=>{if(peerTabs>0)show(`${peerTabs+1} tabs of this page are running the bridge. Only one can hold the session; the others will fail to connect. Close the extras.`);},400);
+    };
+    setTimeout(()=>{peerTabs=0;try{bus.postMessage('ping');}catch{}} ,1500);
+  }catch{/* BroadcastChannel unavailable: the gateway-side warning still covers it */}
   document.addEventListener('visibilitychange',onVisibilityChange);
   // bfcache/unload: retire the loop so a restored page starts one pump, not two.
   window.addEventListener('pagehide',()=>{if(running&&!paused){paused=true;loopId++;clearTimeout(timer);}});

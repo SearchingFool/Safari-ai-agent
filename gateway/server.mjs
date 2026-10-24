@@ -10,7 +10,7 @@ import {createServer} from 'node:http';
 import {randomUUID, timingSafeEqual} from 'node:crypto';
 import {appendFileSync, mkdirSync,readFileSync} from 'node:fs';
 import {dirname} from 'node:path';
-import {serveDemo} from './demo-pages.mjs';
+import {serveDemo,serveHelp} from './demo-pages.mjs';
 import {createDiagnostics} from './diagnostics.mjs';
 
 const MAX_REQUEST_BYTES = 65536;
@@ -183,6 +183,28 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
   }
   if(!['read-only','ask'].includes(defaultSiteMode))throw Error('Default site mode must be read-only or ask');
   const modeFor=origin=>normalizeMode(modes.has(origin)?modes.get(origin):defaultSiteMode);
+  // D-048. A tab whose device token no longer matches - the usual cause is a
+  // credential rotation that left older tabs behind - gets a 401 and reports it
+  // only in ITS OWN panel, which is precisely the tab the operator is not
+  // looking at. The working tab shows a healthy session while a sibling fails
+  // once a second, so the symptom reaching the operator is "saving the token
+  // does nothing".
+  //
+  // The rejection happens BEFORE the body is parsed, so there is no origin and
+  // no instanceId to attribute it to. A timestamp is all that can honestly be
+  // recorded, and it is enough: a non-zero recent count means at least one tab
+  // somewhere is presenting a stale credential.
+  let deviceAuthFailures=[];
+  const recordDeviceAuthFailure=()=>{const now=clock();deviceAuthFailures.push(now);
+    if(deviceAuthFailures.length>500)deviceAuthFailures=deviceAuthFailures.slice(-500);};
+  // Reported to the AUTHENTICATED tab, which is the one on screen. Three in the
+  // last minute, not one: a single failure is an ordinary race while a tab is
+  // being reconfigured, and warning on that would be noise.
+  const staleTabWarning=()=>{
+    const cutoff=clock()-60000;
+    deviceAuthFailures=deviceAuthFailures.filter(t=>t>cutoff);
+    return deviceAuthFailures.length>=3 ? {staleTabFailures:deviceAuthFailures.length} : {};
+  };
   // Managed controls choose ask for unlisted sites. Legacy callers retain
   // read-only. Ask never offers standing grants or discloses field values.
   const acceptsOrigin=origin=>{
@@ -333,6 +355,15 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
     try{
       const url=new URL(req.url,'http://localhost');
       if(url.pathname==='/health'&&req.method==='GET')return json(res,200,{ok:true});
+      // D-048. Setup instructions, served BEFORE the demo auth gate on purpose:
+      // they are needed before the demo password has been transferred. The page
+      // carries no credential values - see the note in demo-pages.mjs.
+      if(url.pathname==='/help'){
+        const host=typeof req.headers.host==='string'&&/^[A-Za-z0-9.-]+(:\d+)?$/.test(req.headers.host)?req.headers.host:null;
+        if(!host)return fail(res,400,'Bad host');
+        if(serveHelp(req,res,url.pathname,`https://${host}`))return;
+        return fail(res,405,'GET only');
+      }
       if(['/demo','/demo/product','/install/safari-ai-agent-remote.user.js'].includes(url.pathname)){
         if(req.method!=='GET'||!demoPassword)return fail(res,404,'Not found');
         if(!demoMatches(req.headers.authorization,demoPassword)){
@@ -386,7 +417,12 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
         return json(res,200,{jsonrpc:'2.0',id:b.id,result:out});
       }
       if(url.pathname.startsWith('/device/')){
-        if(!tokenMatches(req.headers.authorization,deviceToken))return fail(res,401,'Unauthorized device');
+        if(!tokenMatches(req.headers.authorization,deviceToken)){
+          recordDeviceAuthFailure();
+          // Name the likely cause. A bare 401 took four rounds of live
+          // debugging to identify; D-017 learned the same about a bare 409.
+          return fail(res,401,"Unauthorized device - this tab's device token does not match the gateway. Usually a tab left open from before a credential change: re-save the token here, or close this tab.");
+        }
         if(req.method!=='POST')return fail(res,405,'POST only');
         const b=await readBody(req);
         if(typeof b.origin==='string')trace.deviceOrigin=b.origin;
@@ -476,14 +512,14 @@ export function createGateway({clientToken,deviceToken,demoPassword,allowedOrigi
           // refuse to run it, but a safety gate that relies on the client
           // re-checking is not a gate. When nothing is stale these are equal,
           // so this is strictly more conservative and never less.
-          if(current.visibility!=='visible')return json(res,200,{command:null,generation,policy,paused:'hidden'});
+          if(current.visibility!=='visible')return json(res,200,{command:null,generation,policy,paused:'hidden',...staleTabWarning()});
           for(const p of pending.values()){
             if(!p.claimed && p.origin===b.origin && p.instanceId===b.instanceId && p.expiresAt>clock()){
               p.claimed=true;
-              return json(res,200,{command:{id:p.id,action:p.action,args:p.args,origin:p.origin,expiresAt:p.expiresAt,generation},policy});
+              return json(res,200,{command:{id:p.id,action:p.action,args:p.args,origin:p.origin,expiresAt:p.expiresAt,generation},policy,...staleTabWarning()});
             }
           }
-          return json(res,200,{command:null,generation,policy});
+          return json(res,200,{command:null,generation,policy,...staleTabWarning()});
         }
         if(url.pathname==='/device/result'){
           const p=pending.get(b.id);

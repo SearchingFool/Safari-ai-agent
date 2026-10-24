@@ -95,6 +95,14 @@ Path B.
 (D-046, outstanding since 2026-10-14). The rig is deliberately shut down and the login agent
 disabled, which is what keeps this contained. Nothing leaked publicly — verified.
 
+**2026-10-24 — D-048 fixed, found in live setup.** A tab left open across a credential rotation
+polled with a stale token once a second and reported it only in its own panel, so the working tab
+looked healthy while nothing connected. Three warnings added (gateway tells the working tab; the
+401 names its cause; tabs detect each other), plus gateway-served instructions at **`/help`** —
+unauthenticated by design, no credential values, pinned by test. **Userscript 0.2.5; older installs
+show none of it.** Gate: 83/83. `gateway/demo-pages.mjs` added to the syntax gate, which had never
+covered it.
+
 **Current focus (Path A):** Close D2-01. The full workflow and the core negative cases are **evidenced on the physical iPad**: B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device, and **D-032 through D-040 are all fixed and merged**. The two-tab handover is **measured on hardware at 1.26 s** (one poll interval, three for three), network loss mid-command returns a correct *outcome uncertain* and the bridge recovers unaided, and **D-037 is confirmed on device** — an unanswered prompt now reports itself as such instead of as the operator's decision.
 
 **Remaining for D2-01:** **Stop while a command is queued** (unblocked — it was impossible while D-036 left the Stop control covered), same-origin recovery, **ten-run reliability**, and an **independent security review**.

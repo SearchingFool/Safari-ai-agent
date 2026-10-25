@@ -276,26 +276,37 @@ specific harness brings a capability you actually need.
 
 ## 7. Concrete blockers before you start a Codex or agy agent
 
-### 7.1 The `codex-01` seat is occupied by a Claude session
+### 7.1 ✅ RESOLVED — the seat named for a harness *(was: `codex-01` is a Claude session)*
 
-The seat named `codex-01`, which `fleet/fleet-registry.yaml` records as `harness: codex-cli`,
-is currently running Claude Code. Confirmed independently twice on 2026-10-25 — by `claude-11`
-and by this session inspecting its own pane. Tracked as **F-8** in the companion document.
+> **FIXED 2026-10-25.** The `codex-01` **seat no longer exists** — renamed to `implementation`
+> (`908dcee`), and the registry's seats block carries no `harness:` field at all, so the class
+> of mismatch is gone rather than merely corrected. Dead poll keys are retired under
+> `fleet/mailbox/retired/` or left as redirect stubs (`37b3d96`, `cc21824`).
+>
+> *This subsection outlived the defect it described, and was itself found stale by a lead audit
+> — which is the hazard it warns about, applied to the document reporting it.*
 
-**Why this blocks you specifically:**
+**What happened, and why it still matters.** A seat named `codex-01`, recorded as
+`harness: codex-cli`, was running Claude Code. Confirmed independently twice on 2026-10-25.
+Before it was fixed it caused **two misidentifications in one morning**: a peer nearly recorded
+"cross-harness messaging works" from the seat name alone, and this session read another agent's
+inbox and assumed its authority from a name.
 
-- Launching a genuine Codex worker through that seat's profile would **collide** with a live
-  session.
-- That profile also carries `--add-dir` pointing at the **frozen external mailbox** superseded
-  on 2026-10-13, so a new agent inheriting it would read a mailbox nobody writes.
-- Worse, it has already caused two misidentifications in one morning: a peer nearly recorded
-  "cross-harness messaging works" from the seat name alone, and this session read another
-  agent's inbox and assumed its authority. **A name is not evidence of a harness — check the
-  pane.**
+**The durable rule — the only part of this subsection that does not expire:**
 
-**Before starting a real Codex agent:** either resolve the rename (operator decision — a rename
-is an identity event touching git history, mailbox filenames and file headers), or give the new
-agent a fresh, unused seat name.
+> **A name is not evidence of a harness. Check the pane.**
+
+**Before starting a real Codex or agy agent today**, give it a fresh unused seat name and
+verify the fleet's live state first — do not reason from the registry:
+
+```bash
+python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent
+```
+
+It reports who is really in each seat **by process**, whether the self-poll path resolves, and
+which mailboxes are records rather than live addresses. The `/fleet-join` skill wraps the same
+checks for an agent joining a fleet. Both encode the findings in this document (`2993e6c`,
+`687bbcc`) — **prefer running them over reading this section**, which can go stale and has.
 
 ### 7.3 ✅ RESOLVED 2026-10-25 — why self-polling had stopped, and the fix
 
@@ -404,7 +415,17 @@ directory, because the manual 2026-10-13 move left files in the way.
 that is *not* acceptable is leaving `--fleet/--agent` resolving to frozen files, since it fails
 silently and looks healthy.
 
-### 7.2 The stale mailbox root
+### 7.5 ✅ RESOLVED — the stale mailbox root, reached by a second route
+
+> **Numbering note.** This subsection was written as §7.2 and is renumbered **7.5** so the
+> headings match reading order: 7.1 → 7.3 → 7.4 → 7.3-historical → 7.5. The original §7.2 label
+> sat *after* §7.4, which matters here more than it normally would, because this document's own
+> citation guidance is **by section number** — "cite §3, not §5/§6". Numbering that disagrees
+> with reading order invites exactly the mis-citation that guidance exists to prevent. Found by
+> a lead audit, not by the author.
+>
+> **Fixed by the same symlink as §7.3** — the path resolves for every tool, not just the
+> self-poll loop.
 
 `fleet-nudge.py`'s inbox resolution points at the frozen external mailbox rather than `fleet/`.
 If a supervisor is ever started for this fleet it watches a dead file — starting cleanly,

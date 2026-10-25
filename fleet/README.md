@@ -100,7 +100,7 @@ occupant. An **occupant** is a session: ephemeral, hours. **The roster below lis
 | Seat | Function | Mailbox | Current occupant |
 |---|---|---|---|
 | `lead` | Priority, gates, D-### numbering, integration. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` | `claude-11` (Claude Opus 5), since 2026-10-25 |
-| `implementation` | All shared implementation — `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/codex-01.*` → `implementation.*` *(rename pending — occupant's files, occupant's call)* | `codex-01` (Claude Opus 5 — **not** Codex CLI), since 2026-10-25 |
+| `implementation` | All shared implementation — `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/implementation.*` *(renamed from `codex-01.*` 2026-10-25)* | `codex-01` (Claude Opus 5 — **not** Codex CLI), since 2026-10-25 |
 
 **Past occupants are in the registry's `occupancy:` log — a dated trail, not a roster. Never
 liveness-check it.** `claude-04`, `claude-9a` and `claude-safari-ai-agent` live there.
@@ -127,6 +127,32 @@ Two different things were bundled as "identity". They have opposite requirements
 > silently became a lie that broke an identity check. Same shape as baking `LEAD` into an agent
 > name. **A changeable attribute inside a durable identifier does not merely go stale — it
 > propagates mistakes.**
+
+### Renaming a seat safely — the poll-key hazard
+
+**The seat id is three things at once:** the registry key, the **inbox filename**, and the
+**poll key** passed as `fleet-inbox-wait.sh --agent <id>`. Renaming changes all three together,
+which is why a rename is an identity event and operator-reserved.
+
+The trap: if the old inbox simply disappears, an occupant still polling the old name hits
+*"inbox does not exist"* every cycle — and that reads as **"nothing has been assigned to me
+yet"**, not *"you are polling a dead name."* Silent, and indistinguishable from an idle fleet.
+
+**The procedure used for `codex-01` → `implementation` on 2026-10-25:**
+
+1. **Check nobody is mid-wait** — `pgrep -fl fleet-inbox-wait`. Moving a key out from under a
+   blocked poller is the one genuinely destructive moment.
+2. **`git mv` both files**, so history follows the seat. Do not copy-and-delete.
+3. **Leave a redirect stub at the old key**, not nothing. The stub *changes* the old file, so a
+   poller wakes (exit `0`), re-reads, and is told which key to switch to. **The rename
+   announces itself through the very channel it would otherwise have broken.**
+4. **Update `poll_key`, `mailbox:` and this table in the same commit** as the move.
+5. **Delete the stub later**, once no occupant polls the old key — safe precisely because by
+   then nothing resolves there.
+
+**Only the SEAT is renamed. The occupant keeps its own name** — `codex-01` is still `codex-01`,
+now sitting in the `implementation` seat. Its own files were moved, not rewritten; only a
+rename banner and the title line were added.
 
 ### ⚠ The cost of seat reuse, stated plainly
 

@@ -169,19 +169,27 @@ seats:
       - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md
       - its own mailbox pair
     mailbox:
-      # RENAME PENDING. The operator approved renaming this seat from `codex-01` to
-      # `implementation` on 2026-10-25 (root-cause fix for F-8 — a seat must not be named
-      # after a harness). The mailbox files are the OCCUPANT'S `owns`, so claude-11 did NOT
-      # move them. Proposal sent to the occupant; until it answers, these point at the LIVE
-      # paths so nothing breaks and the migration is never half-applied.
-      inbox: mailbox/codex-01.md            # → mailbox/implementation.md when the occupant moves it
-      outbox: mailbox/codex-01.status.md    # → mailbox/implementation.status.md
-    poll_key: codex-01              # CHANGES WITH THE RENAME. An occupant still polling the old
-                                    # name blocks forever on a missing path and it looks like
-                                    # "nothing assigned yet". Rename only when nobody is
-                                    # mid-wait, and update this field in the same commit.
-                                    # Raised by codex-01, 2026-10-25.
-    occupant: codex-01
+      # RENAMED 2026-10-25, operator-instructed, by claude-11 (lead) via `git mv` so history
+      # follows. Root-cause fix for F-8: a seat must not be named after a harness. The old
+      # name `codex-01` described the Codex CLI; the seat has held a CLAUDE session since
+      # 2026-10-25 while the registry still read `harness: codex-cli`, and that mismatch broke
+      # a liveness check and nearly put two agents in the lead seat.
+      inbox: mailbox/implementation.md
+      outbox: mailbox/implementation.status.md
+      redirect_stub: mailbox/codex-01.md    # transitional; delete once nobody polls the old key
+    poll_key: implementation        # was `codex-01`. The seat id IS the poll key IS the inbox
+                                    # filename: `--agent <id>` -> `mailbox/<id>.md`.
+                                    # MIGRATION SAFETY — verified before the move: `pgrep -fl
+                                    # fleet-inbox-wait` was empty, so no occupant was mid-wait.
+                                    # A redirect STUB was left at the old key rather than
+                                    # deleting it, because a vanished inbox makes a poller hit
+                                    # "inbox does not exist" every cycle, which reads as
+                                    # "nothing assigned yet" rather than "you are polling a
+                                    # dead name". The stub CHANGES the file, so a poller wakes
+                                    # (exit 0) and is told to switch. The rename announces
+                                    # itself through the channel it would otherwise break.
+                                    # Hazard raised by codex-01, 2026-10-25.
+    occupant: codex-01              # the OCCUPANT keeps its own name; only the SEAT was renamed
 
 # OCCUPANCY — a dated LOG, not a roster. NEVER liveness-check this list.
 # Newest first. Attribution for any individual file lives in its `Author:`

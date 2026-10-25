@@ -611,8 +611,8 @@ implement.
 
 ### D-052 — WKWebView keeps a session across app restarts (PROVISIONAL, macOS only)
 
-**Status: provisional 2026-10-25, awaiting one confirmation cycle.** Recorded now rather than
-after, because the observation is real and the session recording it is near its context limit.
+**Status: CONFIRMED on macOS 2026-10-25. Both halves of the test passed.** Still unconfirmed on
+iPad, and does not address authentication — see the limits below.
 
 **What was observed, by the operator, on macOS:** the spike was launched and — **before pressing
 Go, with nothing loaded in that run** — the cookie count read **4**. The app navigates only on an
@@ -623,14 +623,20 @@ to **6**, consistent with the site setting more on a real visit.
 an app restart. Four cookies present before any navigation is persistence observed directly, not
 inferred. **The thing that could have killed the in-app browser path does not.**
 
-**Still outstanding before this is firm:**
+**The negative control passed, which is what makes the positive mean anything.** Operator ran
+Clear data, relaunched, and saw **0 cookies** — then cookies returned on a fresh visit. So the
+store demonstrably causes the persistence: it survives a restart, and stops surviving when
+cleared. A positive count alone could have been an artefact of the counter; this rules that out.
 
-1. **The confirmation cycle** — quit with a known 6, relaunch, check before loading. A known
-   quantity carried across a restart is stronger than "some cookies exist".
-2. **The negative control** — Clear data, relaunch, expect 0. Without it a non-zero count does not
-   establish that the store is what caused it.
-3. **The iPad.** This is **macOS**. Same WebKit data-store API, so it is strong evidence, but iOS
-   is stricter about app data and the device run is the real confirmation.
+**What is NOT established, and must not be read into this:**
+
+1. **The iPad.** This is **macOS**. Same WebKit data-store API, so it is strong evidence, but iOS
+   is stricter about app data and the device run remains the real confirmation.
+2. **A real authenticated session.** The cookies were ordinary site cookies from browsing, **not a
+   logged-in session**. That a data store persists is necessary but not sufficient: some sites
+   bind sessions to more than a cookie. Stage B — log in with a password, quit, relaunch, confirm
+   still logged in — has **not** been run.
+3. **Authentication at all,** for the operator's actual usage. See the passkey paragraph below.
 
 **And a separate blocker this does NOT address — possibly the larger one.** The operator uses a
 **passkey**. WebAuthn in a third-party `WKWebView` requires the app to be associated with the

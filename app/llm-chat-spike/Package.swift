@@ -19,6 +19,7 @@ let package = Package(
     products: [
         .library(name: "LLMChatCore", targets: ["LLMChatCore"]),
         .executable(name: "LLMChatSpike", targets: ["LLMChatSpike"]),
+        .executable(name: "WebViewSpike", targets: ["WebViewSpike"]),
     ],
     targets: [
         // Transport + wire types + structured errors. No SwiftUI, no URLSession at test time.
@@ -31,6 +32,14 @@ let package = Package(
             name: "LLMChatSpike",
             dependencies: ["LLMChatCore"],
             path: "Sources/LLMChatSpike"
+        ),
+        // D-047's decisive test: does a hand-performed login survive an app restart inside a
+        // WKWebView? Separate target on purpose — it shares no code with the chat spike, needs
+        // no key, no token and no network beyond the site itself, so it can be run for free
+        // before any decision about model billing is made.
+        .executableTarget(
+            name: "WebViewSpike",
+            path: "Sources/WebViewSpike"
         ),
         .testTarget(
             name: "LLMChatCoreTests",

@@ -28,8 +28,59 @@ final class SpikeAppDelegate: NSObject, NSApplicationDelegate {
 }
 #endif
 
+/// `swift run` launches a bundle-less binary, which macOS refuses to show a window for. Rather
+/// than require a separate launcher script that nobody will remember, the binary detects that
+/// it is unbundled, wraps ITSELF in a minimal .app, opens that, and exits. The re-launched copy
+/// runs inside a bundle, so `bundleIdentifier` is non-nil and it proceeds normally — no
+/// recursion. This exists because the operator ran `swift run` six times and saw nothing: a
+/// command people actually type should work, not be corrected.
+#if canImport(AppKit)
+@MainActor
+func relaunchInsideBundleIfNeeded() -> Bool {
+    guard Bundle.main.bundleIdentifier == nil else { return false }   // already bundled
+    let exe = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath()
+    let app = exe.deletingLastPathComponent().appendingPathComponent("WebViewSpike.app")
+    let macos = app.appendingPathComponent("Contents/MacOS")
+    let fm = FileManager.default
+    do {
+        try fm.createDirectory(at: macos, withIntermediateDirectories: true)
+        let dest = macos.appendingPathComponent("WebViewSpike")
+        if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
+        try fm.copyItem(at: exe, to: dest)
+        let plist = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0"><dict>
+          <key>CFBundleName</key><string>WebViewSpike</string>
+          <key>CFBundleIdentifier</key><string>com.searchingfool.webviewspike</string>
+          <key>CFBundleExecutable</key><string>WebViewSpike</string>
+          <key>CFBundlePackageType</key><string>APPL</string>
+          <key>CFBundleVersion</key><string>1</string>
+          <key>NSHighResolutionCapable</key><true/>
+        </dict></plist>
+        """
+        try plist.write(to: app.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
+        let open = Process()
+        open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        open.arguments = [app.path]
+        try open.run()
+        FileHandle.standardError.write(Data("Launched \(app.lastPathComponent) — window should appear.\n".utf8))
+        return true
+    } catch {
+        FileHandle.standardError.write(Data("Could not self-bundle: \(error)\n".utf8))
+        return false
+    }
+}
+#endif
+
 @main
 struct WebViewSpikeApp: App {
+    init() {
+        #if canImport(AppKit)
+        if MainActor.assumeIsolated({ relaunchInsideBundleIfNeeded() }) { exit(0) }
+        #endif
+    }
+
     @StateObject private var model = BrowserModel()
     #if canImport(AppKit)
     @NSApplicationDelegateAdaptor(SpikeAppDelegate.self) private var appDelegate

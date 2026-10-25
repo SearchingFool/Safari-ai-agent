@@ -1,6 +1,49 @@
 # Safari AI Agent — Delivery tracker
 
-Updated: 2026-10-24 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047).
+Updated: 2026-10-25 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (`implementation` seat, fleet-coordination session).
+
+## 2026-10-25 — Fleet coordination was silently dead for 12 days; fixed and verified
+
+**Not product delivery — infrastructure.** Recorded here because this tracker is the declared
+source of truth and a reader would otherwise not know the fleet could not coordinate. **No iPad
+reliability evidence was produced this session and the D2-01 gate is untouched. Ten-run count
+remains 0.**
+
+**What was broken.** `fleet-inbox-wait.sh:99` hardcodes the central mailbox path
+(`~/.ai-dev-dotfiles/.coordination/fleets/<fleet>/mailbox/`). The 2026-10-13 move of this
+repo's mailbox into `fleet/` left that path holding frozen files. From 2026-10-13 to
+2026-10-25 **every agent that polled blocked on a dead file, timed out, looped and never woke**
+— with no error, looking exactly like "nothing assigned yet". Twelve days, unnoticed.
+
+**Fixed.** The central path is now a symlink to `fleet/mailbox/` (machine-local;
+`.coordination/` is gitignored, nothing committed). Verified by two agents independently with a
+negative control — a deliberately bad agent name must hit the setup-error path, which is what
+makes a successful resolution evidence rather than output.
+
+**Correction of record.** Two agents independently documented tmux `send-keys` as the
+cross-harness transport. It is not. **The implemented model is PULL** — each agent blocks on its
+own inbox; cost is wall-clock, not tokens. The push supervisor was *declined* (operator decision
+2026-10-12) after a 2026-09-27 probe found blind `send-keys` unsafe: Enter consumed as a dialog
+answer, digits selecting menu items, vim NORMAL mode corrupting text. Both agents reasoned from
+a document instead of the code; `FLEET-TMUX-LAUNCH.md` now carries a banner saying so.
+
+**Canonical from this session:** [`docs/FLEET-CROSS-HARNESS-COMMUNICATION.md`](FLEET-CROSS-HARNESS-COMMUNICATION.md)
+(§3 the real model; §7.3 this defect and its fix; §7.4 the status check that must not be written
+naively) and [`docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](FLEET-TMUX-OBSERVABILITY-ANALYSIS.md)
+(F-1…F-8). `AGENTS.md` now records that the in-repo mailbox override has a cost and a symlink
+pays it.
+
+**Seat model adopted.** The registry is now durable **seats** with dated occupancy rather than
+one identity per terminal. `codex-01` → `implementation`; `claude-11` holds `lead`. Dead poll
+keys are retired under `fleet/mailbox/retired/` or left as redirect stubs. New tooling:
+`fleet-status.py` and a `/fleet-join` skill — **verify a seat by its process, never by its name.**
+
+**Open, none of it this repo's to fix:**
+1. The wrapper gives one value three jobs (poll key, `QUEUECTL_AGENT`, messaging `--name`), so
+   seats and occupants cannot be distinguished in tooling. `ai-dev-dotfiles` scope.
+2. The symlink points at this checkout — relocating the repo silently breaks the mailbox again.
+3. **For the lead:** the mailbox-location choice is decision-shaped and unnumbered. Proposed,
+   not numbered, per §7 (highest existing is D-053).
 
 ## 2026-10-14 — Safari AI Agent testing: pending owner actions
 

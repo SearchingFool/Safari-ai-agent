@@ -193,6 +193,8 @@ files covered only by a machine-local global gitignore that does not travel with
 | [`docs/PRODUCT_REQUIREMENTS.md`](docs/PRODUCT_REQUIREMENTS.md) | What the product must do |
 | [`docs/IPAD-DEVICE-RUN-SHEET.md`](docs/IPAD-DEVICE-RUN-SHEET.md) | Operator protocol for device sessions |
 | [`README.md`](README.md) | **Risks 1–6. Read before any safety-adjacent change.** |
+| [`docs/FLEET-CROSS-HARNESS-COMMUNICATION.md`](docs/FLEET-CROSS-HARNESS-COMMUNICATION.md) | **How agents actually wake each other.** The wake-up model is PULL (`fleet-inbox-wait.sh`), not push. Read §3 before describing the channel; §5–6 describe the *rejected* push design |
+| [`docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md) | tmux hosting, operator attach/intervention, and findings F-1…F-8 |
 
 ## 8. Two constraints that are not visible from the code
 

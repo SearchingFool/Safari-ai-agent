@@ -14,8 +14,18 @@
 > **This is the seat's high-water mark.** A new occupant inheriting
 > [`lead.md`](lead.md) has no "last handled" `ASSIGNMENT-ID` and cannot get one from the inbox.
 > **The first `##` section below is the floor.** On taking the seat, add an `## OCCUPANCY` entry
-> here naming yourself, the date and the `ASSIGNMENT-ID` you are treating as handled, before
-> your first write.
+> here naming yourself, the date, the `ASSIGNMENT-ID` you treat as handled, and the in-flight
+> state of anything left open — `unknown — re-verify before acting` where you cannot tell —
+> before your first write.
+
+> **⚠ EVERY ENTRY CARRIES ITS OCCUPANT:** `## YYYY-MM-DD — <occupant> — <subject>`.
+> **This file outlives its authors.** Entries below may have been written by a different
+> occupant — possibly on a different harness — and a newest-first file gives no visual boundary
+> between them. A single marker at the top does **not** fix this: everything beneath it stays
+> unattributed, and status files are exactly what people skim.
+> Live example of the failure, in this very fleet: `codex-01.status.md` carries a 2026-10-25
+> entry by a **Claude** occupant directly above a 2026-10-14 checkpoint by a genuine **Codex**
+> one, with no marker between them. Found by `codex-01` reviewing this design, 2026-10-25.
 
 ---
 

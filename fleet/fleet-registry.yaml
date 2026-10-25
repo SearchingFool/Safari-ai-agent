@@ -176,8 +176,19 @@ seats:
     occupant: codex-01
 
 # OCCUPANCY — a dated LOG, not a roster. NEVER liveness-check this list.
-# Newest first. `to:` absent means current. Attribution for any individual file
-# lives in its `Author:` header and in git history; this is only the seat trail.
+# Newest first. Attribution for any individual file lives in its `Author:`
+# header and in git history; this is only the seat trail.
+#
+# *** THIS LOG CANNOT TELL YOU WHO HOLDS A SEAT RIGHT NOW, AND NEITHER CAN THE
+# *** `occupant:` FIELD ON A SEAT ABOVE. Nobody liveness-checks either (that is
+# *** the design), so an occupant that exits without writing a `to:` leaves an
+# *** open-ended entry forever. A missing `to:` means "never closed it out",
+# *** NOT "still here". THE ONLY AUTHORITATIVE LIVENESS SIGNAL IS A PROCESS
+# *** CHECK — `ps` / `tmux list-sessions` / the launcher's env stamp.
+# This registry answers WHAT A SEAT IS FOR. It does not answer WHETHER ANYONE
+# IS SITTING IN IT. Raised by codex-01, 2026-10-25: a reader under deadline who
+# takes the newest occupancy row as current rebuilds the exact failure this
+# restructure removed. Pair it with the pane-check rule in fleet/README.md.
 occupancy:
   - seat: implementation
     occupant: codex-01

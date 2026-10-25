@@ -93,6 +93,10 @@ printed — all unchanged.
 scope, a mailbox thread. It survives every terminal closing and is inherited by the next
 occupant. An **occupant** is a session: ephemeral, hours. **The roster below lists seats.**
 
+> **The `Current occupant` column is a label, not a liveness claim.** It is not updated when a
+> session exits. To find out whether anyone is actually in a seat, check the process — see
+> *Identify a peer by its PROCESS* below.
+
 | Seat | Function | Mailbox | Current occupant |
 |---|---|---|---|
 | `lead` | Priority, gates, D-### numbering, integration. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` | `claude-11` (Claude Opus 5), since 2026-10-25 |
@@ -126,17 +130,47 @@ Two different things were bundled as "identity". They have opposite requirements
 
 ### ⚠ The cost of seat reuse, stated plainly
 
-Inheriting a seat's inbox means inheriting its `ASSIGNMENT-ID` history. The protocol says act
-when an ID is *newer than the one you last handled* — **a fresh occupant has no last-handled**,
-so the rule gives it no floor and the newest item may already be done.
+Seats are the right trade, but they are **not free**. Four hazards, all of them real, three
+found by `codex-01` reviewing this design:
 
-**On taking a seat:** read the top of its `.status.md` (that is the real high-water mark, not
-the inbox), then add an `## OCCUPANCY` entry naming yourself, the date and the `ASSIGNMENT-ID`
-you treat as your floor — **before your first write**. If your predecessor stopped mid-task, say
-so rather than silently restarting.
+**1. A fresh occupant has no floor.** Inheriting a seat's inbox means inheriting its
+`ASSIGNMENT-ID` history. The protocol says act when an ID is *newer than the one you last
+handled* — a new occupant has no last-handled, so the rule gives it nothing and the newest item
+may already be done.
 
-This hazard is deliberate and priced: the alternative is a fresh mailbox per session, which is
-exactly what produced the four dead identities above.
+**2. A newest-first status file mixes occupants, and a single top marker does not fix it.**
+Older entries below your marker were written by someone else. The documented habit — "read the
+head of the status file" — is right for recency and **wrong for attribution**. Live example:
+`mailbox/codex-01.status.md` has a 2026-10-25 entry by a Claude occupant sitting directly above
+a 2026-10-14 testing checkpoint by a genuine **Codex** occupant. Two harnesses, one file, no
+markers; a reader skimming down credits the Codex work to the wrong agent.
+
+> **Therefore: every status entry carries its occupant in the heading.**
+> `## YYYY-MM-DD — <occupant> — <subject>`. A per-entry stamp is the only form that survives
+> skimming; a single marker at the top of a newest-first file leaves everything below it
+> unattributed. Status files are exactly what people skim.
+
+**3. A predecessor that vanished mid-task leaves assignment state *unknown*, not merely
+unread.** `claude-04` on 2026-10-25 is the case: live at 08:09, gone by 08:33, inbox
+`ASSIGNMENT-ID` unchanged throughout. A fresh occupant reads an assignment that looks current
+and untouched, and may redo or double-apply it. **The honest default is
+`in-flight state: unknown — re-verify before acting`, written down. Not silence.**
+
+**4. `occupancy:` can never tell you who holds a seat *right now*.** Nobody liveness-checks it
+(by design), so an occupant that exits without writing a `to:` leaves an open-ended entry
+forever. The same is true of the `occupant:` field on a seat. **Neither is authoritative for
+liveness — only a process check is.** Pair this with the pane-check rule above: the registry
+answers *what a seat is for*; `ps`/`tmux` answers *whether anyone is sitting in it*. A reader
+under deadline who takes the newest occupancy row as current has rebuilt the exact failure this
+restructure removed.
+
+**On taking a seat, before your first write:** read the top of its `.status.md` (the real
+high-water mark, not the inbox), then add an `## OCCUPANCY` entry naming yourself, the date, the
+`ASSIGNMENT-ID` you treat as your floor, and the in-flight state of anything your predecessor
+left open — `unknown` if you cannot tell.
+
+These hazards are priced, not discovered: the alternative is a fresh mailbox per session, which
+is what produced the four dead identities above.
 
 **Lead seat history.** `claude-04` 2026-10-13 → `claude-9a` 2026-10-14 → `claude-11` 2026-10-25.
 Each transfer after the first met a live peer, and both were settled by *asking*:

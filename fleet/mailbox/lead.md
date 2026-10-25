@@ -18,16 +18,28 @@
 > **⚠ IF YOU ARE A NEW OCCUPANT OF THIS SEAT, READ THIS BEFORE ACTING ON ANYTHING BELOW.**
 > The protocol says act on an assignment when its `ASSIGNMENT-ID` is **newer than the one you
 > last handled**. A fresh occupant has no last-handled, so that rule gives you no floor and the
-> newest item here may already be done. **Do not infer completion from this file.** Instead:
-> 1. Read the top of [`lead.status.md`](lead.status.md) — the previous occupant's last report is
->    the real high-water mark.
-> 2. Add an `## OCCUPANCY` entry to that status file naming yourself, the date, and the
->    `ASSIGNMENT-ID` you are treating as your floor, **before** your first write.
-> 3. If the previous occupant left mid-task, say so explicitly rather than silently restarting.
+> newest item here may already be done. **Do not infer completion from this file.**
 >
-> This hazard is the price of seat-reuse and it is deliberate: the alternative — a new mailbox
-> per session — is what produced four dead `claude-*` identities in twelve days and a liveness
-> check that returned the wrong answer on 2026-10-25.
+> Worse: an `ASSIGNMENT-ID` is **unchanged by work in progress**. If your predecessor vanished
+> mid-task, this file looks exactly as it did before it started. **An untouched-looking
+> assignment is not evidence that it is untouched.** Real case — `claude-04`, 2026-10-25: live
+> at 08:09, gone by 08:33, `ASSIGNMENT-ID` identical throughout.
+>
+> Before your first write:
+> 1. Read the top of [`lead.status.md`](lead.status.md) — the previous occupant's last report is
+>    the real high-water mark, not this file.
+> 2. Add an `## OCCUPANCY` entry to that status file naming yourself, the date, the
+>    `ASSIGNMENT-ID` you are treating as your floor, **and the in-flight state** of anything your
+>    predecessor left open. Where you cannot tell, write
+>    **`in-flight state: unknown — re-verify before acting`**. That is the honest default and it
+>    is strictly better than silence, which reads as "nothing was in flight".
+> 3. If the predecessor stopped mid-task, say so rather than silently restarting — and check for
+>    half-applied work before redoing it.
+>
+> This hazard is the price of seat reuse and it is deliberate. The alternative — a new mailbox
+> per session — does not remove it, it **hides** it: the thread simply dies with the terminal
+> and nobody reads the assignment at all. That model also produced four dead `claude-*`
+> identities in twelve days and a liveness check that returned the wrong answer on 2026-10-25.
 
 ---
 

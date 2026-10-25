@@ -41,6 +41,41 @@ practical consequence was real: analysis written there had to be migrated by han
 disjoint `OWNS` write scopes, status written to a file rather than only printed — **but use
 `fleet/` in this repo as the location.**
 
+### ⚠ The override has a cost, and a symlink pays it — do not break the symlink
+
+The fleet tooling does **not** know about this override. `fleet-inbox-wait.sh` — the mechanism
+that lets an agent wake itself when its inbox changes, without an operator nudge and without
+burning tokens — hardcodes the central path (`fleet-inbox-wait.sh:99`). So does anything else
+resolving `--fleet/--agent`.
+
+From 2026-10-13 to 2026-10-25 that path held **frozen** files while the live mailbox was here.
+Every agent that polled blocked, timed out, looped, and **never woke** — with no error, because
+the tools were doing exactly what they were asked. It looked identical to "nothing assigned
+yet." Nobody noticed for twelve days.
+
+The bridge now in place (machine-local; `.coordination/` is gitignored, nothing is committed):
+
+```
+~/.ai-dev-dotfiles/.coordination/fleets/safari-ai-agent/mailbox
+    -> <this repo>/fleet/mailbox            (symlink)
+~/.ai-dev-dotfiles/.coordination/fleets/safari-ai-agent/mailbox.frozen-2026-10-13/
+    the pre-override files, retained OUTSIDE the repo
+```
+
+**Two consequences you must not forget:**
+
+1. **The symlink points at this checkout's path.** Move, rename or delete this directory and
+   every fleet tool silently loses the mailbox again — the same invisible failure as above. If
+   you relocate the repo, repoint the symlink in the same action.
+2. **`mailbox.frozen-2026-10-13/` must stay outside the repo.** It contains a status file with
+   a control-account username, a public endpoint and live process IDs, deliberately never
+   migrated because this repo is public (§2). **Do not migrate it in.** The in-repo file of the
+   same name is a different, sanitised file.
+
+**Verify, don't assume** — `python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent`
+reports whether the self-poll path resolves, who is really in each seat (by process, not by
+name), and which mailboxes are records rather than live addresses.
+
 ## 2. ⚠ THIS REPOSITORY IS PUBLIC
 
 `github.com/SearchingFool/Safari-ai-agent` is **public**. Anything committed to `fleet/` is

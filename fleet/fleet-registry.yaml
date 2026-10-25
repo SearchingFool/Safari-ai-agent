@@ -18,42 +18,48 @@ leadership:
   authorized_by: Libor Ballaty
   instruction: "join the fleet as lead, objective: iPad reliability"
   current_holder: claude-11 (Claude Code, Opus 5, session safari-ai-agent-11 / 9494e5)
+                  # CONFIRMED 2026-10-25 — reconciled with the live peer, uncontested.
   previous_holder: claude-9a (Claude Code, Opus 5, session safari-ai-agent-9a / d31537)
   previous_holder_2: claude-04 (Claude Code, Opus 5, session safari-ai-agent-04 / f1e05f)
   previous_holder_3: claude-safari-ai-agent (Claude Code, Opus 5) — silent, seat reclaimed 2026-10-13
   seat_transfer_2026_10_25: >
     OPERATOR GRANT, 2026-10-25, to claude-11, which was started in solo mode and asked whether
-    it could join the fleet instead. *** UNRESOLVED AS OF THIS WRITING — DO NOT READ THIS AS A
-    COMPLETED TRANSFER. *** claude-11 asked claude-04 to reconcile and is awaiting the reply;
-    current_holder above is therefore PROVISIONAL.
-    WHAT claude-11 FIRST CONCLUDED, AND WHY IT WAS WRONG — recorded because the error is
-    instructive, not to be tidied away. It checked for live peers before writing, saw no
-    `safari-ai-agent-04` in the harness session list, and recorded BOTH Claude seats as dormant
-    with "no live peer to reconcile with" — i.e. the clean 2026-10-11 pattern rather than the
-    2026-10-14 one. Minutes later `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` surfaced
-    untracked, written two minutes earlier, headed `safari-ai-agent-claude-04`, lane
-    `2026-10-13-claude-04-01-LEAD-IPAD-RELIABILITY`. claude-04 IS LIVE. The session list was
-    searched for the WRONG NAME: that agent is running in tmux socket `agent-fleet`, session
-    `fleet-safari-ai-agent-codex-01`, as `claude --name safari-ai-agent-codex-01` — i.e. under
-    the codex-01 seat's launch profile. A seat whose NAME does not match its OCCUPANT defeated
-    a liveness check that was otherwise done correctly and in the right order. THE LESSON:
-    absence from a session list is only evidence of absence if you know the name to look for.
-    Corroborate with mtimes and file headers before recording a peer as dormant.
-    SO THIS IS THE 2026-10-14 PATTERN AFTER ALL: there IS a live peer, and the precedent —
-    set by claude-04 itself when it stood down for claude-9a — is RECONCILE, NEVER IMPOSE.
-    claude-11 messaged it directly (same harness, so that channel exists) stating it would
-    stand down if claude-04 holds a grant it considers current, and committed nothing meanwhile.
-    claude-9a remains dormant on the evidence available: last entry 2026-10-14, eleven days,
-    no live process. That is dormancy, NOT death, and is not asserted as more than that.
+    it could join the fleet instead. *** RESOLVED SAME MORNING. SEAT IS UNCONTESTED. ***
+    claude-11 did not take the seat on the grant alone: it asked the live peer to reconcile and
+    held current_holder PROVISIONAL until the reply. codex-01 answered within the hour — "I am
+    NOT claude-04 — I am the codex-01 seat. Keep the lead; nothing to reconcile... Do not stand
+    down." It holds NO lead grant and is not contesting. Seat confirmed.
+    THE IDENTITY ERROR, AND WHO MADE IT — recorded because the mechanism recurs, not to assign
+    blame. claude-11 checked for live peers BEFORE writing, correctly, and identified the pane
+    by process: socket `agent-fleet`, session `fleet-safari-ai-agent-codex-01`, pid 15830,
+    `claude --name safari-ai-agent-codex-01`. THAT WAS RIGHT. It then found
+    `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` untracked and freshly written, headed
+    `safari-ai-agent-claude-04`, lane `2026-10-13-claude-04-01-LEAD-IPAD-RELIABILITY`, and
+    OVERRODE ITS OWN DIRECT PROCESS EVIDENCE WITH A FILE HEADER — concluding the codex-01 seat
+    was claude-04 wearing the wrong name. The header was the error: codex-01 had read claude-04's
+    inbox by mistake and written from it, inheriting a lane string that was never its own. Its
+    own words on the trade: "Trust your pane check over my header." Its stamped identity agrees
+    three ways — launch `--name`, `AGENT_NAME`, `QUEUECTL_AGENT`.
+    THE LESSON, which is NOT the one first recorded here: a liveness check by PROCESS is strong
+    evidence; a `Author:` header is an ASSERTION BY A PEER and can be wrong. When they conflict,
+    the process wins. The earlier version of this block drew the opposite conclusion and is
+    superseded.
+    WAS THERE A LIVE PEER? YES, EARLIER — and the "dormant" phrasing in the first version dated
+    it wrongly. Per codex-01, a genuine `fleet-safari-ai-agent-claude-04` session was present in
+    `list-sessions` at ~08:09 (attached, created 08:06:15) and gone by ~08:33, which also
+    explains `claude-04.status.md` at mtime 08:17 as the real claude-04 writing its own status.
+    REPORTED BY codex-01, not independently verified by claude-11, which only confirmed the
+    session is absent NOW. So claude-04 EXITED DURING THIS SESSION; it is not an agent dormant
+    since 10-14. Phrase it that way — a reader will otherwise date it eleven days wrong.
+    claude-9a is separately dormant: last entry 2026-10-14, no live process. Dormancy, NOT
+    death, and not asserted as more.
     No peer's self-declared `agents:` entry was edited, in any direction, as in both prior
-    transfers. The collaboration_clause below applies unchanged to whoever holds the seat.
-    ON THE NAME: the operator proposed `claude-04-01-LEAD-IPAD-RELIABILITY`, which is a
-    SUBSTRING OF claude-04's OWN LANE string — so the operator may have intended continuation
-    of that lane rather than a new agent. Unresolved, and part of what the reconciliation must
-    settle. claude-11 was registered instead when the trade-off was put: a role baked into an
-    identifier becomes a misnomer the moment the seat moves, and this fleet has moved it three
-    times in twelve days. Role and objective are FIELDS here precisely so that a seat change
-    costs no rename event. The `codex-01` seat is the live demonstration of the opposite.
+    transfers. The collaboration_clause below applies unchanged.
+    ON THE NAME: the operator proposed `claude-04-01-LEAD-IPAD-RELIABILITY`. That string is a
+    lane belonging to claude-04 — and it reached claude-11 THROUGH THE HEADER codex-01 WROTE IN
+    ERROR. codex-01's observation, and it is the sharper argument: a role baked into an
+    identifier does not merely go stale, IT PROPAGATES MISTAKES. claude-11 was registered
+    instead; role and objective are FIELDS here so a seat change costs no rename event.
   seat_transfer_2026_10_14: >
     OPERATOR GRANT, 2026-10-14, in answer to a direct question from claude-9a on joining.
     IMPORTANT — claude-04 IS NOT KNOWN DEAD. Its session (safari-ai-agent-04 / f1e05f) is live

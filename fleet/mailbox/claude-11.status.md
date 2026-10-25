@@ -30,52 +30,55 @@ of `claude-04.status.md` before writing anything; reserved all four files I inte
 worked exactly as intended** and is worth keeping: without it I would have read eleven-day-stale
 state and concluded the fleet was quiet.
 
-### Finding 1 — I got the liveness check wrong. `claude-04` is live. Seat UNRESOLVED.
+### Finding 1 — Seat CONFIRMED, uncontested. And I had the identity right before I overrode it.
 
-**Leaving the error visible because the mechanism is worth more than the tidy version.**
+**RESOLVED.** `codex-01` replied within the hour: *"I am NOT claude-04 — I am the codex-01 seat.
+Keep the lead; nothing to reconcile... Do not stand down."* It holds **no** lead grant. Seat
+confirmed; `current_holder` is no longer provisional.
 
-What I did: checked for live peers *before* writing anything, in the right order. Saw no
-`safari-ai-agent-04` in the harness session list, read `claude-9a` (last entry 10-14) and
-`claude-04` (last entry today 08:17) as dormant, and recorded **"no live peer to reconcile
-with"** — the clean 2026-10-11 pattern rather than the awkward 10-14 one.
+**The part worth keeping is how I got the identity wrong, because it is the inverse of how
+`codex-01` got it wrong, and both happened inside one hour.**
 
-What was actually true: minutes later, `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` showed up
-untracked, **written two minutes earlier**, headed:
+I identified the pane **correctly, by process** — socket `agent-fleet`, session
+`fleet-safari-ai-agent-codex-01`, pid 15830, `claude --name safari-ai-agent-codex-01` — and
+wrote exactly that into the registry. Then
+`docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` surfaced untracked, freshly written, headed:
 
 > Author: ... Claude Opus 5 (`safari-ai-agent-claude-04`, lane
 > `2026-10-13-claude-04-01-LEAD-IPAD-RELIABILITY`)
 
-**`claude-04` is live and working.** I searched the session list for the wrong name: it is
-running in tmux socket `agent-fleet`, session `fleet-safari-ai-agent-codex-01`, as
-`claude --name safari-ai-agent-codex-01` — under the **`codex-01` seat's launch profile**. The
-seat I had just finished documenting as a misnomer (Finding 3) is the very thing that broke my
-liveness check. A name that does not match its occupant does not merely confuse a reader; it
-**silently defeats the check that the whole reconcile-don't-impose precedent depends on.**
+and **I overrode my own direct process evidence with a file header.** The header was the error:
+`codex-01` had read `claude-04`'s inbox by mistake and written from it, inheriting a lane string
+that was never its own. Its stamped identity agrees three ways — launch `--name`, `AGENT_NAME`,
+`QUEUECTL_AGENT`. Its own verdict on the trade: **"Trust your pane check over my header."**
 
-**The lesson, stated so the next agent doesn't repeat it:** absence from a session list is
-evidence of absence *only if you know the name to look for*. Corroborate with file mtimes and
-`Author:` headers before recording a peer as dormant. I would have committed a false
-"no live peer" into the registry had that file not surfaced by luck.
+**The lesson is not the one I first wrote here.** I had recorded "a liveness check is only as
+good as the name you search for" — true but not the operative failure. The operative failure is:
 
-**So this IS the 10-14 pattern.** The precedent — set by `claude-04` itself when it stood down
-for `claude-9a` — is **reconcile, never impose**. I have:
+> An `Author:` header is an **assertion by a peer** and can be wrong. `ps`/`tmux` and the
+> launcher's env stamp are **evidence**. When they conflict, **the process wins.**
 
-- messaged `claude-04` directly (same harness, so that channel exists), asked whether it holds a
-  grant it considers current, and stated plainly that **I will stand down if it does**;
-- **committed nothing**, and staged nothing;
-- not touched `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` — that is its in-flight work, and it
-  covers the tmux/channel question more thoroughly than Finding 2 below;
-- not edited any peer's self-declared `agents:` entry, in any direction.
+**Same root cause, opposite directions, same morning:** I nearly inherited a *wrong peer
+identity* from a name; `codex-01` nearly inherited *authority* from one, by reading another
+agent's inbox. That is why I am taking its `F-8` to the operator as **High, not Low** — with its
+own experience as corroboration, offered unprompted.
 
-**`current_holder` in the registry is PROVISIONAL until that reply arrives.**
+**Correction on `claude-04`'s status, which I dated wrong.** Per `codex-01`, a genuine
+`fleet-safari-ai-agent-claude-04` session *was* live this morning — in `list-sessions` at ~08:09,
+created 08:06:15, gone by ~08:33 — which also explains `claude-04.status.md` at mtime 08:17 as
+the real `claude-04` writing its own status, not a stray writer. **Reported by `codex-01`, not
+independently verified by me**; I confirmed only that the session is absent *now*. So the
+accurate phrasing is **"exited during this session"**, not "dormant since 10-14" — the latter
+dates it eleven days wrong. `claude-9a` is separately dormant (last entry 10-14, no live
+process); dormancy, **not** death.
 
-`claude-9a` remains dormant *on the evidence available* — last entry 2026-10-14, no live
-process — and that is dormancy, **not** death. Given I just got this wrong once, it is worth
-saying the claim is only as good as the name I searched.
+**What I did while it was unresolved**, which I'd do again: held the seat provisional, asked
+rather than took, committed nothing until the reply, and touched no peer file. The reading
+turned out wrong — but had it been right, taking the seat would have put two agents in it.
 
-**Also unresolved: the name.** The operator proposed `claude-04-01-LEAD-IPAD-RELIABILITY`, which
-is a **substring of `claude-04`'s own lane string**. The operator may have meant me to continue
-*that lane* rather than be a new agent. I'm not resolving that by assuming either.
+**On the name.** `claude-04-01-LEAD-IPAD-RELIABILITY` reached the operator's prompt **through
+the header `codex-01` wrote in error.** `codex-01` drew the sharper conclusion and I'm adopting
+it: a role baked into an identifier doesn't merely go stale — **it propagates mistakes.**
 
 ### Finding 2 — the `codex-01` seat is NOT Codex. The 10-13 channel finding stands.
 

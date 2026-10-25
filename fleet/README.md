@@ -89,36 +89,46 @@ printed — all unchanged.
 
 | Agent | Harness | Role | Inbox / Outbox |
 |---|---|---|---|
-| `claude-11` | Claude Code (Opus 5) | Lead **PROVISIONAL** (operator grant 2026-10-25; reconciliation with `claude-04` outstanding) | `mailbox/claude-11.*` |
-| `claude-04` | Claude Code (Opus 5) | **LIVE** 2026-10-25. Worker; owns the iPad device run sheet and results analysis. Running under the `codex-01` seat's profile — see below | `mailbox/claude-04.*` |
-| `claude-9a` | Claude Code (Opus 5) | Lead 2026-10-14 → ?; **dormant**, last entry 2026-10-14 | `mailbox/claude-9a.*` |
-| `codex-01` | *seat name only* | Seat owns **all shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research. **Currently occupied by a Claude session, not Codex** | `mailbox/codex-01.*` |
+| `claude-11` | Claude Code (Opus 5) | **Lead** from 2026-10-25 — priority, gates, D-### numbering, integration. Reconciled with the live peer; uncontested | `mailbox/claude-11.*` |
+| `codex-01` | Claude Code (Opus 5) in the `codex-01` **seat** | **All shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research. Holds **no** lead grant | `mailbox/codex-01.*` |
+| `claude-04` | Claude Code (Opus 5) | Worker; owns the iPad device run sheet and results analysis. **Exited 2026-10-25** (live ~08:06–08:33 that morning) | `mailbox/claude-04.*` |
+| `claude-9a` | Claude Code (Opus 5) | Lead 2026-10-14 → 10-25; **dormant**, last entry 2026-10-14 | `mailbox/claude-9a.*` |
 
-**Dormant is not dead**, and as of 2026-10-25 it is not even reliable — see the warning below.
-No successor has rewritten any peer's entry. If a dormant agent returns, **reconcile with it**.
+**"Exited this morning" ≠ "dormant since 10-14".** `claude-04` was genuinely running on
+2026-10-25 and wrote its own `claude-04.status.md` at 08:17; it has since exited. Say which, or
+a reader dates it eleven days wrong. No successor has rewritten any peer's entry. If a departed
+agent returns, **reconcile with it**.
 
-**Lead seat history.** `claude-04` 2026-10-13 → `claude-9a` 2026-10-14 → `claude-11` 2026-10-25
-(provisional). Both transfers after the first hit a live peer, and knowing that matters:
+**Lead seat history.** `claude-04` 2026-10-13 → `claude-9a` 2026-10-14 → `claude-11` 2026-10-25.
+Each transfer after the first met a live peer, and both were settled by *asking*:
 
-- **10-14 — live peer, discovered in time.** The grant was made on the premise that `claude-04`
-  was idle, which was incomplete: it was live and working. It verified the newer instruction,
-  **stood down voluntarily** rather than contesting it (`6422307`), and neither agent edited the
-  other's registry entry.
-- **10-25 — live peer, nearly MISSED.** `claude-11` checked the session list before writing,
-  found no `safari-ai-agent-04`, and recorded "no live peer to reconcile with". Wrong:
-  `claude-04` was live and had written a 508-line doc two minutes earlier. It was invisible
-  because it runs as `claude --name safari-ai-agent-codex-01` — **the session list was searched
-  for the wrong name.** Caught only because that untracked file surfaced in `git status`.
-  Nothing had been committed; the registry was corrected and the reconciliation requested.
+- **10-14.** The grant was made on the premise that `claude-04` was idle, which was incomplete:
+  it was live and working. It verified the newer instruction, **stood down voluntarily** rather
+  than contesting it (`6422307`), and neither agent edited the other's registry entry.
+- **10-25.** `claude-11` held the seat **provisional** and asked before taking it, having
+  concluded — wrongly — that a live peer was `claude-04` under another name. `codex-01` replied
+  within the hour: *"I am NOT claude-04 — I am the codex-01 seat. Keep the lead; nothing to
+  reconcile."* Uncontested. **The asking cost an hour and was still the right call**: had the
+  reading been right, taking the seat would have put two agents in it.
 
 **The precedent either way: reconcile with a live peer, never impose — and never rewrite a
 peer's self-declared entry, in either direction.**
 
-> **⚠ A liveness check is only as good as the name you search for.** Absence from the session
-> list proves absence *only* if the name matches the occupant. Before recording any peer as
-> dormant, corroborate with file mtimes and `Author:` headers. A seat whose name does not match
-> who is sitting in it does not just mislead a reader — it **silently defeats the check that
-> reconcile-don't-impose depends on.**
+> **⚠ Identify a peer by its PROCESS, not by a name or a header.** On 2026-10-25 this went
+> wrong in **both directions on the same morning**:
+>
+> - `claude-11` identified the pane correctly by process (`claude --name
+>   safari-ai-agent-codex-01`), then **overrode its own direct evidence with a file header**
+>   reading `safari-ai-agent-claude-04` — and concluded a peer was someone else. The header was
+>   the error, not the process check.
+> - `codex-01` **read `claude-04`'s inbox by mistake and wrote from it**, inheriting a lane
+>   string that was never its own. That is where the bad header came from — and it is how a
+>   name alone nearly conferred authority.
+>
+> Same root cause, opposite directions, within one hour. A `Author:` header is an **assertion by
+> a peer** and can be wrong; `ps`/`tmux` and the launcher's env stamp are evidence. **When they
+> conflict, the process wins.** A matching session *name* is not proof of anything — which is
+> also why `fleet-nudge.py` fails closed on the env stamp rather than the name.
 
 Roles, write scopes and the project gates are in [`fleet-registry.yaml`](fleet-registry.yaml).
 
@@ -151,13 +161,20 @@ Two separate things get conflated, so state them apart:
   transport.** It fails closed: a matching session *name* is not proof, only the launcher's env
   stamp is.
 
-**But it is not running.** `F-1` — the supervisor has no launchd job and no live process.
-`F-2` (**critical**) — `get_inbox_path()` resolves to the **frozen global** mailbox, not
-in-repo `fleet/`, so if started it would print "Watching inbox:" and wait forever. *A supervisor
-pointed at a dead file is worse than none: it converts a known gap into a false assurance.*
+**But it is not running, and "deploy it" is NOT the fix.** Three gates, in order:
+
+| | |
+|---|---|
+| `F-2` **critical** | `get_inbox_path()` resolves to the **frozen global** mailbox, not in-repo `fleet/`. Started today it would print "Watching inbox:" and wait forever. *A supervisor pointed at a dead file is worse than none — it converts a known gap into a false assurance.* |
+| **Adapter qualification** | `FLEET-TMUX-LAUNCH.md` requires a passing probe **before** any real worker is nudgeable (`:61` `nudgeable: false` until proven; `:71` the probe matrix — idle/busy, dead pane, stale capture, modal prompts, input-editing mode, attach/detach; `:68` never auto-answer an approval prompt; `:75` the existing smoke test does **not** qualify TUI messaging). **This gate precedes deployment, not follows it.** |
+| `F-1` | Only then: no launchd job, no live process. |
+
+Settled 2026-10-25 between `codex-01` and `claude-11`: `codex-01` had written that deploying
+under launchd was the missing piece, verified that reading against the source, found it
+overstated, and reordered its work list so adapter qualification gates deployment.
 
 **So today every cross-harness nudge is still a human relay.** The mechanism exists; the
-deployment does not.
+qualification and the deployment do not.
 
 Claude↔Claude messaging is unrelated to all of this — it rides the harness session registry and
 works with or without tmux.

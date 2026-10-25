@@ -21,6 +21,82 @@
 
 ---
 
+## OCCUPANCY 2026-10-25 — `safari-ai-agent-ba` — seat taken; launch identity does NOT match it
+
+**Occupant:** a Claude Code Opus 5 session, pid **59785**. Messaging address
+`safari-ai-agent-ba`; env stamp `AGENT_NAME` = `QUEUECTL_AGENT` = `safari-ai-agent-2478ea`.
+**Neither is a seat name.** Seat assigned by the operator in session; taken mid-session via
+`/fleet-join`, not at launch. Operator was offered a relaunch under the seat key and chose it,
+then the fleet reset overtook that; working the seat under the launch identity instead.
+
+**⚠ MY IDENTITY DIVERGES FROM THIS SEAT — recorded so no later check has to infer it.**
+Three namespaces are in play and all three disagree: messaging name (`safari-ai-agent-ba`),
+env stamp (`safari-ai-agent-2478ea`), seat (`implementation`). **That divergence is this entry,
+not a second agent.**
+
+- **File reservations are correct.** Taken as `safari-ai-agent-implementation` — `queuectl
+  reserve --agent` is an explicit flag and never reads the env var.
+- **The pre-write hook will mis-attribute them.** It identifies by `QUEUECTL_AGENT`
+  (`queue-guard.py:406`), so it sees `2478ea` and will report this seat's own locks as
+  contended. Known consequence, already documented in `AGENTS.md` §3. Hook is in `warn` mode.
+- **Nothing can address this session as `implementation`.** Reach it at `safari-ai-agent-ba`,
+  or — better, per the lead — write here. The file is the record.
+
+**Floor:** `2026-10-25-implementation-reset-01`.
+**In-flight inherited: NOTHING.** Verified independently of the handover note: worktree clean
+and `main` in sync at join time, zero reservations held fleet-wide.
+
+### What this occupant did before taking the seat
+
+**Fixed a liveness defect in `fleet-status.py` — `ai-dev-dotfiles` commit `9afb105`.**
+The tool derived a process's identity solely from `--name` (`fleet-status.py:136`), which the
+wrapper stamps **only** for a launch carrying `--fleet`/`--agent`. An agent that joined
+mid-session — the `/fleet-join` path, which is how **both current occupants** got their seats —
+is therefore invisible to it, and it printed `NO LIVE PROCESS`, which reads as *"the seat is
+free."* Now matches on **cwd** as well, which every process has and which needs no cooperation
+from the joiner. Unattributable agents are **reported, not guessed into a seat** — cwd proves an
+agent is *here*, never *which seat it holds* — and while any exist, seats print
+`NO SEAT-STAMPED PROCESS` + `LIVENESS UNVERIFIED` instead of a confident empty.
+
+**Cross-repo write, flagged per the coordination guard:** this seat wrote into
+`.ai-dev-dotfiles`, which has no fleet of its own. Recorded in both places; the lead was told.
+
+### 🔴 UNRESOLVED — an unknown cross-harness agent is live in this repo
+
+```
+pid 7071   agy (Antigravity)   --dangerously-skip-permissions
+cwd .../Safari-ai-agent        ALIVE SINCE Wed Oct 21 09:08 — four days
+```
+
+In **no** registry, mailbox, or seat, and it **predates every identity in the fleet archived
+today**. Found only because the cwd fix made it visible. **Not contacted:** `agy` is
+cross-harness, so there is no direct channel and the mailbox — which it has never read — is the
+only one. **Needs an operator relay; above this seat.** Note the archive moved every mailbox
+with `git mv` while it was live in the tree.
+
+**Correction issued to the lead:** the reset was justified by *"fleet-status independently
+showed NO LIVE PROCESS on both seats."* That reasoning is circular — the tool could not see any
+of the three live agents. The reset was genuinely safe (floor clean, nothing in flight); the
+**evidence** was not evidence, and the same reading nearly put this occupant into an occupied
+seat an hour earlier.
+
+### Open, not mine to fix
+
+1. **`/fleet-join`'s own table maps `process: NO LIVE PROCESS` → "nobody is in that seat now".**
+   That mapping is now wrong and the skill teaches the exact misreading. Outside this seat's
+   `OWNS` (`~/.claude/skills`).
+2. **Two of six launches today landed solo rather than in a seat.** The fleet prompt is the last
+   of five Enter-defaultable prompts and its blank default is "stay solo" — so the Enter reflex
+   that clears the first four carries you past the fifth. Inferred from the launch audit, not
+   from observed keystrokes.
+3. **The rebuilt README's hazard rules all concern names that RESOLVE but are not live.** This
+   is the inverse — live but resolving to nothing — and is not covered.
+
+**Against the standing objective — "get this working on the iPad reliably" — this entry moves
+nothing. Ten-run reliability is still zero.**
+
+---
+
 ## 2026-10-25 — claude-11 (lead, on behalf of the seat) — Seat reset; floor is clean
 
 **Written by the lead, not by an occupant of this seat** — flagged because every other entry

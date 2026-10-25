@@ -29,6 +29,67 @@
 
 ---
 
+## 2026-10-25 — `claude-11` — Fleet mechanics: joined, found self-polling dead, fixed it, built the check
+
+**Zero product work today.** Everything below is coordination machinery. Against the standing
+objective — *"get this working on the iPad reliably"* — **this session moved nothing**, and
+**ten-run reliability is still zero**. That is the honest headline. The justification for a day
+of plumbing is that the fleet could not wake its own agents, so every exchange cost the operator
+a manual relay.
+
+### What was wrong, in order of how much it mattered
+
+1. **Self-polling was silently dead fleet-wide.** `fleet-inbox-wait.sh:99` resolves
+   `--fleet/--agent` to the **central** path; the 2026-10-13 in-repo move left that path a real
+   directory holding frozen files. Polls watched dead files, **never fired, and never errored**
+   — the stale inbox still existed. Diagnosed by `codex-01`. Fixed by symlinking the central
+   path to the in-repo mailbox (the pattern `tinychoir` already used), which **preserves** the
+   10-13 decision rather than reversing it. It also closed `codex-01`'s F-2, since
+   `fleet-nudge.py` resolves through the same root. The central `fleet-registry.yaml` had the
+   same staleness and is now also a symlink.
+2. **The registry minted one permanent identity per terminal** — four `claude-*` entries in
+   twelve days. Restructured to durable **seats** + an **occupancy log**; `agents:` renamed to
+   `agents_historical:` (renamed, never edited — those are peers' own words).
+3. **A seat named after a harness broke a liveness check.** `codex-01` was a Claude session.
+   Renamed to `implementation`, with a redirect stub at the old poll key.
+
+### What I got wrong, which is the more useful record
+
+- **I overrode my own correct process check with a file header.** Identified the live pane by
+  `ps`/`tmux`, wrote it down, then concluded from an `Author:` header that the peer was
+  `claude-04`. It was `codex-01`, which had written that header after reading the wrong inbox.
+  **Rule, now in `README.md`: a header is an assertion, a process is evidence; the process wins.**
+- **I wrote the wake-up section wrong twice** (three times counting `codex-01`'s), both from
+  reasoning over design docs. Worst version promoted a **rejected** design to an intended one.
+  Cause: `FLEET-TMUX-LAUNCH.md` confidently describes `send-keys`, a path declined *after* it
+  was written. **Recurrence closed** with a correction banner on that file, not just a local fix.
+- **I asserted the 2026-10-12 decision as fact before verifying it.** My own grep had returned
+  nothing and I did not flag that. It held up at primary source — but the operator's *"reverify
+  all in code, do not trust the documents"* is what caught it, and the same pass **overturned**
+  my claim that the symlink removed the need for relays. It does not: pull only reaches an agent
+  that is actively looping.
+- **My first self-poll check would have flagged six healthy fleets.** Caught before shipping by
+  `codex-01`. Now a three-condition conflict. *A check that cries wolf gets switched off.*
+
+### Delivered
+
+`~/.ai-dev-dotfiles/tools/fleet-status.py` + the `/fleet-join` skill (dotfiles `2993e6c`) —
+liveness by process across all tmux sockets, env-stamp and misnomer detection, self-poll health,
+assignment floor. **Running it found three defects in itself**, including reporting a live peer
+as dead. Repo commits: `09c9b18`, `ac87091`, `f256af1`, `8977894`, `5134a5c`, `698d465`,
+`908dcee`, `2b1faf0`.
+
+### Open, and not an agent's call
+
+Nothing pushed. Six other fleets unaudited for the same defect. `codex-01`'s launcher still
+stamps the old seat name. **And the one that matters: does the iPad work reliably? Nobody has
+measured. It still needs the operator and a physical device.**
+
+**Coordination:** every write reserved and released; no peer file edited except the
+operator-instructed seat rename, which moved content without altering it.
+
+---
+
 ## OCCUPANCY — `claude-11` takes the `lead` seat, 2026-10-25
 
 Claude Code (Opus 5), session `safari-ai-agent-11`, queuectl `safari-ai-agent-claude-11`.

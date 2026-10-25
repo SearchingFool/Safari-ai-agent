@@ -216,38 +216,80 @@ Verified 2026-10-13. **It is not symmetric.**
 | Anything ↔ a **tmux pane** | **not a channel** | n/a | tmux is **hosting**, not transport. See below. |
 | Any ↔ cloud/remote session | send only | varies | It may receive without being able to reply. **Never ask it a question.** |
 
-### tmux — hosting always; cross-harness doorbell *by design, not in practice*
+### How an agent actually gets woken: PULL, not push
 
-**Canonical analysis: [`../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md)**
-(claude-04, 2026-10-25, findings `F-1`…`F-8`). Read that, not this summary, before changing
-anything in the nudge chain.
+**Canonical: [`../docs/FLEET-CROSS-HARNESS-COMMUNICATION.md`](../docs/FLEET-CROSS-HARNESS-COMMUNICATION.md)**
+and [`../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md)
+(`codex-01`, 2026-10-25). Read those before changing anything here.
 
-Two separate things get conflated, so state them apart:
+**The working mechanism is `~/.ai-dev-dotfiles/tools/fleet-inbox-wait.sh`.** The agent **blocks
+on its own inbox** and wakes when the file changes:
 
-- **Hosting.** tmux keeps an agent in a named terminal a human can attach to. Always true.
-  `~/.ai-dev-dotfiles/docs/FLEET-TMUX-LAUNCH.md`: it "does not decide when to send messages,
-  recognize permission prompts or acknowledge assignments."
-- **The nudge.** A file changing wakes nobody. `fleet-nudge.py --watch` polls an inbox's mtime
-  and `ASSIGNMENT-ID` and then **types a trigger sentence into the target pane via `send-keys`**,
-  reading the screen back to confirm it landed before pressing Enter. Typing characters into a
-  terminal is harness-agnostic — **that is exactly why tmux is the intended cross-harness
-  transport.** It fails closed: a matching session *name* is not proof, only the launcher's env
-  stamp is.
+```bash
+fleet-inbox-wait.sh --fleet safari-ai-agent --agent <seat> --idle
+```
 
-**But it is not running, and "deploy it" is NOT the fix.** Three gates, in order:
+Harness-agnostic by construction — a shell loop watching a file doesn't care what's reading it.
+Its own header: *"COST: wall-clock, not tokens. The sleeping happens in the shell, not the
+model."*
 
-| | |
-|---|---|
-| `F-2` **critical** | `get_inbox_path()` resolves to the **frozen global** mailbox, not in-repo `fleet/`. Started today it would print "Watching inbox:" and wait forever. *A supervisor pointed at a dead file is worse than none — it converts a known gap into a false assurance.* |
-| **Adapter qualification** | `FLEET-TMUX-LAUNCH.md` requires a passing probe **before** any real worker is nudgeable (`:61` `nudgeable: false` until proven; `:71` the probe matrix — idle/busy, dead pane, stale capture, modal prompts, input-editing mode, attach/detach; `:68` never auto-answer an approval prompt; `:75` the existing smoke test does **not** qualify TUI messaging). **This gate precedes deployment, not follows it.** |
-| `F-1` | Only then: no launchd job, no live process. |
+**The push model is the road not taken.** `fleet-nudge.py`, `send-keys` into a pane, adapter
+probes, `nudgeable: false` — that is a *rejected* design (operator decision 2026-10-12,
+launch-layer-only), not an undeployed one. **tmux is hosting only.** `FLEET-TMUX-LAUNCH.md`:
+it "does not decide when to send messages, recognize permission prompts or acknowledge
+assignments."
 
-Settled 2026-10-25 between `codex-01` and `claude-11`: `codex-01` had written that deploying
-under launchd was the missing piece, verified that reading against the source, found it
-overstated, and reordered its work list so adapter qualification gates deployment.
+> **This section was written wrong twice**, both times by `claude-11`, both times by reasoning
+> from a design document instead of reading the code — first "tmux is not a channel", then "tmux
+> is the intended cross-harness transport, pending deployment". The second was worse: it
+> promoted a rejected design to an intended one. **If you are about to describe the wake-up
+> mechanism, read `fleet-inbox-wait.sh` first.**
 
-**So today every cross-harness nudge is still a human relay.** The mechanism exists; the
-qualification and the deployment do not.
+#### ⚠ Self-polling was silently dead for this fleet until 2026-10-25 — fixed
+
+`fleet-inbox-wait.sh:99` hardcodes
+`~/.ai-dev-dotfiles/.coordination/fleets/<fleet>/mailbox/<agent>.md`, and
+`fleet_identity.py:54–58` states the implemented design (**D3**): *"One absolute path reachable
+identically from every repo and every worktree — which is why mailboxes stay here rather than
+inside a repo (an in-repo gitignored mailbox reaches 1 of 25 worktrees; a committed one enters
+history, **and is world readable in a public repo**)."*
+
+The 2026-10-13 in-repo move left that central path as a **real directory holding the frozen
+files**. So any agent self-polling by `--fleet/--agent` watched dead files — and because the
+frozen `codex-01.md` *exists*, it didn't even error. It just never fired. **Nobody in this fleet
+could be woken; every nudge was a human relay, and that looked like a policy rather than a bug.**
+Both costs D3 predicted had landed: the public-repo exposure is why §2's forbidden-content table
+exists, and the broken resolution is why nothing woke up.
+
+**Fix (`codex-01`'s candidate #1, applied by `claude-11` 2026-10-25):** the central path is now a
+**symlink to the in-repo mailbox** — the pattern `tinychoir` already uses and which resolves
+correctly. This **preserves** the 10-13 decision rather than reversing it: in-repo stays
+canonical, and D3's single absolute path is restored.
+
+```
+.coordination/fleets/safari-ai-agent/mailbox -> <repo>/fleet/mailbox
+.coordination/fleets/safari-ai-agent/mailbox.frozen-2026-10-13/   (kept, see below)
+```
+
+Machine-local only — `.coordination/` is gitignored, so nothing was committed.
+
+**Verified with a control**, because "it printed something" is not evidence:
+`--agent no-such-seat` → the setup-error path; `--agent lead` → `watching .../mailbox/lead.md |
+baseline 0557100f5263`. **`lead.md` exists only in-repo**, so a real baseline hash on that path
+proves the symlink resolves live.
+
+**The frozen directory was renamed, never deleted.** It still holds the `codex-01.status.md`
+that was deliberately *not* migrated on 10-13 — it contains a control-account username, the
+public endpoint and live pids. **That file must stay outside this repo.** See §2.
+
+**The seat id is also the poll key.** `--agent <name>` resolves to `mailbox/<name>.md`, so
+renaming a seat changes what every occupant must pass. An occupant still polling the old name
+blocks forever on a path that no longer exists and it looks like "nothing assigned yet". Record
+the poll key in the seat block, and rename when no occupant is mid-wait.
+
+**This check generalises.** Any fleet whose central `mailbox` is a real directory rather than a
+symlink has silently dead self-polling. `tinychoir` is symlinked and fine; the other fleets on
+this machine are unaudited and belong to other repos.
 
 Claude↔Claude messaging is unrelated to all of this — it rides the harness session registry and
 works with or without tmux.

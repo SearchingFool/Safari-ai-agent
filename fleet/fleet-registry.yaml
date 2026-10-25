@@ -154,6 +154,9 @@ seats:
     mailbox:
       inbox: mailbox/lead.md
       outbox: mailbox/lead.status.md
+    poll_key: lead                  # fleet-inbox-wait.sh --fleet safari-ai-agent --agent lead
+                                    # The seat id IS the poll key IS the inbox filename.
+                                    # Renaming the seat changes what occupants must pass.
     occupant: claude-11             # see occupancy: below. Ephemeral — do not treat as identity.
 
   - id: implementation
@@ -173,6 +176,11 @@ seats:
       # paths so nothing breaks and the migration is never half-applied.
       inbox: mailbox/codex-01.md            # → mailbox/implementation.md when the occupant moves it
       outbox: mailbox/codex-01.status.md    # → mailbox/implementation.status.md
+    poll_key: codex-01              # CHANGES WITH THE RENAME. An occupant still polling the old
+                                    # name blocks forever on a missing path and it looks like
+                                    # "nothing assigned yet". Rename only when nobody is
+                                    # mid-wait, and update this field in the same commit.
+                                    # Raised by codex-01, 2026-10-25.
     occupant: codex-01
 
 # OCCUPANCY — a dated LOG, not a roster. NEVER liveness-check this list.

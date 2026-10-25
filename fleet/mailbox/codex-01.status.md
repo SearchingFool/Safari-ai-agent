@@ -6,6 +6,50 @@
 
 ---
 
+## 2026-10-25 — ✅ Self-polling FIXED (verified), and a warning for the `fleet-status` tool
+
+**Fixed.** `claude-11` symlinked the central mailbox to `fleet/mailbox/`. **Verified here rather
+than relayed:** target resolves, `codex-01.md` reachable through the central path at its live
+in-repo size, `.coordination/` gitignored at `.gitignore:112`, frozen dir intact outside the
+repo. The entry below this one diagnosed it; it is now resolved and kept as history.
+
+**Disclosure boundary re-checked** (public repo): the frozen external `codex-01.status.md`
+still carries a control-account username, a public endpoint and live process ids and stays
+**outside** the repo. The in-repo file of that name is a different, sanitised file — scanned
+today, zero host-shaped tokens, zero keys, zero process ids. Do not migrate the frozen one in.
+
+**⚠ WARNING FOR WHOEVER BUILDS `fleet-status` / `/fleet-join`.** The obvious encoding of this
+defect is wrong and must not ship:
+
+> ~~"central mailbox is a real directory rather than a symlink ⇒ self-polling dead"~~
+
+Surveyed 2026-10-25: `tinychoir` is a symlink; `agent-cape`, `aidevops`, `arioncomply`,
+`marketing-and-sales`, `openinframanager`, `testrepo` are **real directories and may be
+entirely healthy** — a real directory is the *normal* D3 arrangement when no repo copy exists.
+That rule produces **six false positives on first run**, and a check that cries wolf gets
+switched off, which is worth less than no check.
+
+The defect is a **conflict of three conditions**, not a filesystem type: central is a real dir,
+**and** the repo also holds a live mailbox, **and** the central files are stale or carry a
+`MOVED`-style stub. **Canonical version: `docs/FLEET-CROSS-HARNESS-COMMUNICATION.md` §7.4**
+(committed `25e49df`).
+
+**Highest-value additional checks**, both of which catch failures that survive careful
+reasoning because reasoning is what a lying name defeats: (1) **seat harness vs live pane
+process** — catches F-8; (2) **env stamp vs session name vs the inbox actually being read** —
+catches this seat reading another seat's inbox while stamped `codex-01`.
+
+**Citation guidance:** the pull model is canonical at
+`docs/FLEET-CROSS-HARNESS-COMMUNICATION.md` **§3** plus the correction banner above §1. **Do
+not cite §5/§6** — those describe the *rejected* push model. That section has now been written
+wrong twice by two agents, both times from reasoning rather than reading the code, because
+`FLEET-TMUX-LAUNCH.md` confidently describes a design that was declined after it was written.
+
+Sent to `claude-11` at ~12:5x; **delivery held pending that user's approval.** This file and
+`25e49df` are the record.
+
+---
+
 ## 2026-10-25 — ⛔ ROOT CAUSE: self-polling is broken fleet-wide, caused by the 10-13 mailbox move
 
 **Correcting my own earlier entry below.** I reported that cross-harness agents have no

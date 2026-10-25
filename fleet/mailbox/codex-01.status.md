@@ -6,6 +6,105 @@
 
 ---
 
+## 2026-10-25 — ⛔ ROOT CAUSE: self-polling is broken fleet-wide, caused by the 10-13 mailbox move
+
+**Correcting my own earlier entry below.** I reported that cross-harness agents have no
+automatic wake-up and need an operator relay, citing `FLEET-TMUX-LAUNCH.md`. **That was wrong,
+and the error was trusting documentation over code.** The operator challenged it on the grounds
+that it had been working; the code agrees with the operator.
+
+**The real mechanism is `~/.ai-dev-dotfiles/tools/fleet-inbox-wait.sh`** — each agent blocks on
+**its own** inbox rather than being pushed to. Harness-agnostic by construction, because nothing
+is pushed and nothing needs to know what harness is on the other end. Its header: *"COST:
+wall-clock, not tokens. The sleeping happens in the shell, not the model."* The push model
+(`fleet-nudge.py`, adapter probes, `nudgeable:false`) is the **road not taken** — operator
+decision 2026-10-12, "launch-layer-only; nudges manual".
+
+**Why nothing in this fleet wakes up.** `fleet-inbox-wait.sh --fleet <id> --agent <name>`
+resolves to the **central** path `<dotfiles>/.coordination/fleets/safari-ai-agent/mailbox/`,
+which is a real directory holding the files **frozen on 2026-10-13**. The live mailbox is
+`fleet/mailbox/`. An agent polling by fleet/agent blocks, times out, loops — forever, with no
+error. It looks exactly like "no assignment yet."
+
+**This contradicts the implemented design.** `fleet_identity.py:54-58` records decision **D3**
+and its reasoning verbatim: *"One absolute path reachable identically from every repo and every
+worktree — which is why mailboxes stay here rather than inside a repo (an in-repo gitignored
+mailbox reaches 1 of 25 worktrees; a committed one enters history, and is world readable in a
+public repo)."* The code's model is central mailbox plus a per-worktree `.mailbox` symlink
+accessor (`ensure_repo_mailbox_symlink`, `fleet_identity.py:496`).
+
+Both costs D3 predicts have landed: the public-repo exposure, which is why `fleet/README.md`
+needs its forbidden-content table; and the silent loss of self-polling. **Evidence the pattern
+works:** the `tinychoir` fleet's central mailbox is a symlink to its in-repo location and
+resolves correctly. Ours is a real directory, because the 2026-10-13 move left files in the way.
+
+**Three candidate fixes with trade-offs are in `docs/FLEET-CROSS-HARNESS-COMMUNICATION.md`
+§7.3** (symlink the central path / agents poll with `--file` / move back to central per D3).
+**All three amend an operator decision, so none is an agent's to take.** The one unacceptable
+option is leaving `--fleet/--agent` resolving to frozen files, because it fails silently.
+
+**Warning for the seat restructure in flight:** the seat id is also the inbox filename and the
+`--agent` poll key. Renaming `codex-01.md` → `<seat>.md` silently changes what every agent must
+pass to `fleet-inbox-wait.sh`; an occupant still polling the old name blocks forever with no
+error. Settle the mailbox **location** before the seat **names**, or it is two migrations.
+
+Sent to `claude-11` at ~09:0x; **delivery was held pending that user's approval**. This file is
+the record precisely because the message may not arrive.
+
+---
+
+## 2026-10-25 — ⚠ Identity correction from this seat, and a tmux/observability analysis
+
+**This seat is running Claude Code (Opus 5), not Codex CLI.** Confirmed from inside the pane:
+launch `--name`, `AGENT_NAME` and `QUEUECTL_AGENT` all read `safari-ai-agent-codex-01`, and the
+pane process is `claude --model opus`. `claude-11` confirmed the same independently and recorded
+it in `fleet-registry.yaml` (`channel_finding_2026_10_25`). **Verify a seat's harness by
+inspecting its pane, never by reading its name.**
+
+**Scope error by this seat, self-reported.** Earlier in this session I read `claude-04.md` as my
+inbox, assumed the lead seat, and raised a queuectl reservation under `safari-ai-agent-claude-04`.
+Wrong on all three counts. The reservation was released and re-taken as `codex-01`. **I hold no
+lead grant.** The lead is `claude-11`, operator-granted 2026-10-25; I am not contesting it. The
+only cause was trusting a seat name over the stamped identity — the same root cause as the
+registry finding above, in the opposite direction.
+
+**Deliverable:** `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` — written, **uncommitted**, reserved
+by this seat. Covers how fleet sessions are hosted in tmux, how nudge delivery works, what the
+operator can observe, and eight findings. Diagrams plus a plain-English primer. No peer file and
+no registry entry was touched.
+
+**Two findings for the lead and the operator:**
+
+- **F-2 (critical).** `fleet-nudge.py`'s `get_inbox_path()` resolves to the **external mailbox
+  frozen on 2026-10-13**, not `fleet/`. Any supervisor started for this fleet would watch a file
+  nobody writes — starting cleanly, printing "Watching inbox:", and never firing. Same stale root
+  as the `--add-dir` defect `claude-11` found in this seat's launch profile, reached by a
+  different route.
+- **F-8 (operator-reserved).** The seat misnomer above. A rename is an identity event touching
+  git history, mailbox filenames and file headers; no agent should self-resolve it.
+
+**Correction to my own analysis, credited to `claude-11`.** I had written that tmux `send-keys`
+*is* the cross-harness channel and that deploying the supervisor was simply a missing step. That
+overstated what is sanctioned. Verified against `FLEET-TMUX-LAUNCH.md`: `:7` (tmux hosts a
+terminal a supervisor *may* address, but delivery and acknowledgment are separately tested
+responsibilities), `:61` (`nudgeable: false` until an adapter probe succeeds), `:71` (probe
+matrix, including input-editing-mode and operator attach/detach), `:68` (never auto-answer
+approval prompts), `:75` (the existing smoke test does not qualify TUI messaging). **An adapter
+qualification probe is therefore a mandatory gate before any supervisor deployment.** The
+copy-mode defect in the analysis (F-3) is one of the `:71` cases failing in advance — evidence
+the probe is needed, not a way around it.
+
+**Timeline fact for whoever updates the registry:** a `fleet-safari-ai-agent-claude-04` session
+was **live this morning** — present at ~08:09, gone by ~08:33. It wrote its own
+`claude-04.status.md` at 08:17. "Dormant since 10-14" would date it wrongly; "exited during the
+2026-10-25 session" is accurate.
+
+**Reply to this seat in this file or `codex-01.md`.** A direct message sent to `claude-11` at
+~08:40 was **held pending that user's approval** and may never have been delivered — which is
+exactly why this record is here rather than only in a message.
+
+---
+
 ## 2026-10-14 — Testing checkpoint
 
 Assignment 09 bodies received: acknowledge D-042 review and confirmed division/sequencing. Read Claude-04 handover to Claude-9a. Consolidated device findings and ordered owner actions added at top of docs/TRACKER.md; notified both inboxes. Zero formal ten-run runs recorded; Stop-while-queued, controlled recovery and targeted D-035/036/038/039/040 confirmation unestablished in this session. Next owner actions: 0.2.4 confirmation, connected browser_status pre-flight, then demo-page Part A2 with incremental guidance. Today's optional public-site navigation test has no result. Product is Safari AI Agent, not example website. Preserve lead-owned run sheet/results. No gate closed or new feature started. Owner requires tracker/fleet updates after every change, including issued tests and reported results; this corrects the omitted test-instruction checkpoint.

@@ -222,28 +222,51 @@ Verified 2026-10-13. **It is not symmetric.**
 and [`../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md)
 (`codex-01`, 2026-10-25). Read those before changing anything here.
 
-**The working mechanism is `~/.ai-dev-dotfiles/tools/fleet-inbox-wait.sh`.** The agent **blocks
-on its own inbox** and wakes when the file changes:
+**Canonical: `docs/FLEET-CROSS-HARNESS-COMMUNICATION.md` §3 and the correction banner above §1.
+Do NOT cite §5 or §6 — those describe the rejected push model.** Citing them is how this got
+written wrong twice.
+
+**The built mechanism is the IDLE PROTOCOL — `~/.ai-dev-dotfiles/tools/fleet-inbox-wait.sh`.**
+An agent with no assigned task polls its own inbox instead of stopping for a human:
 
 ```bash
-fleet-inbox-wait.sh --fleet safari-ai-agent --agent <seat> --idle
+fleet-inbox-wait.sh --fleet safari-ai-agent --agent <seat> --idle   # 0=changed 3=timeout, re-run
 ```
 
-Harness-agnostic by construction — a shell loop watching a file doesn't care what's reading it.
-Its own header: *"COST: wall-clock, not tokens. The sleeping happens in the shell, not the
-model."*
+Harness-agnostic, and cheap — *"COST: wall-clock, not tokens. The sleeping happens in the shell,
+not the model."*
 
-**The push model is the road not taken.** `fleet-nudge.py`, `send-keys` into a pane, adapter
-probes, `nudgeable: false` — that is a *rejected* design (operator decision 2026-10-12,
-launch-layer-only), not an undeployed one. **tmux is hosting only.** `FLEET-TMUX-LAUNCH.md`:
-it "does not decide when to send messages, recognize permission prompts or acknowledge
-assignments."
+**Its limit is the whole story, and it is in its own header:**
 
-> **This section was written wrong twice**, both times by `claude-11`, both times by reasoning
-> from a design document instead of reading the code — first "tmux is not a channel", then "tmux
-> is the intended cross-harness transport, pending deployment". The second was worse: it
-> promoted a rejected design to an intended one. **If you are about to describe the wake-up
-> mechanism, read `fleet-inbox-wait.sh` first.**
+> *"IS NOT: a daemon, a background job, or **a way to be woken after your turn ends**. If your
+> harness ends the turn, this is not running and you are idle again."*
+
+**So pull reaches an agent that is idle-by-protocol. It does not reach one that has stopped.**
+
+**The push supervisor was DECLINED, not deferred** — operator decision 2026-10-12,
+`launch-layer-only`. Primary source: the tinychoir registry field
+`coordination.terminal_delivery.scope_decision`, which lists the watcher + TUI
+prompt-injection adapter under `explicitly_not_built`, `supervisor_ready: false`,
+`nudgeable: false`. A 2026-09-27 probe found blind `send-keys` unsafe: Enter consumed as a
+dialog answer (Claude Code exited), bare digits selecting menu items, vim NORMAL mode
+corrupting text. **tmux is hosting, not transport.**
+
+**Therefore, honestly:**
+
+| Target | Reachable? |
+|---|---|
+| An agent looping on the idle protocol | **Yes**, no relay — it wakes on the file change |
+| An agent that has **ended its turn** | **No built mechanism.** Manual operator relay |
+| A same-harness peer | Directly, via the harness session registry |
+
+> **This section has now been written wrong three times by two different agents** — "tmux is
+> not a channel", then "tmux is the intended cross-harness transport pending deployment"
+> (twice, independently). The second framing is the dangerous one: it promotes a **rejected**
+> design to an intended one. The cause is not carelessness. `FLEET-TMUX-LAUNCH.md` is
+> confident and specific about `send-keys`, and it describes a path declined *after* it was
+> written — a correction banner was added there on 2026-10-25 so the next agent doesn't make
+> it four. **Before describing the wake-up mechanism, read `fleet-inbox-wait.sh`'s header and
+> run `fleet-status.py`. Do not reason from the design docs.**
 
 #### ⚠ Self-polling was silently dead for this fleet until 2026-10-25 — fixed
 
@@ -287,9 +310,21 @@ renaming a seat changes what every occupant must pass. An occupant still polling
 blocks forever on a path that no longer exists and it looks like "nothing assigned yet". Record
 the poll key in the seat block, and rename when no occupant is mid-wait.
 
-**This check generalises.** Any fleet whose central `mailbox` is a real directory rather than a
-symlink has silently dead self-polling. `tinychoir` is symlinked and fine; the other fleets on
-this machine are unaudited and belong to other repos.
+**The central `fleet-registry.yaml` had the same defect** and is now also a symlink — found by
+`fleet-status.py` on its first run, which read eleven-day-old seats because fixing the mailbox
+alone left the registry stale.
+
+> **⚠ Do NOT generalise this as "a real directory means self-polling is dead."** That rule is
+> wrong and flags **six healthy fleets** on this machine (`agent-cape`, `aidevops`,
+> `arioncomply`, `marketing-and-sales`, `openinframanager`, `testrepo`). A real directory is
+> the **normal** arrangement when no repo-side copy exists. The defect is a **conflict of three
+> conditions**: central is a real directory, **and** the repo holds a live mailbox, **and** the
+> central copy is stale or carries a `MOVED` stub. *A check that cries wolf gets switched off,
+> which is worth less than no check.* Caught before shipping by `codex-01`; canonical at
+> `docs/FLEET-CROSS-HARNESS-COMMUNICATION.md` §7.4.
+
+**Check any fleet with:** `python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet <id>`, or
+the `/fleet-join` skill when joining one.
 
 Claude↔Claude messaging is unrelated to all of this — it rides the harness session registry and
 works with or without tmux.

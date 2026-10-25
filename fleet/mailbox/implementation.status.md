@@ -16,6 +16,75 @@
 
 ---
 
+## 2026-10-25 — 🔁 HANDOVER: occupant leaving this seat. IN-FLIGHT STATE: NOTHING.
+
+**Read this first if you are the new occupant of the `implementation` seat.**
+
+**IN-FLIGHT STATE: NOTHING IS HALF-DONE.** Stated explicitly rather than left to inference,
+because the gap this seat identified is that *"act when newer than the one you last handled"*
+assumes a last-handled value a fresh occupant does not have. Everything below is finished and
+committed. **There is no partially-applied change to reconcile and nothing to resume.**
+
+**Outgoing occupant:** a Claude Opus 5 process that ran under the launcher name
+`safari-ai-agent-codex-01` — the pre-rename seat name. Operator is relaunching this seat as
+`claude-w --fleet safari-ai-agent --agent implementation`. After that the env stamp matches the
+seat. Note *why* the misnomer clears: the wrapper gives one value three jobs (poll key,
+`QUEUECTL_AGENT`, messaging `--name` — `fleet_identity.py:296`, `claude_w.py:636`), so the
+occupant name stops existing as a separate thing rather than being retired.
+
+**Your poll key is the literal `implementation`.** Do not poll `$AGENT_NAME` from an old
+profile; it resolves to the `codex-01` redirect stub.
+
+```
+~/.ai-dev-dotfiles/tools/fleet-inbox-wait.sh --fleet safari-ai-agent --agent implementation --idle
+```
+
+**ASSIGNMENT FLOOR.** The inbox header still reads `ASSIGNMENT-ID: 2026-10-14-codex-01-09`,
+written for the genuine Codex CLI occupant. **It was not re-issued to this occupant and was not
+worked by it.** This session's work came from direct operator conversation, not from the inbox.
+Treat 2026-10-14-codex-01-09 as **unverified, not as yours, and not as done** — confirm with the
+lead or the operator before acting on it.
+
+**⚠ THIS FILE SPANS THREE OCCUPANTS AND TWO HARNESSES.** Newest-first with no visual boundary:
+2026-10-25 entries are the outgoing Claude occupant; the 2026-10-14 testing checkpoint and
+everything older is the genuine **Codex CLI** occupant. Do not attribute that testing work to
+Claude, and do not assume its conclusions were re-verified.
+
+### Completed and committed this session
+
+| Commit | What |
+|---|---|
+| `1ced491` | The two fleet analysis documents + the status record behind them |
+| `25e49df` | §7.3 resolution, §7.4 — the status check that must not be written naively |
+| `953b32e` | Durable `fleet-status` warning; disclosure boundary re-verified |
+| `3131ded` | Seat rename verified; retired-mailbox poll-target hazard |
+| `0f1eeae` | `AGENTS.md` — the in-repo override has a cost, and a symlink pays it |
+
+Outside this repo, by operator request and **not** fleet work: three dead cron sync jobs in
+another repo removed, a four-month-stale lock cleared, ~61 MB of logs deleted by the operator.
+
+**All reservations released.** Verified directly against the queue: zero claims under
+`safari-ai-agent-codex-01`, zero under `safari-ai-agent-claude-04` (a name this occupant used in
+error early on and released), and zero active claims in the queue from any agent.
+
+### Open, and explicitly NOT this seat's to take
+
+1. **Wrapper has no occupant concept** — seats and occupants cannot be distinguished in
+   tooling. Reported to the lead; `ai-dev-dotfiles` scope.
+2. **Retired mailboxes may still resolve as poll targets** via `mailbox/*.md` globbing.
+   `mailbox/retired/` now exists; whether the glob still offers the old names needs checking.
+3. **The symlink depends on this checkout's path** — documented in `AGENTS.md`.
+
+### One lesson worth keeping
+
+This occupant twice reported a document's description of the system as the system, and the
+operator caught it both times. `FLEET-TMUX-LAUNCH.md` confidently described `send-keys` as the
+cross-harness transport; the implemented design is **pull** (`fleet-inbox-wait.sh`). Two
+different agents reasoned from that document to the same wrong conclusion in one morning. It now
+carries a banner (`2993e6c`). **When a document and the code disagree, read the code.**
+
+---
+
 ## 2026-10-25 — Seat rename verified from this side; one residual hazard for joining agents
 
 **Rename accepted and verified**, not taken on report: `git log --follow` traverses it cleanly,

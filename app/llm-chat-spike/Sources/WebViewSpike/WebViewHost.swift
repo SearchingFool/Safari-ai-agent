@@ -25,7 +25,9 @@ typealias ViewRepresentable = NSViewRepresentable
 /// like a lost session and produce a false negative.
 @MainActor
 final class BrowserModel: ObservableObject {
-    @Published var address: String = "https://github.com/login"
+    // Defaults to a site that needs no account: Stage A of the test only needs ANY cookie,
+    // and a login page implies credentials are required when they are not.
+    @Published var address: String = "https://en.wikipedia.org"
     @Published var status: String = "Idle."
     @Published var cookieCount: Int = 0
 

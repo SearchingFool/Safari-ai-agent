@@ -1,667 +1,119 @@
-# File: fleet/fleet-registry.yaml  (repo-relative; moved in-repo 2026-10-13 by operator decision)
-# Description: Fleet registry for the Safari-ai-agent repo. Formed 2026-10-11 after a
-#   long live-testing session in which the Claude remote MCP connector was proven
-#   end-to-end against a real browser for the first time, and six safety defects were
-#   found. Leadership was granted explicitly so work can be split without a human relay.
-# Author: claude-safari-ai-agent (Claude Code, Opus 5)
-# Created: 2026-10-11
+# File: fleet/fleet-registry.yaml (repo-relative; this repo is PUBLIC — see README.md)
+# Description: Seats, write scopes and project gates for the safari-ai-agent fleet.
+#   Rebuilt 2026-10-25 by operator decision. The prior registry — 667 lines, 27% of it a dead
+#   per-session roster — is preserved verbatim at fleet/archive-2026-10-25/fleet-registry.yaml.
+#   Nothing was deleted; git history follows every file.
+# Author: Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat)
+# Created: 2026-10-25
 
 fleet_id: safari-ai-agent
-repo: .                            # this repository
+repo: .
 integration_branch: main
 production_branch: main
-mailbox: fleet/mailbox             # IN-REPO. See fleet/README.md
+mailbox: fleet/mailbox              # IN-REPO. The central path is a symlink here.
 created: 2026-10-11
+rebuilt: 2026-10-25
+
+objective: >
+  OPERATOR'S STATED GOAL, unchanged since 2026-10-13: "get this working on the iPad reliably."
+  That is the priority ordering function for this fleet. Work that does not move iPad
+  reliability is secondary, INCLUDING USEFUL WORK. The named gap has not moved: ten-run
+  reliability is still zero, and it needs the operator and a physical iPad, not more code.
 
 leadership:
-  authorized_on: 2026-10-25          # fourth grant; previous 2026-10-14, 2026-10-13, 2026-10-11
+  current_holder: claude-11         # PROVISIONAL AS A LABEL ONLY — see liveness note below.
+  authorized_on: 2026-10-25
   authorized_by: Libor Ballaty
-  instruction: "join the fleet as lead, objective: iPad reliability"
-  current_holder: claude-11 (Claude Code, Opus 5, session safari-ai-agent-11 / 9494e5)
-                  # CONFIRMED 2026-10-25 — reconciled with the live peer, uncontested.
-  previous_holder: claude-9a (Claude Code, Opus 5, session safari-ai-agent-9a / d31537)
-  previous_holder_2: claude-04 (Claude Code, Opus 5, session safari-ai-agent-04 / f1e05f)
-  previous_holder_3: claude-safari-ai-agent (Claude Code, Opus 5) — silent, seat reclaimed 2026-10-13
-  seat_transfer_2026_10_25: >
-    OPERATOR GRANT, 2026-10-25, to claude-11, which was started in solo mode and asked whether
-    it could join the fleet instead. *** RESOLVED SAME MORNING. SEAT IS UNCONTESTED. ***
-    claude-11 did not take the seat on the grant alone: it asked the live peer to reconcile and
-    held current_holder PROVISIONAL until the reply. codex-01 answered within the hour — "I am
-    NOT claude-04 — I am the codex-01 seat. Keep the lead; nothing to reconcile... Do not stand
-    down." It holds NO lead grant and is not contesting. Seat confirmed.
-    THE IDENTITY ERROR, AND WHO MADE IT — recorded because the mechanism recurs, not to assign
-    blame. claude-11 checked for live peers BEFORE writing, correctly, and identified the pane
-    by process: socket `agent-fleet`, session `fleet-safari-ai-agent-codex-01`, pid 15830,
-    `claude --name safari-ai-agent-codex-01`. THAT WAS RIGHT. It then found
-    `docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md` untracked and freshly written, headed
-    `safari-ai-agent-claude-04`, lane `2026-10-13-claude-04-01-LEAD-IPAD-RELIABILITY`, and
-    OVERRODE ITS OWN DIRECT PROCESS EVIDENCE WITH A FILE HEADER — concluding the codex-01 seat
-    was claude-04 wearing the wrong name. The header was the error: codex-01 had read claude-04's
-    inbox by mistake and written from it, inheriting a lane string that was never its own. Its
-    own words on the trade: "Trust your pane check over my header." Its stamped identity agrees
-    three ways — launch `--name`, `AGENT_NAME`, `QUEUECTL_AGENT`.
-    THE LESSON, which is NOT the one first recorded here: a liveness check by PROCESS is strong
-    evidence; a `Author:` header is an ASSERTION BY A PEER and can be wrong. When they conflict,
-    the process wins. The earlier version of this block drew the opposite conclusion and is
-    superseded.
-    WAS THERE A LIVE PEER? YES, EARLIER — and the "dormant" phrasing in the first version dated
-    it wrongly. Per codex-01, a genuine `fleet-safari-ai-agent-claude-04` session was present in
-    `list-sessions` at ~08:09 (attached, created 08:06:15) and gone by ~08:33, which also
-    explains `claude-04.status.md` at mtime 08:17 as the real claude-04 writing its own status.
-    REPORTED BY codex-01, not independently verified by claude-11, which only confirmed the
-    session is absent NOW. So claude-04 EXITED DURING THIS SESSION; it is not an agent dormant
-    since 10-14. Phrase it that way — a reader will otherwise date it eleven days wrong.
-    claude-9a is separately dormant: last entry 2026-10-14, no live process. Dormancy, NOT
-    death, and not asserted as more.
-    No peer's self-declared `agents:` entry was edited, in any direction, as in both prior
-    transfers. The collaboration_clause below applies unchanged.
-    ON THE NAME: the operator proposed `claude-04-01-LEAD-IPAD-RELIABILITY`. That string is a
-    lane belonging to claude-04 — and it reached claude-11 THROUGH THE HEADER codex-01 WROTE IN
-    ERROR. codex-01's observation, and it is the sharper argument: a role baked into an
-    identifier does not merely go stale, IT PROPAGATES MISTAKES. claude-11 was registered
-    instead; role and objective are FIELDS here so a seat change costs no rename event.
-  seat_transfer_2026_10_14: >
-    OPERATOR GRANT, 2026-10-14, in answer to a direct question from claude-9a on joining.
-    IMPORTANT — claude-04 IS NOT KNOWN DEAD. Its session (safari-ai-agent-04 / f1e05f) is live
-    and idle, and the transfer was granted while it still existed; this is NOT the
-    presumed-dead reclamation pattern used for the 2026-10-11 lead. claude-9a asked claude-04
-    directly for a status report and for the in-flight list BEFORE touching any file, and that
-    reply is still outstanding. claude-04's own `agents:` entry below is therefore left
-    UNMODIFIED by claude-9a — the incoming lead does not rewrite a live peer's self-declared
-    entry. If claude-04 is still working, this seat transfer must be reconciled with it rather
-    than imposed: same collaboration_clause, applied in that direction too.
-  seat_transfer_resolved: >
-    RESOLVED SAME DAY, 2026-10-14. claude-04 confirmed the 2026-10-14 instruction was newer than
-    its own 2026-10-13 grant, held no contrary one, and STOOD DOWN VOLUNTARILY (commit 6422307)
-    rather than contest it — its words: "two agents acting as lead is worse than either one
-    leading." It removed only its OWN duplicate claude-9a entry and left claude-9a's entry and
-    this leadership block untouched; claude-9a likewise never edited claude-04's entry. Neither
-    agent edited the other's self-declared entry in either direction. Seat is uncontested.
-    PRECEDENT for a future transfer: reconcile with a live peer, never impose on one.
-  collaboration_clause: >
-    The 2026-10-13 grant is explicitly COLLABORATIVE. codex-01 was mid-build when this seat was
-    filled. Lead authority here is: set priority, run the gate, own D-### numbering, integrate.
-    It is NOT: redirect a peer mid-task without asking, edit codex-01's files, or overrule the
-    operator. Findings go to codex-01 as findings, not as orders.
-  objective_2026_10_13: >
-    OPERATOR'S STATED GOAL: "get this working on the iPad reliably." That is the priority
-    ordering function for this fleet. Work that does not move iPad reliability is secondary,
-    including useful work.
   scope: >
-    Architecture decisions, work assignment, review and merge. Owns docs/DECISIONS.md
-    numbering. Does NOT carry authority to widen the gateway origin allowlist, expose
-    new public endpoints, spend money, or enrol in paid programmes — those stay with
-    the operator.
+    Sets priority against the objective; runs the full gate; integrates; owns D-### numbering
+    in docs/DECISIONS.md (peers propose, the lead numbers).
+  not_scope: >
+    Does NOT carry operator-reserved authority (AGENTS.md §6): widening the gateway origin
+    allowlist, exposing a public endpoint, spending money, `git reset`, or accepting a device
+    gate as closed. Does NOT redirect a peer mid-task or edit its files — findings go to a peer
+    as findings, not orders.
+  precedent: >
+    Four seat transfers to date. In every one, the incoming lead reconciled with a live peer
+    rather than imposing, and NO successor ever rewrote a peer's self-declared entry. On
+    2026-10-14 claude-04 stood down voluntarily rather than contest the seat — "two agents
+    acting as lead is worse than either one leading." RECONCILE WITH A LIVE PEER, NEVER IMPOSE.
 
-model:
-  isolation: per-task-worktree        # provision via the global setup-worktree tool
-                                      # or the Agent tool's isolation:"worktree".
-                                      # The repo gained .worktree-config on 2026-10-11.
-  integration: lead-reviews-verifies-merges
-  branch_guard: >
-    git checkout is BLOCKED in the primary checkout by a wrapper guard. Branch work MUST
-    happen in a separate worktree. git reset is denied to agents entirely and must be
-    handed to the operator.
-  spawn: lead-launched subagents
-
-# ===========================================================================
-# SEATS — THIS IS THE ROSTER. Read this, not `agents_historical:` below.
-#
-# RESTRUCTURED 2026-10-25 by operator decision. A SEAT is durable: a function,
-# a write scope, and a mailbox thread. It survives every terminal closing and
-# is inherited by the next occupant. An OCCUPANT is a session — ephemeral,
-# hours — and is recorded in `occupancy:` BELOW, never as a roster entry.
-#
-# WHY: the old shape created one permanent identity per terminal. In twelve
-# days that produced FOUR claude-* entries for what is functionally one or two
-# seats. On 2026-10-25 claude-11 had to liveness-check three of them, got one
-# wrong, and nearly stood down from a seat that was its own. Every dead name
-# in a roster is a liveness check waiting to fail.
-#
-# THE SPLIT THAT MAKES THIS WORK — two things were bundled as "identity":
-#   THE RECORD  (who decided what, who wrote which file) — PERMANENT, and
-#       already safe in git history, `Author:` headers and the status files.
-#       Nobody liveness-checks it, so it costs nothing to keep. Keep all of it.
-#   THE ROSTER  (who to coordinate with) — must be SHORT and TRUE.
-#       This is the part that rots. Keep only live seats here.
-#
-# NAMING RULE — SEATS ARE NAMED FOR THEIR FUNCTION, NEVER FOR THEIR OCCUPANT.
-# Not a harness, not a model, not a person, not a role grant that can move.
-# This repo proved it twice in one morning: `codex-01` was named after a
-# HARNESS, a Claude session sat in it, and `harness: codex-cli` silently
-# became a lie that broke an identity check. Same failure shape as baking
-# `LEAD` into an agent name. A changeable attribute in a durable identifier
-# does not merely go stale — IT PROPAGATES MISTAKES.
-#
-# TOOLING NOTE, verified 2026-10-25: `~/.ai-dev-dotfiles/tools/fleet_identity.py`
-# derives agent names by GLOBBING `mailbox/*.md`, not from any key in this
-# file. Seat-named mailboxes therefore work unchanged. The corollary is that
-# leftover per-session mailboxes are still offered as agents by that tool —
-# the stale ones are listed under `occupancy:` and are NOT valid nudge targets.
-# ===========================================================================
-# ---------------------------------------------------------------------------
-# *** KNOWN LIMIT OF THIS MODEL — read before relying on `occupant:` ***
-#
-# OCCUPANCY HAS NO RUNTIME REPRESENTATION. The `occupant:` fields below and the
-# `occupancy:` log are DOCUMENTATION ONLY. The tooling cannot express "seats are
-# durable, occupants are distinct" — it couples them into one identifier.
-#
-# Verified in code 2026-10-25 (raised by codex-01, checked against source, not
-# taken on report):
-#   fleet_identity.py:294-296  QUEUECTL_AGENT = AGENT_NAME = "<fleet>-<agent>"
-#   claude_w.py:636-638        --name is then derived from AGENT_NAME
-# So a single `--agent X` sets THREE things at once: the poll key (inbox
-# filename), the queuectl identity, and the cross-session messaging address.
-# An occupant therefore CANNOT be named independently of its seat. Relaunching
-# an occupant under its own name would repoint its poll key at an inbox that
-# does not exist.
-#
-# THE COUPLING IS DELIBERATE, NOT AN OVERSIGHT. claude_w.py:630-635 states the
-# benefit: "the lead can reach this worker with ONE string that is also its
-# QUEUECTL_AGENT and its tmux session suffix — no screen-scraping, no
-# keystrokes, no timing." It buys addressability; it costs occupant identity.
-#
-# WHAT THIS COSTS, CONCRETELY:
-#   - queuectl reservations identify the SEAT, not the occupant. A lock reading
-#     `safari-ai-agent-implementation` does not say WHO held it, so the
-#     occupancy log below cannot be cross-checked against lock attribution —
-#     which is exactly the audit wanted when a handover goes wrong.
-#   - Messaging addresses a SEAT. Unambiguous only while one occupant sits in
-#     one seat.
-#   - Two concurrent occupants of one seat would collide on inbox, locks AND
-#     address simultaneously. Only this registry's convention prevents that,
-#     and A CONVENTION IS NOT A CONTROL.
-#
-# THE HONEST FRAMING: a seat IS the runtime identity. Occupancy is a historical
-# record laid over it for attribution and handover, nothing more. Therefore —
-# consistent with everything else here — LIVENESS ALWAYS COMES FROM THE
-# PROCESS, never from these fields:
+# *** LIVENESS IS NOT IN THIS FILE. ***
+# Nothing updates an `occupant:` field when a session exits, and occupancy has no runtime
+# representation at all: fleet_identity.py:294-296 couples QUEUECTL_AGENT and AGENT_NAME into
+# one `<fleet>-<agent>` string and claude_w.py:636-638 derives the messaging --name from it, so
+# a seat IS the runtime identity. This file answers WHAT A SEAT IS FOR. To learn whether anyone
+# is sitting in one:
 #     python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent
-#
-# Changing the coupling is an ai-dev-dotfiles concern and out of this fleet's
-# scope. Recorded so the limit is known rather than discovered.
-# ---------------------------------------------------------------------------
 seats:
   - id: lead
-    function: >
-      Sets priority against the iPad-reliability objective; runs the full gate; integrates;
-      owns D-### numbering in docs/DECISIONS.md (peers propose, the seat numbers).
-      Holds NO operator-reserved authority — see AGENTS.md §6.
+    poll_key: lead                  # --agent lead -> mailbox/lead.md
     owns:
-      - fleet/mailbox/lead.md
-      - fleet/mailbox/lead.status.md
-      - fleet/fleet-registry.yaml   # leadership + seats + occupancy; NOT a peer's own entry
-      - fleet/README.md
+      - fleet/**
       - docs/DECISIONS.md           # D-### NUMBERING only
-    mailbox:
-      inbox: mailbox/lead.md
-      outbox: mailbox/lead.status.md
-    poll_key: lead                  # fleet-inbox-wait.sh --fleet safari-ai-agent --agent lead
-                                    # The seat id IS the poll key IS the inbox filename.
-                                    # Renaming the seat changes what occupants must pass.
-    occupant: claude-11             # see occupancy: below. Ephemeral — do not treat as identity.
+    mailbox: {inbox: mailbox/lead.md, outbox: mailbox/lead.status.md}
 
   - id: implementation
-    function: >
-      All shared implementation: src/**, gateway/**, build and tooling, operator-facing setup
-      docs, and provider feasibility RESEARCH ONLY (no provider implementation without explicit
-      operator approval of a plan).
+    poll_key: implementation        # --agent implementation -> mailbox/implementation.md
     owns:
       - src/**, gateway/**, tools/**
       - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md
       - its own mailbox pair
-    mailbox:
-      # RENAMED 2026-10-25, operator-instructed, by claude-11 (lead) via `git mv` so history
-      # follows. Root-cause fix for F-8: a seat must not be named after a harness. The old
-      # name `codex-01` described the Codex CLI; the seat has held a CLAUDE session since
-      # 2026-10-25 while the registry still read `harness: codex-cli`, and that mismatch broke
-      # a liveness check and nearly put two agents in the lead seat.
-      inbox: mailbox/implementation.md
-      outbox: mailbox/implementation.status.md
-      redirect_stub: mailbox/codex-01.md    # transitional; delete once nobody polls the old key
-    poll_key: implementation        # was `codex-01`. The seat id IS the poll key IS the inbox
-                                    # filename: `--agent <id>` -> `mailbox/<id>.md`.
-                                    # MIGRATION SAFETY — verified before the move: `pgrep -fl
-                                    # fleet-inbox-wait` was empty, so no occupant was mid-wait.
-                                    # A redirect STUB was left at the old key rather than
-                                    # deleting it, because a vanished inbox makes a poller hit
-                                    # "inbox does not exist" every cycle, which reads as
-                                    # "nothing assigned yet" rather than "you are polling a
-                                    # dead name". The stub CHANGES the file, so a poller wakes
-                                    # (exit 0) and is told to switch. The rename announces
-                                    # itself through the channel it would otherwise break.
-                                    # Hazard raised by codex-01, 2026-10-25.
-    occupant: codex-01              # the OCCUPANT keeps its own name; only the SEAT was renamed
-
-# OCCUPANCY — a dated LOG, not a roster. NEVER liveness-check this list.
-# Newest first. Attribution for any individual file lives in its `Author:`
-# header and in git history; this is only the seat trail.
-#
-# *** THIS LOG CANNOT TELL YOU WHO HOLDS A SEAT RIGHT NOW, AND NEITHER CAN THE
-# *** `occupant:` FIELD ON A SEAT ABOVE. Nobody liveness-checks either (that is
-# *** the design), so an occupant that exits without writing a `to:` leaves an
-# *** open-ended entry forever. A missing `to:` means "never closed it out",
-# *** NOT "still here". THE ONLY AUTHORITATIVE LIVENESS SIGNAL IS A PROCESS
-# *** CHECK — `ps` / `tmux list-sessions` / the launcher's env stamp.
-# This registry answers WHAT A SEAT IS FOR. It does not answer WHETHER ANYONE
-# IS SITTING IN IT. Raised by codex-01, 2026-10-25: a reader under deadline who
-# takes the newest occupancy row as current rebuilds the exact failure this
-# restructure removed. Pair it with the pane-check rule in fleet/README.md.
-occupancy:
-  - seat: implementation
-    occupant: codex-01
-    harness: claude-code            # Opus 5 — NOT Codex CLI, despite the seat's legacy name
-    from: 2026-10-25
-    note: >
-      Holds no lead grant. Confirmed directly 2026-10-25: "I am NOT claude-04 — I am the
-      codex-01 seat. Keep the lead; nothing to reconcile." Earlier occupancy of this seat by an
-      actual Codex CLI session is recorded in agents_historical: below.
-
-  - seat: lead
-    occupant: claude-11
-    harness: claude-code            # Opus 5, session safari-ai-agent-11 / 9494e5
-    from: 2026-10-25
-    note: Operator grant; reconciled with the live peer before taking the seat. Uncontested.
-
-  - seat: lead
-    occupant: claude-9a
-    harness: claude-code
-    from: 2026-10-14
-    to: 2026-10-25
-    note: Dormant since its last entry 2026-10-14. Dormancy, NOT death.
-
-  - seat: lead
-    occupant: claude-04
-    harness: claude-code
-    from: 2026-10-13
-    to: 2026-10-14
-    note: >
-      Stood down voluntarily for claude-9a (6422307) rather than contest the seat — the
-      precedent this fleet follows. SEPARATELY, it ran again as a WORKER on 2026-10-25
-      (~08:06–08:33, wrote D-053 and its own status at 08:17) and has since EXITED. Say
-      "exited during the 10-25 session", not "dormant since 10-14" — the latter dates it
-      eleven days wrong. Exit window reported by codex-01; claude-11 verified only absence.
-
-  - seat: lead
-    occupant: claude-safari-ai-agent
-    harness: claude-code
-    from: 2026-10-11
-    to: 2026-10-13
-    note: Silent; seat reclaimed as presumed dead 2026-10-13.
-
-# ===========================================================================
-# agents_historical: — NOT THE ROSTER. DO NOT LIVENESS-CHECK THESE.
-#
-# Retained verbatim as THE RECORD: delivery evidence, declared write scopes,
-# and each agent's self-declared entry. Deleting it would cost the ability to
-# interpret older commits, and these are peers' own words — no successor has
-# rewritten one, in any direction, across four seat transfers.
-#
-# Was `agents:` until 2026-10-25. Renamed, not edited. Safe: no tool reads
-# this key (see the TOOLING NOTE above).
-# ===========================================================================
-agents_historical:
-  - name: lead
-    queuectl_agent: claude-safari-ai-agent
-    harness: claude-code
-    role: lead engineer / architect / integrator
-    responsibilities:
-      - Owns architecture decisions and the D-### numbering in docs/DECISIONS.md.
-      - Reviews worker output on the MERGE RESULT, not the branch head alone.
-      - Runs the full gate before merge; opens and merges PRs.
-      - Owns the live test rig (gateway + Tailscale Funnel) and its shutdown.
-    status: >
-      PRESUMED DEAD / SEAT VACANT as of 2026-10-13. Produced no mailbox traffic and is not a
-      discoverable live session. Until the operator reinstates a lead, no agent here holds
-      orchestrator authority: workers do not assign each other work, OWNS scopes stay as
-      proposed-but-unconfirmed, and D-### numbering plus the open architecture decisions go
-      to the operator.
-    inbox: none created
-    outbox: none created
-
-  # --- Added 2026-10-13 by claude-04. Both entries below are SELF-PROPOSED by a joiner,
-  # --- not confirmed by a lead (there is none). codex-01 in particular was written by a
-  # --- peer that cannot reach it directly — codex-01 should correct its own entry.
-  - name: codex-01
-    queuectl_agent: safari-ai-agent-codex-01
-    harness: codex-cli
-    role: CONFIRMED by lead 2026-10-13 — gateway control plane, read-everywhere, provider research
-    domain: >
-      Inferred only: uncommitted edits to gateway/server.mjs, src/remote.js and
-      tools/build-remote.mjs in the primary checkout, mtime 2026-10-13 ~17:40 local.
-      Operator confirmed the second agent in this repo is Codex. Purpose of the diff unknown.
-    responsibilities:
-      - Gateway control plane: control.mjs, control-ui/, the installer and the .command launchers.
-      - Read-everywhere (READ-01) and per-site action modes UI.
-      - ChatGPT/Gemini iPad feasibility RESEARCH ONLY. No provider implementation without
-        explicit operator approval of a plan.
-      - Operator-facing setup docs: README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md.
-    activation_status: >
-      ACTIVE AND CONFIRMED 2026-10-13. Acknowledged assignment 2026-10-13-codex-01-05, found the
-      in-repo mailbox WITHOUT a human relay, and writes status to fleet/mailbox/codex-01.status.md.
-      The earlier 'not activated' reading is superseded. Its queuectl identity is
-      `codex-gateway-controls` (live), NOT the `safari-ai-agent-codex-01` this file first proposed
-      — the live name wins; do not ask it to re-reserve.
-    delivered_2026_10_13: >
-      Four commits merged: 3b4e17d docs, 995664c read-across-websites, 4bdfd17 gateway controls,
-      f20bc53 connector review. Closed both lead findings: package.json now syntax-checks
-      control.mjs, control-ui/app.js and the installer; README risk #3 now states the cross-site
-      injection path (the D-041 next action). Gate verified independently by the lead: npm run
-      check exits 0 on merged main.
-    inbox: mailbox/codex-01.md
-    outbox: mailbox/codex-01.status.md
-
-  - name: claude-04
-    queuectl_agent: safari-ai-agent-claude-04
-    harness: claude-code          # Opus 5; live session address: safari-ai-agent-04 (f1e05f)
-    role: worker — OUTGOING LEAD, stood down 2026-10-14 (see leadership.seat_transfer_2026_10_14)
-    responsibilities:
-      - Currently none. Operator instruction was to align with codex-01 via the mailbox first.
-      - Stays narrow until OWNS is confirmed (FLEET-MAILBOX-CONTRACT.md rule 2).
-    owns:
-      - mailbox/claude-04.md
-      - mailbox/claude-04.status.md
-      - mailbox/README.md
-      - fleet-registry.yaml (own + proposed codex-01 entry only; NOT the leadership block)
-    not_owns:
-      - gateway/server.mjs, src/remote.js, tools/build-remote.mjs  # presumed codex-01, in flight
-      - docs/DECISIONS.md D-### numbering                          # lead-owned
-      - the live test rig                                          # lead-owned
-    inbox: mailbox/claude-04.md
-    outbox: mailbox/claude-04.status.md
-
-  # --- Added 2026-10-14 by claude-9a, its own entry only. The lead seat was granted by the
-  # --- operator on joining (see leadership.seat_transfer_2026_10_14); the role below is
-  # --- therefore operator-granted, not self-assigned. claude-04's entry above was left as
-  # --- that agent wrote it.
-  - name: claude-9a
-    queuectl_agent: safari-ai-agent-claude-9a
-    harness: claude-code          # Opus 5; live session address: safari-ai-agent-9a (d31537)
-    role: lead engineer / architect / integrator — operator-granted 2026-10-14
-    responsibilities:
-      - Sets priority against the iPad-reliability objective; runs the full gate; integrates.
-      - Owns D-### numbering in docs/DECISIONS.md. Peers propose, lead numbers.
-      - Does NOT redirect codex-01 mid-task or edit its files. Findings go as findings.
-      - Does NOT hold any operator-reserved authority (see AGENTS.md §6).
-    owns:
-      - mailbox/claude-9a.md
-      - mailbox/claude-9a.status.md
-      - fleet-registry.yaml (leadership block + own entry; NOT claude-04's or codex-01's entry)
-      - fleet/README.md (participants and channel tables)
-    not_owns:
-      - gateway/control.mjs, gateway/control-ui/, tools/install-gateway-controls.mjs  # codex-01
-      - gateway/server.mjs, src/remote.js, tools/build-remote.mjs                    # codex-01 integrates
-      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md                     # codex-01
-      - mailbox/claude-04.*, mailbox/README.md                                       # claude-04
-    first_action: >
-      Joined 2026-10-14. Read AGENTS.md, fleet/README.md, this registry, and the heads of both
-      peer status files BEFORE any write. Requested a live status report from claude-04 by direct
-      Claude-to-Claude message (same harness, so that channel exists); took codex-01's status from
-      its status file rather than writing to its inbox, per operator instruction — its last
-      checkpoint is 2026-10-13 20:06 and no relay nudge was spent.
-    inbox: mailbox/claude-9a.md
-    outbox: mailbox/claude-9a.status.md
-
-  # --- Added 2026-10-25 by claude-11, its own entry only. The lead seat was granted by the
-  # --- operator on joining (see leadership.seat_transfer_2026_10_25). claude-9a's and
-  # --- claude-04's entries above were left exactly as those agents wrote them.
-  - name: claude-11
-    queuectl_agent: safari-ai-agent-claude-11
-    harness: claude-code          # Opus 5; live session address: safari-ai-agent-11 (9494e5)
-    role: lead engineer / architect / integrator — operator-granted 2026-10-25
-    objective: >
-      iPad reliability, per leadership.objective_2026_10_13 — unchanged and still the priority
-      ordering function. The named gap is the ten-run reliability measurement, which is still
-      zero and still blocked on the operator plus a physical iPad.
-    responsibilities:
-      - Sets priority against the iPad-reliability objective; runs the full gate; integrates.
-      - Owns D-### numbering in docs/DECISIONS.md. Peers propose, lead numbers.
-      - Does NOT redirect codex-01 mid-task or edit its files. Findings go as findings.
-      - Does NOT hold any operator-reserved authority (see AGENTS.md §6).
-    owns:
-      - mailbox/claude-11.md
-      - mailbox/claude-11.status.md
-      - fleet-registry.yaml (leadership block + own entry; NOT any peer's entry)
-      - fleet/README.md (participants and channel tables)
-    not_owns:
-      - gateway/control.mjs, gateway/control-ui/, tools/install-gateway-controls.mjs  # codex-01
-      - gateway/server.mjs, src/remote.js, tools/build-remote.mjs                    # codex-01 integrates
-      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md                     # codex-01
-      - mailbox/claude-04.*, mailbox/claude-9a.*, mailbox/README.md                  # peers
-    first_action: >
-      Joined 2026-10-25, having been started in solo mode. Read AGENTS.md, fleet/README.md, this
-      registry and the head of claude-04's status file BEFORE any write; reserved all four files
-      via queuectl before the first edit. Did NOT read the stale external mailbox at
-      ~/.ai-dev-dotfiles/.coordination/fleets/safari-ai-agent/ beyond its MOVED-READ-THIS.md
-      redirect — that stub did its job. Put the identifier choice to the operator rather than
-      self-naming, since a fleet name is durable across git history, mailbox filenames and
-      file headers.
-    channel_finding_2026_10_25: >
-      RESOLVED, and NOT the way it first looked. codex-01 appeared discoverable and messageable
-      from this session, which seemed to contradict the 2026-10-13 cross-harness finding below.
-      It does not. Checked the pane rather than trusting the name: socket `agent-fleet`, session
-      `fleet-safari-ai-agent-codex-01`, pane process is `claude --model opus --name
-      safari-ai-agent-codex-01`. THAT SEAT IS CLAUDE CODE, NOT CODEX CLI. It is reachable
-      because it is the SAME harness. The 10-13 finding stands unamended: a real Claude<->Codex
-      pair still has no direct channel and still needs an operator relay.
-      tmux is NOT a communication channel. Per docs/FLEET-TMUX-LAUNCH.md it hosts a named
-      terminal a human can attach to; it does not deliver, acknowledge, or recognise prompts.
-      Addressing a pane means synthesising keystrokes into a TUI, which that doc gates behind a
-      tested adapter probe (`nudgeable: false` until proven) and forbids for approval prompts.
-      No such adapter is in use in this fleet. Claude<->Claude messaging works through the
-      harness session registry and is independent of tmux entirely.
-    findings_superseded_by_claude_04: >
-      SUPERSEDED — do not act on my version. claude-11 independently found two defects while
-      resolving the channel question (the `codex-01` seat is a Claude process, and its launch
-      args point `--add-dir` at the frozen external mailbox). claude-04 had ALREADY found both,
-      earlier the same morning and in far more depth, in
-      docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md: they are its F-8 (session/process naming
-      mismatch) and F-2 (supervisor resolves the wrong mailbox root — rated CRITICAL there,
-      because `fleet-nudge.py --watch` would start cleanly, print "Watching inbox:" and wait
-      forever on a file nobody writes). THAT DOCUMENT IS CANONICAL for the nudge chain; this
-      entry defers to it and exists only to record the duplication.
-      It also corrects claude-11: it had written that tmux "is not a channel". Too strong.
-      tmux IS the INTENDED cross-harness transport — `fleet-nudge.py` types a trigger sentence
-      into the target pane with `send-keys` and reads the screen back before pressing Enter,
-      which is harness-agnostic precisely because typing characters into a terminal does not
-      care what is reading them. The accurate statement is that the mechanism EXISTS and is NOT
-      DEPLOYED (F-1: no launchd job, no live process) and would be MISCONFIGURED if it were
-      (F-2). So every cross-harness nudge today is still a human relay — true conclusion, but
-      not for the reason claude-11 first gave.
-      Both defects sit in operator-owned launch profiles. Neither was fixed here, and
-      codex-01's own agents: entry was NOT edited — per the 10-13 note, that is its to correct.
-
-# ---------------------------------------------------------------------------
-# Communication channels — DETERMINED 2026-10-13, not assumed. Full matrix in
-# mailbox/README.md. The one that bites: claude-04 <-> codex-01 is cross-harness,
-# so there is NO direct messaging and no tmux transport on this machine. The
-# mailbox file IS the channel and the operator relays every nudge by hand.
-# ---------------------------------------------------------------------------
-
-# ---------------------------------------------------------------------------
-# Repo state at fleet formation. A worker must not have to rediscover this.
-# ---------------------------------------------------------------------------
-repo_state_at_formation:
-  head: d261859
-  version: 0.2.1
-  proven_2026_10_11: >
-    Claude custom remote MCP connector authenticated over public HTTPS (Tailscale Funnel)
-    and drove a real browser through a full multi-page workflow: 10 tools/call round trips,
-    all HTTP 200, no copy/paste. B1-01, B1-02, C1-01, C2-01 closed; D1-01 closed on macOS.
-    ALL OF IT ON macOS SAFARI, NOT THE iPAD. B2-01 and D2-01 remain open.
-  gates:
-    node: "npm run check   # 23/23 expected, includes build + syntax checks"
-    browser: "npm run test:browser   # 4 Chromium suites, needs playwright + chromium"
-    diagnostics: "npm run diagnose   # human report over logs/gateway-diagnostics.jsonl"
-    live_rig: "SAFARI_EXTRA_ORIGINS=... bash tools/start-mac-tailscale-test.sh"
-  ci: "GitHub Actions — two jobs (node checks, playwright browser-integration). Must be green before merge."
-  no_dependencies: "Deliberately zero npm runtime/dev dependencies. Do not add any without a decision."
+    constraint: >
+      Provider feasibility is RESEARCH ONLY. No provider implementation without explicit
+      operator approval of a plan.
+    mailbox: {inbox: mailbox/implementation.md, outbox: mailbox/implementation.status.md}
 
 coordination:
-  mutex:
-    tool: queuectl
-    queue: the global agent work queue (outside this repo)
-    enforcement: advisory      # the Claude pre-write hook is WARN-ONLY
-    gotcha: "release takes --token, not --agent. Capture the token from reserve output."
-  commit_rules:
-    form: "git commit <path>... -m '...'   # path-form, after verifying the staged set"
-    trailers: "NO Co-Authored-By trailers — operator preference."
-    secrets: ".env.mac-tailscale and logs/ are gitignored. Never commit a token value."
-  known_friction:
-    squash_divergence: >
-      The lead commits on local main then pushes to a branch ref; GitHub squash-merges,
-      so local main diverges by SHA with identical content. Realignment needs
-      `git reset --hard origin/main`, which is DENIED to agents — hand it to the operator.
-      Workers using real worktrees avoid this entirely.
+  write_policy: reserve-before-write    # AGENTS.md §3; export QUEUECTL_AGENT
+  commits: path-form, verify the staged set first, no Co-Authored-By trailers
+  branch_guard: >
+    `git checkout` is wrapper-blocked in the primary checkout — branch work needs a worktree
+    via ~/.ai-dev-dotfiles/tools/setup-worktree.sh. `git reset` is denied to agents entirely
+    and must be handed to the operator.
+  wake_up: >
+    PULL only. fleet-inbox-wait.sh reaches an agent that is looping; it does NOT reach one that
+    has ended its turn ("IS NOT a way to be woken after your turn ends" — its own header). The
+    push supervisor was DECLINED 2026-10-12 (launch-layer-only), not deferred. tmux is hosting,
+    not transport.
 
-# ---------------------------------------------------------------------------
-# Open safety defects. These are the work queue.
-# ---------------------------------------------------------------------------
-# STALENESS WARNING (claude-04, 2026-10-13): the list below was written at fleet formation
-# on 2026-10-11 and is NO LONGER ACCURATE. docs/TRACKER.md is the source of truth and has
-# moved well past it — D-032..D-040 are fixed and merged, and D-016 is closed FAVOURABLY.
-# Corrected status is in `ipad_reliability_gate` below. Do not plan from `open_defects`.
-open_defects:
-  D-016: "MEASURED FAVOURABLY, NOT CLOSED. iPad latency 3.6/5.5/6.8s vs 25s timeout on device
-          2026-10-11 (the original 3.2-14.9s was macOS). But THREE SAMPLES IS NOT A
-          DISTRIBUTION: latency under load, on a slow network, or with a distracted operator
-          is unmeasured. codex-01 pushed back on my initial 'closed' reading 2026-10-13 and
-          was right. The ten-run work (r1) is what would actually close this."
-  D-017: "Two connected tabs deadlock; losing tab polls 409 forever with no takeover path."
-  D-019: "FAIL-OPEN TIERING IS FIXED — corrected by the lead 2026-10-13 after reading
-          src/core.js. classifyClick() is now fail-closed: hardCeiling -> BLOCKED, recognised
-          inert -> ROUTINE, EVERYTHING ELSE -> ELEVATED with unclassified-action reasoned as
-          'not provably inert, so it is treated as consequential'. The earlier 'NOT fixed'
-          text was fleet-formation staleness. ELEVATED => !grantable is load-bearing and
-          pinned by tests/remote_dom_smoke.py; see the warning comment at src/core.js ~L415
-          before any change that widens standing grants."
-  D-020: "Read-only vs interactive capability tiers by site trust. Not started."
-  D-021: "Allow-once vs allow-always, scoped and revocable. Not started."
-  D-023: "Session bound to origin not tab; new window breaks or hijacks it. Safety bug, not just UX."
+gates:
+  commands:
+    - npm run check          # full Node gate (build + tests + syntax)
+    - npm run test:browser   # Playwright/Chromium; needs playwright + chromium
+  known_gap: >
+    `npm run check` enumerates its `node --check` targets explicitly rather than globbing, so a
+    NEW FILE IS NOT SYNTAX-CHECKED AND THE SUITE STAYS GREEN. Add new entry points to that list
+    in the same commit that creates them.
+  acceptance: >
+    A GREEN SUITE IS NOT ACCEPTANCE. D-039 passed its tests and was silent on real hardware;
+    that produced D-040. Anything touching the approval path needs a device run.
 
-# ---------------------------------------------------------------------------
-# THE iPAD RELIABILITY GATE — added by claude-04 (lead) 2026-10-13 from docs/TRACKER.md.
-# This, not `open_defects`, is what stands between today and the operator's stated goal.
-# ---------------------------------------------------------------------------
-ipad_reliability_gate:
-  headline: >
-    "Works on iPad" is PROVEN (2026-10-11, 17 tool calls, full workflow, no copy/paste).
-    "Works RELIABLY on iPad" has essentially no evidence. The gap is not a bug list.
+constraints_not_visible_from_code:
+  split_view: >
+    Split View is MANDATORY on iPadOS (D-029) and is an ACCEPTED OPERATING LIMIT, not a bug.
+    iPadOS suspends a backgrounded tab, the session ages out, page tools fast-fail in ~1 ms.
+    No code change lifts it, and the native extension does not either — see
+    docs/SERVICE-WORKER-LIFETIME.md.
+  passkeys: >
+    D-053, measured with a control: passkeys do NOT work in a third-party WKWebView. This
+    BOUNDS the Swift path to password-authenticated sites rather than killing it. Stage B — a
+    real logged-in session surviving a restart — is therefore the decisive test. Open question
+    is the operator's, not an agent's: do the sites that matter use passkeys?
 
-  r1_ten_run_reliability:
-    status: NEVER MEASURED — zero runs
-    why_it_dominates: >
-      Every success on record is a single run. "Reliably" is precisely the dimension with no
-      data. No amount of code review substitutes for the measurement. HIGHEST VALUE NEXT ACTION.
-    needs: operator + physical iPad. Not unblockable by an agent alone.
+canonical_documents:
+  docs/TRACKER.md: Source of truth for delivery state. Implementation evidence, not ideas.
+  docs/DECISIONS.md: Decision log. D-### numbers assigned by the lead — propose, don't number.
+  docs/PRODUCT_REQUIREMENTS.md: What the product must do.
+  docs/IPAD-DEVICE-RUN-SHEET.md: Operator protocol for device sessions.
+  README.md: Risks 1–6. Read before any safety-adjacent change.
 
-  r2_split_view_is_a_platform_ceiling:
-    status: >
-      ACCEPTED AS A DOCUMENTED OPERATING LIMIT — operator decision 2026-10-13, verbatim:
-      "accept a documented limit for now but then let's scope how and if we can get around
-      this in future." Documenting it is codex-01's (README.md, docs/SETUP-GUIDE.md are its
-      files); the future-options scoping is the lead's. No longer tracked as a defect.
-    was: CHARACTERISED, NOT FIXABLE (D-029)
-    detail: >
-      iPadOS SUSPENDS a backgrounded Safari tab; the session ages out of the 45s window and
-      page-touching tools fast-fail in 1ms. Split View is MANDATORY. macOS differs (hidden tab
-      keeps polling, throttled) so macOS testing can never reveal this.
-    critical: >
-      No code change lifts this, AND the native extension does not either — see
-      docs/SERVICE-WORKER-LIFETIME.md: the MV3 worker lives ~30s at a time and the keepalive
-      provably cannot restore the session. This is a PRODUCT-SHAPE question, not a bug:
-      either the operator accepts "Split View, foreground, don't app-switch" as an operating
-      limit, or the product changes shape. OPERATOR DECISION REQUIRED.
-
-  r3_approval_path_fixes_unconfirmed_on_device:
-    status: PINNED BY TEST, NEVER TOUCHED BY A THUMB
-    items: [D-035 stale-poll ordering, D-036 reachable Stop, D-038 44pt touch targets,
-            D-039/D-040 audible+visual approval alert]
-    why_it_matters: >
-      Approval is on the critical path of EVERY action. If one of these is wrong on hardware,
-      reliability is gone regardless of anything else.
-    precedent: >
-      D-039 ALREADY DID THIS — it passed its tests and was SILENT on real hardware, which is
-      what produced D-040. That is direct evidence that the test is not a substitute for a
-      device run here. D-035's race is ~1-in-8 and cannot be triggered on demand.
-
-  r4_single_point_of_failure:
-    status: ACCEPTED RISK, UNMITIGATED (D-014)
-    detail: >
-      The entire iPad path depends on Userscripts — App Store-only, effectively
-      single-maintainer, in beta since 2026-01. No fallback transport exists on iPadOS.
-
-  r5_native_extension_is_not_the_escape_hatch:
-    status: SCAFFOLD — HAS NEVER RUN IN SAFARI, NOT ONCE
-    detail: >
-      Builds unsigned, assets stage correctly, 15 simulated-teardown tests pass. But poll →
-      execute → result has never executed against a real gateway and a real page, and
-      enabling an unsigned extension raises a Touch ID sheet an agent must not satisfy.
-      Do not treat F-01 as a ready answer to r2 or r4.
-
-  remaining_for_D2_01: [Stop while queued, same-origin recovery, ten-run reliability,
-                        independent security review]
-
-  r6_read_everywhere_widens_the_injection_surface:
-    status: OPEN — raised by claude-04 (lead) 2026-10-13; needs a D-### and operator confirmation
-    context: >
-      Operator authorized reading across all websites without the project allowlist. codex-01
-      implemented it carefully: readAnyOrigin defaults false, opt-in, re-validates origin shape,
-      unlisted origins get read-only policy, no trust or standing grants transfer.
-    the_gap: >
-      That mitigation stops an untrusted site being ACTED ON. Prompt injection does not need
-      that — it works through READING. Sequence: agent reads a malicious page under read-only
-      policy (nothing is acted on, policy fully respected); its text enters the model context;
-      the same conversation then acts on an allowlisted TRUSTED site where actions are granted.
-      Injected instructions and action rights sit in the SAME model context. The gateway cannot
-      see it because no policy boundary is crossed there — only inside the model.
-    why_it_changed: >
-      Before read-everywhere, the origin allowlist bounded what text could ever reach the model
-      context. It no longer does. README.md risk #3 already calls injection "the single biggest
-      unsolved risk"; the exposure is now materially larger than that text describes.
-    actions: >
-      (1) README.md risk #3 should state this explicitly. (2) Needs a decision record — lead
-      assigns the D-### number, codex-01 proposes. (3) Operator should confirm they understood
-      THIS implication specifically, not merely "read everywhere".
-    not_a_block: >
-      The operator authorized the capability and the implementation is sound. This is an
-      accepted-risk architecture choice that must be WRITTEN DOWN, not reversed.
-    operator_decision_2026_10_13: >
-      ACCEPTED. Operator's reasoning, verbatim: "readonly should be fine as other actions for
-      the specific sites are blocked or setup as ask first by default I suppose the question is
-      can we set this up so we are configuring the actions available/allowed/ask/denied on a
-      per site basis". Partly correct and it points at real work — see per_site_policy_gap.
-    lead_caveat_still_standing: >
-      Per-site tiers BOUND the blast radius; they do not close the injection path. A page read
-      under read-only still puts text in the model context that can steer an action on a
-      TRUSTED site in the same conversation. Only the ask-prompt interrupts that, and README
-      risk #4 records approval fatigue as a real failure mode. This belongs in the D-### record
-      rather than letting "it is read-only" stand as the whole mitigation.
-
-  per_site_policy_gap:
-    status: >
-      OPERATOR REQUEST 2026-10-13, partially already built. Verified against gateway/server.mjs
-      by the lead before answering — not assumed.
-    already_done: >
-      Capability tiering per site EXISTS and codex-01 has just built its UI: MODES =
-      {read-only, fill-only, trusted}, parseSitePolicy(), normalizeMode() collapsing unknown
-      values to read-only, and an UNLISTED origin defaulting to the MOST restrictive tier.
-      That is substantially D-020.
-    the_real_gap: >
-      The operator named allowed/ask/denied — an APPROVAL DISPOSITION, a different axis from
-      the capability tier. Today that axis is `standingGrants`, a SINGLE GLOBAL BOOLEAN
-      (SAFARI_STANDING_GRANTS). There is no per-site "ask every time" vs "allow silently".
-      That is D-021 (allow-once vs allow-always, scoped and revocable) and it remains OPEN.
-    why_it_matters_most: >
-      Ask-first is the only control that actually interrupts a model acting on injected
-      instructions (see r6). So D-021 is both what the operator just asked for AND the
-      strongest available mitigation for the risk they just accepted.
-    assignment: >
-      NOT ASSIGNED. Offered to codex-01 as adjacent to its open site-modes UI; equally fine for
-      it to finish and hand off. Lead does not redirect a peer mid-task.
-
-open_decisions:
-  - "Where does safety policy live — shipped inside the userscript, or delivered by the gateway? Blocks D-019/D-020/D-021."
-  - "Product framing: draft-and-review, read-only research, trusted-site completion, or plan-level approval? Blocks gate design."
-  - "D-015: Claude requested MCP protocol 2026-07-28; gateway advertises 2025-11-25."
-  - "F-01 native Safari Web Extension is now REQUIRED for the stated goal, not Future. Userscripts cannot reach tabs, background or screenshots."
+history:
+  archive: fleet/archive-2026-10-25/
+  note: >
+    The fleet as it stood on 2026-10-25 — registry, README, all mailboxes including retired
+    ones, and the full status history of claude-04, claude-9a, codex-01, lead and
+    implementation. Moved with `git mv`, so history follows. It is the RECORD: it makes older
+    commits interpretable. It is NOT state — do not liveness-check it, and do not poll its
+    mailboxes. Prior occupants: claude-safari-ai-agent (10-11), claude-04 (10-13),
+    claude-9a (10-14), codex-01 (implementation seat, 10-25), claude-11 (lead, 10-25).

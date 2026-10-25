@@ -112,6 +112,10 @@ Local models need **no Funnel at all** — loopback only, removing public exposu
 
 ## Two transports, one engine — the Swift alternative (2026-10-24)
 
+> **Design, constraints and remaining work: [SWIFT-APP-DESIGN.md](SWIFT-APP-DESIGN.md).**
+> It records why only the browser-host framing is viable, the three hard constraints, and the
+> order of work that wastes least. Read it before writing Swift.
+
 Everything above describes **Path A**: Claude → a Mac gateway published over Tailscale Funnel →
 a Userscripts bridge inside Safari. On 2026-10-14 a second shape appeared in the repo, and it is
 being evaluated **in parallel**, not as a replacement. See [D-047](DECISIONS.md).

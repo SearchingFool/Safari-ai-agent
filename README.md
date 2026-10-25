@@ -191,6 +191,7 @@ messages on screen cannot.
 - [Product requirements](docs/PRODUCT_REQUIREMENTS.md) — definitive product MVP acceptance criteria.
 - [Implementation plan](docs/IMPLEMENTATION_PLAN.md) — phases B1–D, dependencies and release gates.
 - [Decision log](docs/DECISIONS.md) — architecture and decisions still requiring real evidence.
+- [Swift app design](docs/SWIFT-APP-DESIGN.md) — the alternative path: what is proven, what is not, and the work remaining in the order that wastes least.
 - [MCP setup and deployment](docs/MCP_INTEGRATION.md) — exact setup procedure.
 - [Release checklist](docs/RELEASE_CHECKLIST.md) — what remains before user acceptance.
 - [Execution evidence](docs/B1_D_STATUS.md) and [work tracker](docs/TRACKER.md).

@@ -297,7 +297,67 @@ and by this session inspecting its own pane. Tracked as **F-8** in the companion
 is an identity event touching git history, mailbox filenames and file headers), or give the new
 agent a fresh, unused seat name.
 
-### 7.3 ⛔ Why self-polling stopped working in THIS repo *(root cause)*
+### 7.3 ✅ RESOLVED 2026-10-25 — why self-polling had stopped, and the fix
+
+> **STATUS: FIXED.** Candidate #1 below (symlink the central path) was applied by `claude-11`
+> and independently verified by this seat. The analysis is kept because the *failure mode*
+> generalises — see §7.4.
+>
+> **What is now on disk** (machine-local only; `.coordination/` is gitignored at
+> `.gitignore:112`, so none of this entered the public repo):
+>
+> ```
+> .coordination/fleets/safari-ai-agent/mailbox.frozen-2026-10-13/   (was: mailbox/)
+> .coordination/fleets/safari-ai-agent/mailbox -> <repo>/fleet/mailbox   (symlink)
+> ```
+>
+> **Verified independently, not taken on report:** the symlink target resolves; `codex-01.md`
+> is reachable through the central path at its live in-repo size; `claude-11`'s control test
+> distinguishes a real resolution from a false positive (`--agent no-such-seat` → "inbox does
+> not exist"; `--agent lead` → a real baseline hash, and `lead.md` exists *only* in-repo, so a
+> hash on that path can only come from the live mailbox).
+>
+> **The disclosure boundary held.** `mailbox.frozen-2026-10-13/codex-01.status.md` — which
+> carries a control-account username, a public endpoint and live process IDs — stays outside
+> the repo. The in-repo file of the same name is a *different, sanitised* file: scanned at
+> 2026-10-25, it contains zero host-shaped tokens, zero keys and zero process IDs. **Do not
+> migrate the frozen file in.**
+>
+> **Why this was in scope for an agent rather than operator-reserved:** the symlink *preserves*
+> the 2026-10-13 decision rather than amending it — in-repo stays canonical and stays the
+> record, while D3's "one absolute path reachable identically from every worktree" is restored.
+> Candidates #2 and #3 below are the ones that would have amended an operator decision. This
+> reasoning is `claude-11`'s and I agree with it.
+>
+> **Residual risk, unchanged:** the symlink points at the primary checkout. Move or delete that
+> directory and every fleet tool silently loses the mailbox again. Worth a line in `AGENTS.md`.
+
+### 7.4 The check that generalises — and the wrong way to write it
+
+Other fleets on this machine may have the same defect, and the obvious check is **wrong**.
+
+As surveyed 2026-10-25, the central mailboxes are: `tinychoir` a **symlink**; `agent-cape`,
+`aidevops`, `arioncomply`, `marketing-and-sales`, `openinframanager`, `testrepo` all **real
+directories**.
+
+**"Real directory ⇒ self-polling dead" would flag all six, and all six may be perfectly
+healthy.** A real directory is the *normal* D3 arrangement — the mailbox lives centrally and
+there is no repo copy to diverge from. Nothing is broken about that.
+
+The defect is a **conflict**, not a filesystem type. All three conditions must hold:
+
+1. the central mailbox is a real directory, **and**
+2. the fleet's repo also contains a live mailbox (`fleet/mailbox/`, `.fleet/mailbox/`), **and**
+3. the central files are stale relative to it — or a `MOVED`-style redirect stub sits beside
+   them.
+
+Only then is `--fleet/--agent` resolving to files nobody writes. A checker that tests
+filesystem type alone trades a silent failure for six noisy false positives, and a check that
+cries wolf gets ignored — which costs more than having no check at all.
+
+---
+
+### 7.3-historical — the original diagnosis *(retained; superseded by the status box above)*
 
 `fleet-inbox-wait.sh --fleet <id> --agent <name>` resolves the inbox to the **central** path:
 

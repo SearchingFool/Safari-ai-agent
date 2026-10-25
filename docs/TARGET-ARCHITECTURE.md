@@ -126,30 +126,54 @@ no Mac in the path.
 
 ### Why it is worth evaluating
 
-It dissolves the constraint this document calls the hardest one. **D-029 — Split View is
-mandatory — exists because *Safari* is the app being backgrounded and suspended.** An app hosting
-its own web view is not subject to that. It would also remove, in one step, the Mac-uptime
-dependency, the published endpoint, D-045's rig-recovery problem and most of D-046's exposure
-surface.
+**⚠ The original reason given here was wrong, and is kept visible rather than quietly deleted.**
+This section claimed Path B dissolves **D-029** because Split View "exists because *Safari* is
+the app being backgrounded". **It does not dissolve it:** iOS suspends a backgrounded *app* as
+readily as a backgrounded *tab*, so the Claude app and the host app would still both have to be
+on screen. The only sub-case that disappears is "Safari is foreground but the wrong tab is
+showing". See `SWIFT-APP-DESIGN.md` §3.
+
+**It also does not remove the Mac.** Anthropic must reach a public HTTPS endpoint and an iPad
+cannot host one, so the gateway, the Funnel, D-045's rig-recovery problem and D-046's exposure
+surface all stay. That claim depended on the app calling the model itself, which **D-006 priced
+out** — with a valid OAuth token `/v1/messages` returns *"credit balance too low"*. The viable
+framing is the app as a **browser host**, where the Claude app is still the client and the
+gateway is still in the path.
+
+**What is actually left, and it is still worth having: it retires D-014.** The iPad path depends
+entirely on Userscripts — App Store-only, effectively single-maintainer, in beta since 2026-01,
+with no fallback transport. That is the project's recorded single point of failure, and a native
+web view removes it. Also gained: control over the web view's lifecycle and cookie store, the
+possibility of screenshots, and no Safari extension permission model in the way.
 
 It does not change the goal stated at the top of this document. It changes **which process holds
 the page**.
 
 ### Why it has not replaced anything
 
-**No live model call has ever been made from it.** It builds, 15 tests pass, and the API key is
-correctly held in memory only — but it has never run on an iPad, it contains **no `WKWebView`**,
-and it has **no tool calling**. Path A drove a real Safari tab through a 17-call workflow on
-hardware. *A spike that has not made one real call cannot retire that.*
+**No live model call has ever been made from it,** and under D-006 none will be: a subscription
+does not fund direct Messages API calls. The chat spike belongs to the framing that was priced
+out. A **second** spike now exists — `Sources/WebViewSpike`, which *does* contain a `WKWebView` —
+but **nothing has run on an iPad** and there is **no tool calling**. Path A drove a real Safari
+tab through a 17-call workflow on hardware. *A spike that has not driven one page cannot retire
+that.*
 
-### The decisive test, before any further investment
+### The decisive test — two of its three parts are now answered
 
-A `WKWebView` that logs into a real site, **survives an app restart with the session intact**, and
-runs `src/core.js` from buttons with **no model involved**.
+The test: a `WKWebView` that logs into a real site, **survives an app restart with the session
+intact**, and runs `src/core.js` from buttons with **no model involved**.
 
-**Session persistence across restart is the specific risk.** A web view that forgets the login on
-every launch is useless for an agent, and no amount of tool-calling work repairs it. That single
-result decides whether Path B is real.
+| Part | Result |
+|---|---|
+| The data store survives a restart | **YES — D-052**, macOS. Cookies present before any navigation, and **zero** after Clear data, so the store causes it |
+| It can log in with a **passkey** | **NO — D-053**, macOS, with Chrome on the same Mac as the control. Bounds Path B to **password-authenticated sites** |
+| A real **logged-in** session survives a restart | **not run** — D-052 used ordinary browsing cookies. This is now the decisive one |
+| `src/core.js` runs in the web view | **not attempted** |
+
+**Session persistence was the specific risk and it did not materialise.** The risk that did is
+**authentication**: if the sites that matter use passkeys, Path B cannot log into them at all,
+and Path A is the only option because Safari *is* the browser. That is an operator decision, not
+an engineering one.
 
 ### What transfers, and what does not
 

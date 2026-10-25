@@ -137,8 +137,23 @@ decommissioning conclusion was right for the wrong reason and survives; the setu
 path had been "corrected" into one that breaks for every newcomer; and the README stated 0.2.5
 was required for full permission when 0.2.4 is.
 
-**Not done, and not started:** the `WKWebView` session-persistence test — still the only thing
-that can kill the Swift path, still free, still unrun.
+**DONE, later the same day — and it passed.** The `WKWebView` session-persistence test was built
+and run on macOS. **Both halves:** cookies were present at launch with nothing loaded (survived a
+restart), and after Clear data a relaunch showed **zero** — so the persistent store demonstrably
+causes it rather than the counter misreporting. **D-052**, and the thing that could have killed
+the in-app browser path does not.
+
+**What it does NOT prove, kept separate deliberately:** it used ordinary browsing cookies, **not a
+logged-in session** — the *store* persisting is not the same claim as a *session* persisting. It
+is **macOS, not the iPad**. And it says nothing about whether an in-app web view can
+**authenticate** at all: the operator uses **passkeys**, and WebAuthn in a third-party
+`WKWebView` needs the app associated with the domain, which is impossible for sites you do not
+own. **That is now the largest open risk for the Swift path, and Path A is immune to it because
+Safari *is* the browser.**
+
+**New:** [`docs/SWIFT-APP-DESIGN.md`](SWIFT-APP-DESIGN.md) — why only the browser-host framing is
+viable, the three hard constraints, and the remaining work ordered so each step can kill the path
+before the next costs anything. **None of it needs API credits.**
 
 ****Provider independence (D-004) is now cheap and should be tried.** `F2-01` (ChatGPT) and `F3-01`
 (Gemini) need **no new code**: the existing gateway is already an MCP server, and the rule proven

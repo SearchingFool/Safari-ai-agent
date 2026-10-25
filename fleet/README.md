@@ -103,7 +103,23 @@ occupant. An **occupant** is a session: ephemeral, hours. **The roster below lis
 | `implementation` | All shared implementation — `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/implementation.*` *(renamed from `codex-01.*` 2026-10-25)* | `codex-01` (Claude Opus 5 — **not** Codex CLI), since 2026-10-25 |
 
 **Past occupants are in the registry's `occupancy:` log — a dated trail, not a roster. Never
-liveness-check it.** `claude-04`, `claude-9a` and `claude-safari-ai-agent` live there.
+liveness-check it.** `claude-04`, `claude-9a` and `claude-safari-ai-agent` live there; their
+mailboxes are in [`mailbox/retired/`](mailbox/retired/).
+
+> **⚠ A dead mailbox left in `mailbox/` is a name that RESOLVES but is not a live address.**
+> `fleet_identity.py:136` globs `mailbox/*.md`, so a retired mailbox is still *offered* as a
+> poll target — and polling it returns an existing file and a real baseline hash. **Every
+> signal reads healthy** while nothing will ever be written there. Same shape as the two
+> misidentifications of 2026-10-25. Raised by `codex-01`.
+>
+> **Fix it mechanically, never with a warning** — a warning is the thing an agent reasons past:
+>
+> | Is anyone still polling that key? | Do this | Why |
+> |---|---|---|
+> | **Yes** (seat renamed under a live occupant) | leave a **redirect stub** — [`mailbox/codex-01.md`](mailbox/codex-01.md) | the stub *changes*, so the poller wakes (exit `0`) and is told where to go |
+> | **No** (seat retired) | **move the pair to `mailbox/retired/`** | the glob is non-recursive, so it stops offering the name, and a poll hits the loud *"inbox does not exist"* setup-error path |
+>
+> **The test is whether anyone is listening**, not whether the name is obsolete.
 
 ### Why this changed, because the old shape caused a real failure
 

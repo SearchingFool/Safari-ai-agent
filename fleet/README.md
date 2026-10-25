@@ -89,15 +89,36 @@ printed — all unchanged.
 
 | Agent | Harness | Role | Inbox / Outbox |
 |---|---|---|---|
-| `claude-9a` | Claude Code (Opus 5) | **Lead** (from 2026-10-14) — priority, gates, D-### numbering, integration | `mailbox/claude-9a.*` |
-| `claude-04` | Claude Code (Opus 5) | Worker — **outgoing lead**; owns the iPad device run sheet and results analysis | `mailbox/claude-04.*` |
-| `codex-01` | Codex CLI | **All shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research | `mailbox/codex-01.*` |
+| `claude-11` | Claude Code (Opus 5) | Lead **PROVISIONAL** (operator grant 2026-10-25; reconciliation with `claude-04` outstanding) | `mailbox/claude-11.*` |
+| `claude-04` | Claude Code (Opus 5) | **LIVE** 2026-10-25. Worker; owns the iPad device run sheet and results analysis. Running under the `codex-01` seat's profile — see below | `mailbox/claude-04.*` |
+| `claude-9a` | Claude Code (Opus 5) | Lead 2026-10-14 → ?; **dormant**, last entry 2026-10-14 | `mailbox/claude-9a.*` |
+| `codex-01` | *seat name only* | Seat owns **all shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research. **Currently occupied by a Claude session, not Codex** | `mailbox/codex-01.*` |
 
-**Lead seat history.** Granted to `claude-04` 2026-10-13, to `claude-9a` 2026-10-14. The second
-grant was made on the premise that `claude-04` was idle, which was incomplete — it was live and
-working. It verified the newer instruction, **stood down voluntarily** rather than contesting it
-(`6422307`), and neither agent edited the other's registry entry. If you inherit this seat, that
-is the precedent: reconcile with a live peer, do not impose.
+**Dormant is not dead**, and as of 2026-10-25 it is not even reliable — see the warning below.
+No successor has rewritten any peer's entry. If a dormant agent returns, **reconcile with it**.
+
+**Lead seat history.** `claude-04` 2026-10-13 → `claude-9a` 2026-10-14 → `claude-11` 2026-10-25
+(provisional). Both transfers after the first hit a live peer, and knowing that matters:
+
+- **10-14 — live peer, discovered in time.** The grant was made on the premise that `claude-04`
+  was idle, which was incomplete: it was live and working. It verified the newer instruction,
+  **stood down voluntarily** rather than contesting it (`6422307`), and neither agent edited the
+  other's registry entry.
+- **10-25 — live peer, nearly MISSED.** `claude-11` checked the session list before writing,
+  found no `safari-ai-agent-04`, and recorded "no live peer to reconcile with". Wrong:
+  `claude-04` was live and had written a 508-line doc two minutes earlier. It was invisible
+  because it runs as `claude --name safari-ai-agent-codex-01` — **the session list was searched
+  for the wrong name.** Caught only because that untracked file surfaced in `git status`.
+  Nothing had been committed; the registry was corrected and the reconciliation requested.
+
+**The precedent either way: reconcile with a live peer, never impose — and never rewrite a
+peer's self-declared entry, in either direction.**
+
+> **⚠ A liveness check is only as good as the name you search for.** Absence from the session
+> list proves absence *only* if the name matches the occupant. Before recording any peer as
+> dormant, corroborate with file mtimes and `Author:` headers. A seat whose name does not match
+> who is sitting in it does not just mislead a reader — it **silently defeats the check that
+> reconcile-don't-impose depends on.**
 
 Roles, write scopes and the project gates are in [`fleet-registry.yaml`](fleet-registry.yaml).
 
@@ -107,9 +128,50 @@ Verified 2026-10-13. **It is not symmetric.**
 
 | Pair | Direct messaging | Discovery | How it works |
 |---|---|---|---|
-| `claude-04` ↔ `codex-01` | **NO** — cross-harness | none | **These files are the channel.** The operator relays a one-line nudge. No tmux transport exists on this machine; neither harness discovers the other. |
-| Claude Code ↔ Claude Code | yes, both ways | session list | Still write the file — a message is only a notification. |
+| Claude Code ↔ **real** Codex CLI | **NO** — cross-harness | none | **These files are the channel.** The operator relays a one-line nudge. Neither harness discovers the other. |
+| Claude Code ↔ Claude Code | yes, both ways | session list | Harness session registry. Still write the file — a message is only a notification. |
+| Anything ↔ a **tmux pane** | **not a channel** | n/a | tmux is **hosting**, not transport. See below. |
 | Any ↔ cloud/remote session | send only | varies | It may receive without being able to reply. **Never ask it a question.** |
+
+### tmux — hosting always; cross-harness doorbell *by design, not in practice*
+
+**Canonical analysis: [`../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md`](../docs/FLEET-TMUX-OBSERVABILITY-ANALYSIS.md)**
+(claude-04, 2026-10-25, findings `F-1`…`F-8`). Read that, not this summary, before changing
+anything in the nudge chain.
+
+Two separate things get conflated, so state them apart:
+
+- **Hosting.** tmux keeps an agent in a named terminal a human can attach to. Always true.
+  `~/.ai-dev-dotfiles/docs/FLEET-TMUX-LAUNCH.md`: it "does not decide when to send messages,
+  recognize permission prompts or acknowledge assignments."
+- **The nudge.** A file changing wakes nobody. `fleet-nudge.py --watch` polls an inbox's mtime
+  and `ASSIGNMENT-ID` and then **types a trigger sentence into the target pane via `send-keys`**,
+  reading the screen back to confirm it landed before pressing Enter. Typing characters into a
+  terminal is harness-agnostic — **that is exactly why tmux is the intended cross-harness
+  transport.** It fails closed: a matching session *name* is not proof, only the launcher's env
+  stamp is.
+
+**But it is not running.** `F-1` — the supervisor has no launchd job and no live process.
+`F-2` (**critical**) — `get_inbox_path()` resolves to the **frozen global** mailbox, not
+in-repo `fleet/`, so if started it would print "Watching inbox:" and wait forever. *A supervisor
+pointed at a dead file is worse than none: it converts a known gap into a false assurance.*
+
+**So today every cross-harness nudge is still a human relay.** The mechanism exists; the
+deployment does not.
+
+Claude↔Claude messaging is unrelated to all of this — it rides the harness session registry and
+works with or without tmux.
+
+### ⚠ Check the harness, not the name
+
+**Verified 2026-10-25.** The seat named `codex-01` is running
+`claude --model opus --name safari-ai-agent-codex-01` in tmux socket `agent-fleet` — it is
+**Claude Code, not Codex CLI**. It is directly reachable for that reason alone, and that is not
+evidence any cross-harness bridge exists. Had the name been trusted, the right conclusion
+("same harness, message it directly") would have been reached from reasoning that was wrong,
+and the first genuine Codex peer would have inherited the error. **Before sizing a channel,
+confirm what is actually in the pane.** Registry: `agents[codex-01].harness` still reads
+`codex-cli` and is now inaccurate; correcting it is that seat's own call, or the operator's.
 
 **Silence is ambiguous** — busy, idle-and-unnudged, crashed, and never-received all look
 identical. Check the peer's `.status.md` before escalating.

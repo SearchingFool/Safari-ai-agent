@@ -155,6 +155,25 @@ Safari *is* the browser.**
 viable, the three hard constraints, and the remaining work ordered so each step can kill the path
 before the next costs anything. **None of it needs API credits.**
 
+**Step 1 of that list is now DONE, and the answer is no — D-053.** Passkeys do **not** work in a
+third-party `WKWebView`: `isUserVerifyingPlatformAuthenticatorAvailable()` returns **false** and
+`navigator.credentials.get()` is rejected in **12 ms** with `NotAllowedError` and no prompt, with
+the document focused. **Control: Chrome on the same Mac, same site, reports `true`** — so the
+refusal is the web view's, not the machine's. Cause is structural (Associated Domains needs an
+`apple-app-site-association` served by a domain you own). Run it yourself:
+`SPIKE_PASSKEY_PROBE=1 swift run WebViewSpike` — unattended, prints to stderr, costs nothing.
+
+**What that does and does not settle.** It does **not** kill the Swift path; it **bounds** it to
+**password-authenticated sites**. It makes Stage B (a real logged-in session across a restart)
+the decisive test rather than a formality. And it hands the operator a question no agent should
+answer: **if the sites that matter use passkeys, Path A is not the incumbent — it is the only
+option**, because Safari *is* the browser.
+
+**A confound was found and removed before the result was trusted:** the first run returned the
+same `NotAllowedError` for the unrelated reason *"The document is not focused."* WebKit reuses
+one error name for both causes, so the probe now focuses the app first and records
+`document.hasFocus()` beside the verdict.
+
 ****Provider independence (D-004) is now cheap and should be tried.** `F2-01` (ChatGPT) and `F3-01`
 (Gemini) need **no new code**: the existing gateway is already an MCP server, and the rule proven
 on 2026-10-25 is that **the subscription pays when their app is the client calling your server**.

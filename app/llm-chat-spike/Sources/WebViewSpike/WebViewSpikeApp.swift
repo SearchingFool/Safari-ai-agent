@@ -60,10 +60,24 @@ func relaunchInsideBundleIfNeeded() -> Bool {
         </dict></plist>
         """
         try plist.write(to: app.appendingPathComponent("Contents/Info.plist"), atomically: true, encoding: .utf8)
-        let open = Process()
-        open.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        open.arguments = [app.path]
-        try open.run()
+        // `open` detaches, which is right for a human but wrong for the unattended probe: it
+        // would discard the probe's stderr and drop the environment that switches it on. So in
+        // probe mode the bundled copy is executed DIRECTLY and waited on — still inside the
+        // bundle, so `bundleIdentifier` is non-nil and WebAuthn is not judged on an unbundled
+        // process, which would be a confounded result rather than a finding.
+        let probing = ProcessInfo.processInfo.environment["SPIKE_PASSKEY_PROBE"] == "1"
+        let child = Process()
+        if probing {
+            child.executableURL = dest
+        } else {
+            child.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+            child.arguments = [app.path]
+        }
+        try child.run()
+        if probing {
+            child.waitUntilExit()
+            exit(child.terminationStatus)
+        }
         FileHandle.standardError.write(Data("Launched \(app.lastPathComponent) — window should appear.\n".utf8))
         return true
     } catch {
@@ -115,6 +129,21 @@ struct WebViewSpikeApp: App {
                 }
                 .padding(.horizontal, 10)
 
+                // Step 1 of docs/SWIFT-APP-DESIGN.md §6 — the test that can end the in-app
+                // browser path outright, and therefore the one to run before anything is built
+                // on top of it. Two buttons, not one: "Passkey API?" is inert and cannot raise a
+                // system sheet, while "Try passkey login" starts a real ceremony. Separating them
+                // keeps "the API is absent" distinct from "the API refuses this app" — different
+                // findings, different consequences.
+                HStack(spacing: 8) {
+                    Text("Passkeys:").font(.caption).foregroundStyle(.secondary)
+                    Button("Passkey API?") { Task { await model.probePasskeyAPI() } }
+                    Button("Try passkey login") { Task { await model.attemptPasskey() } }
+                    Text("Load an https:// page first. Expected: NotAllowedError — see §4.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 10).padding(.top, 6)
+
                 Text(model.status)
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -125,7 +154,17 @@ struct WebViewSpikeApp: App {
             .frame(minWidth: 700, minHeight: 560)
             // Checked at launch, before any navigation: cookies present here came off disk from
             // a previous run, which is exactly the evidence the test is after.
-            .task { await model.refreshCookies() }
+            .task {
+                await model.refreshCookies()
+                if ProcessInfo.processInfo.environment["SPIKE_PASSKEY_PROBE"] == "1" {
+                    // Overridable so the probe can be pointed at a site the operator actually
+                    // uses, rather than only at the default.
+                    if let url = ProcessInfo.processInfo.environment["SPIKE_PASSKEY_URL"] {
+                        model.address = url
+                    }
+                    await model.runUnattendedPasskeyProbe()
+                }
+            }
         }
     }
 }

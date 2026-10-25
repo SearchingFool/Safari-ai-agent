@@ -651,6 +651,54 @@ before the spending decision D-006 forced.
 
 ---
 
+### D-053 — passkeys do NOT work in a third-party WKWebView, measured. This bounds framing B.
+
+**Status: CONFIRMED on macOS 2026-10-25, with a control.** This is step 1 of
+`docs/SWIFT-APP-DESIGN.md` §6 — the test placed first precisely because it could end the in-app
+browser path before anything was built on it. It did not end it, but it bounds it hard.
+
+**What was measured.** The web-view spike gained an unattended probe
+(`SPIKE_PASSKEY_PROBE=1 swift run WebViewSpike`), run against `https://webauthn.io`:
+
+| Query | Third-party `WKWebView` | Chrome, same Mac, same site |
+|---|---|---|
+| `window.PublicKeyCredential` exists | **true** | true |
+| `isUserVerifyingPlatformAuthenticatorAvailable()` | **false** | **true** |
+| `isConditionalMediationAvailable()` | **false** | **true** |
+| `navigator.credentials.get()` | **`NotAllowedError` in 12 ms, no prompt** | not attempted — it would raise a real system sheet |
+
+**The control is what makes this a finding rather than an anecdote.** A bare `false` could have
+meant the Mac has no usable platform authenticator. A real browser on the same machine, at the
+same URL, minutes apart, reports `true`. So **the `false` is a property of the web view, not of
+the hardware.**
+
+**The second confound, found and removed.** The first run returned `NotAllowedError` with
+*"The document is not focused."* — WebKit uses the **same error name** for an unfocused document
+and for a disallowed relying party, so that result was worthless. The probe now focuses the app
+and the web view first and records `document.hasFocus()` alongside the verdict. The quoted result
+above is from a focused document.
+
+**What it means.** The API surface is *present* and then refuses: the app is not associated with
+`webauthn.io`, and cannot be, because Associated Domains requires an
+`apple-app-site-association` file served by a domain **you own**. For every site the operator
+does not own — which is all of them — **an in-app browser cannot complete a passkey login.**
+
+**What it does NOT mean — kept separate deliberately.** It is **not** "framing B is dead".
+Password logins are untouched by this, and D-052 showed the store persists, so a password session
+should survive. It is also **macOS**, not the iPad, though there is no reason to expect iOS to be
+*more* permissive. And an **existing** session cookie carried in by other means would still work —
+the block is on performing the ceremony, not on being logged in.
+
+**The decision it forces, which is the operator's and not an agent's:** framing B is viable only
+for **password-authenticated sites**. If the sites that matter use passkeys, Path A is not merely
+the incumbent — it is the **only** option, because Safari *is* the browser and passkeys work
+natively there. `docs/SWIFT-APP-DESIGN.md` §7 carried this as an open question; it is now a
+question with a measured premise.
+
+**Cost: nothing.** No credits, no account, no device.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

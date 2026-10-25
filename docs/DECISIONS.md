@@ -609,6 +609,42 @@ implement.
 
 ---
 
+### D-052 — WKWebView keeps a session across app restarts (PROVISIONAL, macOS only)
+
+**Status: provisional 2026-10-25, awaiting one confirmation cycle.** Recorded now rather than
+after, because the observation is real and the session recording it is near its context limit.
+
+**What was observed, by the operator, on macOS:** the spike was launched and — **before pressing
+Go, with nothing loaded in that run** — the cookie count read **4**. The app navigates only on an
+explicit Go, so those four cookies came off disk from a previous launch. After Go, the count rose
+to **6**, consistent with the site setting more on a real visit.
+
+**Why that is the architectural answer:** the question D-047 hangs on is whether a login survives
+an app restart. Four cookies present before any navigation is persistence observed directly, not
+inferred. **The thing that could have killed the in-app browser path does not.**
+
+**Still outstanding before this is firm:**
+
+1. **The confirmation cycle** — quit with a known 6, relaunch, check before loading. A known
+   quantity carried across a restart is stronger than "some cookies exist".
+2. **The negative control** — Clear data, relaunch, expect 0. Without it a non-zero count does not
+   establish that the store is what caused it.
+3. **The iPad.** This is **macOS**. Same WebKit data-store API, so it is strong evidence, but iOS
+   is stricter about app data and the device run is the real confirmation.
+
+**And a separate blocker this does NOT address — possibly the larger one.** The operator uses a
+**passkey**. WebAuthn in a third-party `WKWebView` requires the app to be associated with the
+domain, which is impossible for sites you do not own — so an in-app browser may be unable to
+**authenticate** to passkey-protected sites however well cookies persist. **Path A does not have
+this problem: Safari *is* the browser and passkeys work natively.** That is an advantage of the
+current architecture that appeared on no scorecard until today, and it should be tested before
+any migration is contemplated.
+
+**Cost of this finding: nothing.** No API key, no token, no credits — which is why it was done
+before the spending decision D-006 forced.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

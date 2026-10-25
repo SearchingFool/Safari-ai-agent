@@ -6,6 +6,12 @@
 
 ---
 
+## 2026-10-25 — Separate ChatGPT gateway request: handoff, no implementation
+
+Owner authorized a separate ChatGPT gateway first test after read-only provider research, then requested handoff. No code/service/provider changes made. New handoff at docs/plans/chatgpt-gateway-handoff-2026-10-25.md and tracker entry distinguish MCP gateway work from existing Path C direct-API scaffold (9c4d5b1). Read latest lead shutdown/rotation warning; do not restore without verifying disposition. Real account/iPad compatibility remains untested. Launcher identity empty; documentation reservations accepted/verified with empty identity, but coordination report fails as unattributable. No identity invented. Isolated documentation branch for lead integration; not an implementation delivery. Next: valid launch identity, current fleet/credential status, then scoped OAuth/separate-session gateway plan and verification.
+
+---
+
 ## 2026-10-14 — Testing checkpoint
 
 Assignment 09 bodies received: acknowledge D-042 review and confirmed division/sequencing. Read Claude-04 handover to Claude-9a. Consolidated device findings and ordered owner actions added at top of docs/TRACKER.md; notified both inboxes. Zero formal ten-run runs recorded; Stop-while-queued, controlled recovery and targeted D-035/036/038/039/040 confirmation unestablished in this session. Next owner actions: 0.2.4 confirmation, connected browser_status pre-flight, then demo-page Part A2 with incremental guidance. Today's optional public-site navigation test has no result. Product is Safari AI Agent, not example website. Preserve lead-owned run sheet/results. No gate closed or new feature started. Owner requires tracker/fleet updates after every change, including issued tests and reported results; this corrects the omitted test-instruction checkpoint.

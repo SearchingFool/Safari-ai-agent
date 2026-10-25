@@ -2,6 +2,10 @@
 
 Updated: 2026-10-24 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047).
 
+## 2026-10-25 — Separate ChatGPT gateway requested; implementation pending
+
+Owner requested a separate ChatGPT gateway for the first test, superseding F2-01's suggestion to reuse the deployed gateway for this experiment. Read-only compatibility review completed; no gateway/authentication/deployment/account changes made. [Handoff and prerequisites](plans/chatgpt-gateway-handoff-2026-10-25.md) distinguish this MCP connection from the existing `poc-chatgpt/` direct-API Path C work, record the unresolved launcher identity and credential-rotation warning, and define next steps. OAuth adaptation is expected from code/docs comparison, not a proven connection. Native ChatGPT iPad/account availability remains untested; Gemini eligibility remains conditional. No new acceptance gate closed.
+
 ## 2026-10-14 — Safari AI Agent testing: pending owner actions
 
 **Product under test: Safari AI Agent.** Go Madeira was only an optional ordinary-navigation smoke-test target, not the product being tested. Formal acceptance uses the project demo pages and the [device run sheet](IPAD-DEVICE-RUN-SHEET.md), maintained by the lead. Today's navigation instructions have no reported result.

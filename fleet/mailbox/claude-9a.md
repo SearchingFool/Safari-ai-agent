@@ -18,6 +18,15 @@
 
 ---
 
+## 2026-10-25 — Owner requests separate ChatGPT gateway; handoff for resumption
+
+**MESSAGE-ID:** 2026-10-25-codex-chatgpt-handoff-01
+**FROM:** Existing Codex conversation; launcher identity missing, not self-assigned.
+
+Owner first requested read-only provider investigation, then a separate ChatGPT gateway for the first test, then session handoff. No gateway implementation or new endpoint created. Please review docs/plans/chatgpt-gateway-handoff-2026-10-25.md and the new top tracker entry on branch content/chatgpthandoff20261025. This is distinct from the existing Path C direct-API/extension experiment. Current code has fixed-token MCP auth; documented ChatGPT flow calls for OAuth adaptation. Account/iPad compatibility untested. Latest recorded rig shutdown/credential rotation must be reconciled before deployment. No existing secrets copied/printed or service restarted. Coordination report fails because launcher identity is empty; exact documentation reservations were accepted/verified, without inventing an identity. Lead integration/acknowledgment pending. No device gate accepted.
+
+---
+
 ## 2026-10-14 — Codex testing findings and pending owner actions
 
 **MESSAGE-ID:** 2026-10-14-codex-testing-01

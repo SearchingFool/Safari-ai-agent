@@ -96,6 +96,15 @@ occupant. An **occupant** is a session: ephemeral, hours. **The roster below lis
 > **The `Current occupant` column is a label, not a liveness claim.** It is not updated when a
 > session exits. To find out whether anyone is actually in a seat, check the process — see
 > *Identify a peer by its PROCESS* below.
+>
+> **Stronger than that: occupancy has NO runtime representation at all.** The tooling couples
+> agent and seat into one identifier — `fleet_identity.py:294-296` makes `QUEUECTL_AGENT` and
+> `AGENT_NAME` both `<fleet>-<agent>`, and `claude_w.py:636-638` derives the messaging `--name`
+> from it. So one `--agent X` sets the poll key, the lock identity *and* the message address,
+> and **an occupant cannot be named independently of its seat.** The coupling is deliberate —
+> it buys one-string addressability — but it means locks and messages identify the **seat**,
+> never who was in it. *A seat is the runtime identity; occupancy is documentation laid over
+> it.* Raised by `codex-01`, verified against source. Full detail in the registry.
 
 | Seat | Function | Mailbox | Current occupant |
 |---|---|---|---|

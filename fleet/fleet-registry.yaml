@@ -139,6 +139,48 @@ model:
 # leftover per-session mailboxes are still offered as agents by that tool —
 # the stale ones are listed under `occupancy:` and are NOT valid nudge targets.
 # ===========================================================================
+# ---------------------------------------------------------------------------
+# *** KNOWN LIMIT OF THIS MODEL — read before relying on `occupant:` ***
+#
+# OCCUPANCY HAS NO RUNTIME REPRESENTATION. The `occupant:` fields below and the
+# `occupancy:` log are DOCUMENTATION ONLY. The tooling cannot express "seats are
+# durable, occupants are distinct" — it couples them into one identifier.
+#
+# Verified in code 2026-10-25 (raised by codex-01, checked against source, not
+# taken on report):
+#   fleet_identity.py:294-296  QUEUECTL_AGENT = AGENT_NAME = "<fleet>-<agent>"
+#   claude_w.py:636-638        --name is then derived from AGENT_NAME
+# So a single `--agent X` sets THREE things at once: the poll key (inbox
+# filename), the queuectl identity, and the cross-session messaging address.
+# An occupant therefore CANNOT be named independently of its seat. Relaunching
+# an occupant under its own name would repoint its poll key at an inbox that
+# does not exist.
+#
+# THE COUPLING IS DELIBERATE, NOT AN OVERSIGHT. claude_w.py:630-635 states the
+# benefit: "the lead can reach this worker with ONE string that is also its
+# QUEUECTL_AGENT and its tmux session suffix — no screen-scraping, no
+# keystrokes, no timing." It buys addressability; it costs occupant identity.
+#
+# WHAT THIS COSTS, CONCRETELY:
+#   - queuectl reservations identify the SEAT, not the occupant. A lock reading
+#     `safari-ai-agent-implementation` does not say WHO held it, so the
+#     occupancy log below cannot be cross-checked against lock attribution —
+#     which is exactly the audit wanted when a handover goes wrong.
+#   - Messaging addresses a SEAT. Unambiguous only while one occupant sits in
+#     one seat.
+#   - Two concurrent occupants of one seat would collide on inbox, locks AND
+#     address simultaneously. Only this registry's convention prevents that,
+#     and A CONVENTION IS NOT A CONTROL.
+#
+# THE HONEST FRAMING: a seat IS the runtime identity. Occupancy is a historical
+# record laid over it for attribution and handover, nothing more. Therefore —
+# consistent with everything else here — LIVENESS ALWAYS COMES FROM THE
+# PROCESS, never from these fields:
+#     python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent
+#
+# Changing the coupling is an ai-dev-dotfiles concern and out of this fleet's
+# scope. Recorded so the limit is known rather than discovered.
+# ---------------------------------------------------------------------------
 seats:
   - id: lead
     function: >

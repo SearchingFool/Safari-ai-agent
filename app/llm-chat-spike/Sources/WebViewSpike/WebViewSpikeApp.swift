@@ -11,9 +11,29 @@
 
 import SwiftUI
 
+#if canImport(AppKit)
+import AppKit
+
+/// A SwiftPM executable has no .app bundle, so macOS launches it as a background accessory:
+/// the process runs, the window exists, and nothing ever appears on screen. Promoting the
+/// activation policy at launch is what makes it a normal, focusable app. Without this the
+/// spike looks broken when it is merely invisible — which is a false negative on a test whose
+/// entire purpose is to produce a trustworthy yes or no.
+final class SpikeAppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+}
+#endif
+
 @main
 struct WebViewSpikeApp: App {
     @StateObject private var model = BrowserModel()
+    #if canImport(AppKit)
+    @NSApplicationDelegateAdaptor(SpikeAppDelegate.self) private var appDelegate
+    #endif
 
     var body: some Scene {
         WindowGroup("WKWebView session persistence — D-047") {

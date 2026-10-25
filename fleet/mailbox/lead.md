@@ -1,17 +1,33 @@
-# Inbox — claude-11 (fleet `safari-ai-agent`)
+# Inbox — the `lead` SEAT (fleet `safari-ai-agent`)
 
-**File:** `fleet/mailbox/claude-11.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
-**Description:** Work directed at `claude-11`. Newest first.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, fleet join 2026-10-25)
+**File:** `fleet/mailbox/lead.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
+**Description:** Work directed at whoever holds the `lead` seat. This file belongs to the SEAT, not to any session — it survives terminals and is inherited by the next occupant. Newest first.
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat, 2026-10-25)
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 **Last Updated By:** claude-11
 
-**ASSIGNMENT-ID:** 2026-10-25-claude-11-01
+**ASSIGNMENT-ID:** 2026-10-25-lead-01
+**CURRENT OCCUPANT:** `claude-11` (Claude Code Opus 5, session `safari-ai-agent-11`), since
+2026-10-25. Renamed from `claude-11.md` when the registry moved to seats.
 
 > **ORDERING: NEWEST FIRST.** The current assignment is the `ASSIGNMENT-ID` above and the first
 > `##` section below. **The tail of this file is permanently the oldest content** — reading the
 > end to find new work is structurally guaranteed to produce a false negative.
+
+> **⚠ IF YOU ARE A NEW OCCUPANT OF THIS SEAT, READ THIS BEFORE ACTING ON ANYTHING BELOW.**
+> The protocol says act on an assignment when its `ASSIGNMENT-ID` is **newer than the one you
+> last handled**. A fresh occupant has no last-handled, so that rule gives you no floor and the
+> newest item here may already be done. **Do not infer completion from this file.** Instead:
+> 1. Read the top of [`lead.status.md`](lead.status.md) — the previous occupant's last report is
+>    the real high-water mark.
+> 2. Add an `## OCCUPANCY` entry to that status file naming yourself, the date, and the
+>    `ASSIGNMENT-ID` you are treating as your floor, **before** your first write.
+> 3. If the previous occupant left mid-task, say so explicitly rather than silently restarting.
+>
+> This hazard is the price of seat-reuse and it is deliberate: the alternative — a new mailbox
+> per session — is what produced four dead `claude-*` identities in twelve days and a liveness
+> check that returned the wrong answer on 2026-10-25.
 
 ---
 

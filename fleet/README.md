@@ -89,15 +89,54 @@ printed — all unchanged.
 
 | Agent | Harness | Role | Inbox / Outbox |
 |---|---|---|---|
-| `claude-11` | Claude Code (Opus 5) | **Lead** from 2026-10-25 — priority, gates, D-### numbering, integration. Reconciled with the live peer; uncontested | `mailbox/claude-11.*` |
-| `codex-01` | Claude Code (Opus 5) in the `codex-01` **seat** | **All shared implementation** — `src/**`, `gateway/**`, build/tooling, setup docs, provider research. Holds **no** lead grant | `mailbox/codex-01.*` |
-| `claude-04` | Claude Code (Opus 5) | Worker; owns the iPad device run sheet and results analysis. **Exited 2026-10-25** (live ~08:06–08:33 that morning) | `mailbox/claude-04.*` |
-| `claude-9a` | Claude Code (Opus 5) | Lead 2026-10-14 → 10-25; **dormant**, last entry 2026-10-14 | `mailbox/claude-9a.*` |
+**Restructured 2026-10-25: SEATS, not sessions.** A **seat** is durable — a function, a write
+scope, a mailbox thread. It survives every terminal closing and is inherited by the next
+occupant. An **occupant** is a session: ephemeral, hours. **The roster below lists seats.**
 
-**"Exited this morning" ≠ "dormant since 10-14".** `claude-04` was genuinely running on
-2026-10-25 and wrote its own `claude-04.status.md` at 08:17; it has since exited. Say which, or
-a reader dates it eleven days wrong. No successor has rewritten any peer's entry. If a departed
-agent returns, **reconcile with it**.
+| Seat | Function | Mailbox | Current occupant |
+|---|---|---|---|
+| `lead` | Priority, gates, D-### numbering, integration. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` | `claude-11` (Claude Opus 5), since 2026-10-25 |
+| `implementation` | All shared implementation — `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/codex-01.*` → `implementation.*` *(rename pending — occupant's files, occupant's call)* | `codex-01` (Claude Opus 5 — **not** Codex CLI), since 2026-10-25 |
+
+**Past occupants are in the registry's `occupancy:` log — a dated trail, not a roster. Never
+liveness-check it.** `claude-04`, `claude-9a` and `claude-safari-ai-agent` live there.
+
+### Why this changed, because the old shape caused a real failure
+
+One permanent identity per terminal produced **four `claude-*` entries in twelve days** for what
+is functionally one or two seats. On 2026-10-25 `claude-11` liveness-checked three of them, got
+one wrong, and nearly stood down from a seat that was its own. **Every dead name in a roster is
+a liveness check waiting to fail.**
+
+Two different things were bundled as "identity". They have opposite requirements:
+
+| | Requirement | Where it lives |
+|---|---|---|
+| **The record** — who decided what, who wrote which file | **Permanent.** Delete it and older commits become uninterpretable | git history, `Author:` headers, status files, `agents_historical:`. Nobody liveness-checks it, so it costs nothing |
+| **The roster** — who to coordinate with *now* | **Short and true** | `seats:` in the registry. Only this rots, so only this gets pruned |
+
+**So: preserve the record, prune the roster, and keep the seat.** Nothing is deleted.
+
+> **Seats are named for their FUNCTION — never for their occupant.** Not a harness, not a model,
+> not a person, not a role grant that can move. This repo proved it twice in one morning:
+> `codex-01` was named after a **harness**, a Claude session sat in it, and `harness: codex-cli`
+> silently became a lie that broke an identity check. Same shape as baking `LEAD` into an agent
+> name. **A changeable attribute inside a durable identifier does not merely go stale — it
+> propagates mistakes.**
+
+### ⚠ The cost of seat reuse, stated plainly
+
+Inheriting a seat's inbox means inheriting its `ASSIGNMENT-ID` history. The protocol says act
+when an ID is *newer than the one you last handled* — **a fresh occupant has no last-handled**,
+so the rule gives it no floor and the newest item may already be done.
+
+**On taking a seat:** read the top of its `.status.md` (that is the real high-water mark, not
+the inbox), then add an `## OCCUPANCY` entry naming yourself, the date and the `ASSIGNMENT-ID`
+you treat as your floor — **before your first write**. If your predecessor stopped mid-task, say
+so rather than silently restarting.
+
+This hazard is deliberate and priced: the alternative is a fresh mailbox per session, which is
+exactly what produced the four dead identities above.
 
 **Lead seat history.** `claude-04` 2026-10-13 → `claude-9a` 2026-10-14 → `claude-11` 2026-10-25.
 Each transfer after the first met a live peer, and both were settled by *asking*:

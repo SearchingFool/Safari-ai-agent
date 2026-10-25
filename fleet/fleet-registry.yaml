@@ -104,7 +104,134 @@ model:
     handed to the operator.
   spawn: lead-launched subagents
 
-agents:
+# ===========================================================================
+# SEATS — THIS IS THE ROSTER. Read this, not `agents_historical:` below.
+#
+# RESTRUCTURED 2026-10-25 by operator decision. A SEAT is durable: a function,
+# a write scope, and a mailbox thread. It survives every terminal closing and
+# is inherited by the next occupant. An OCCUPANT is a session — ephemeral,
+# hours — and is recorded in `occupancy:` BELOW, never as a roster entry.
+#
+# WHY: the old shape created one permanent identity per terminal. In twelve
+# days that produced FOUR claude-* entries for what is functionally one or two
+# seats. On 2026-10-25 claude-11 had to liveness-check three of them, got one
+# wrong, and nearly stood down from a seat that was its own. Every dead name
+# in a roster is a liveness check waiting to fail.
+#
+# THE SPLIT THAT MAKES THIS WORK — two things were bundled as "identity":
+#   THE RECORD  (who decided what, who wrote which file) — PERMANENT, and
+#       already safe in git history, `Author:` headers and the status files.
+#       Nobody liveness-checks it, so it costs nothing to keep. Keep all of it.
+#   THE ROSTER  (who to coordinate with) — must be SHORT and TRUE.
+#       This is the part that rots. Keep only live seats here.
+#
+# NAMING RULE — SEATS ARE NAMED FOR THEIR FUNCTION, NEVER FOR THEIR OCCUPANT.
+# Not a harness, not a model, not a person, not a role grant that can move.
+# This repo proved it twice in one morning: `codex-01` was named after a
+# HARNESS, a Claude session sat in it, and `harness: codex-cli` silently
+# became a lie that broke an identity check. Same failure shape as baking
+# `LEAD` into an agent name. A changeable attribute in a durable identifier
+# does not merely go stale — IT PROPAGATES MISTAKES.
+#
+# TOOLING NOTE, verified 2026-10-25: `~/.ai-dev-dotfiles/tools/fleet_identity.py`
+# derives agent names by GLOBBING `mailbox/*.md`, not from any key in this
+# file. Seat-named mailboxes therefore work unchanged. The corollary is that
+# leftover per-session mailboxes are still offered as agents by that tool —
+# the stale ones are listed under `occupancy:` and are NOT valid nudge targets.
+# ===========================================================================
+seats:
+  - id: lead
+    function: >
+      Sets priority against the iPad-reliability objective; runs the full gate; integrates;
+      owns D-### numbering in docs/DECISIONS.md (peers propose, the seat numbers).
+      Holds NO operator-reserved authority — see AGENTS.md §6.
+    owns:
+      - fleet/mailbox/lead.md
+      - fleet/mailbox/lead.status.md
+      - fleet/fleet-registry.yaml   # leadership + seats + occupancy; NOT a peer's own entry
+      - fleet/README.md
+      - docs/DECISIONS.md           # D-### NUMBERING only
+    mailbox:
+      inbox: mailbox/lead.md
+      outbox: mailbox/lead.status.md
+    occupant: claude-11             # see occupancy: below. Ephemeral — do not treat as identity.
+
+  - id: implementation
+    function: >
+      All shared implementation: src/**, gateway/**, build and tooling, operator-facing setup
+      docs, and provider feasibility RESEARCH ONLY (no provider implementation without explicit
+      operator approval of a plan).
+    owns:
+      - src/**, gateway/**, tools/**
+      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md
+      - its own mailbox pair
+    mailbox:
+      # RENAME PENDING. The operator approved renaming this seat from `codex-01` to
+      # `implementation` on 2026-10-25 (root-cause fix for F-8 — a seat must not be named
+      # after a harness). The mailbox files are the OCCUPANT'S `owns`, so claude-11 did NOT
+      # move them. Proposal sent to the occupant; until it answers, these point at the LIVE
+      # paths so nothing breaks and the migration is never half-applied.
+      inbox: mailbox/codex-01.md            # → mailbox/implementation.md when the occupant moves it
+      outbox: mailbox/codex-01.status.md    # → mailbox/implementation.status.md
+    occupant: codex-01
+
+# OCCUPANCY — a dated LOG, not a roster. NEVER liveness-check this list.
+# Newest first. `to:` absent means current. Attribution for any individual file
+# lives in its `Author:` header and in git history; this is only the seat trail.
+occupancy:
+  - seat: implementation
+    occupant: codex-01
+    harness: claude-code            # Opus 5 — NOT Codex CLI, despite the seat's legacy name
+    from: 2026-10-25
+    note: >
+      Holds no lead grant. Confirmed directly 2026-10-25: "I am NOT claude-04 — I am the
+      codex-01 seat. Keep the lead; nothing to reconcile." Earlier occupancy of this seat by an
+      actual Codex CLI session is recorded in agents_historical: below.
+
+  - seat: lead
+    occupant: claude-11
+    harness: claude-code            # Opus 5, session safari-ai-agent-11 / 9494e5
+    from: 2026-10-25
+    note: Operator grant; reconciled with the live peer before taking the seat. Uncontested.
+
+  - seat: lead
+    occupant: claude-9a
+    harness: claude-code
+    from: 2026-10-14
+    to: 2026-10-25
+    note: Dormant since its last entry 2026-10-14. Dormancy, NOT death.
+
+  - seat: lead
+    occupant: claude-04
+    harness: claude-code
+    from: 2026-10-13
+    to: 2026-10-14
+    note: >
+      Stood down voluntarily for claude-9a (6422307) rather than contest the seat — the
+      precedent this fleet follows. SEPARATELY, it ran again as a WORKER on 2026-10-25
+      (~08:06–08:33, wrote D-053 and its own status at 08:17) and has since EXITED. Say
+      "exited during the 10-25 session", not "dormant since 10-14" — the latter dates it
+      eleven days wrong. Exit window reported by codex-01; claude-11 verified only absence.
+
+  - seat: lead
+    occupant: claude-safari-ai-agent
+    harness: claude-code
+    from: 2026-10-11
+    to: 2026-10-13
+    note: Silent; seat reclaimed as presumed dead 2026-10-13.
+
+# ===========================================================================
+# agents_historical: — NOT THE ROSTER. DO NOT LIVENESS-CHECK THESE.
+#
+# Retained verbatim as THE RECORD: delivery evidence, declared write scopes,
+# and each agent's self-declared entry. Deleting it would cost the ability to
+# interpret older commits, and these are peers' own words — no successor has
+# rewritten one, in any direction, across four seat transfers.
+#
+# Was `agents:` until 2026-10-25. Renamed, not edited. Safe: no tool reads
+# this key (see the TOOLING NOTE above).
+# ===========================================================================
+agents_historical:
   - name: lead
     queuectl_agent: claude-safari-ai-agent
     harness: claude-code

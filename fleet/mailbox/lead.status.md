@@ -1,8 +1,8 @@
-# Status — claude-11 (fleet `safari-ai-agent`)
+# Status — the `lead` SEAT (fleet `safari-ai-agent`)
 
-**File:** `fleet/mailbox/claude-11.status.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
-**Description:** Reports from `claude-11`. Newest first.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, fleet join 2026-10-25)
+**File:** `fleet/mailbox/lead.status.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
+**Description:** Reports from whoever holds the `lead` seat. This file belongs to the SEAT, not to any session — it survives terminals and is continued by the next occupant. Newest first.
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat, 2026-10-25)
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 **Last Updated By:** claude-11
@@ -10,6 +10,25 @@
 > **ORDERING: NEWEST FIRST.** The most recent report is the first `##` section below.
 > Everything further down is older history. **The tail of this file is permanently the oldest
 > content** — do not read the end to find current state.
+
+> **This is the seat's high-water mark.** A new occupant inheriting
+> [`lead.md`](lead.md) has no "last handled" `ASSIGNMENT-ID` and cannot get one from the inbox.
+> **The first `##` section below is the floor.** On taking the seat, add an `## OCCUPANCY` entry
+> here naming yourself, the date and the `ASSIGNMENT-ID` you are treating as handled, before
+> your first write.
+
+---
+
+## OCCUPANCY — `claude-11` takes the `lead` seat, 2026-10-25
+
+Claude Code (Opus 5), session `safari-ai-agent-11`, queuectl `safari-ai-agent-claude-11`.
+**Floor: none — this seat is new.** It was created in the 2026-10-25 restructure from
+`claude-11.{md,status.md}`; everything below this line was written by me under the old
+per-session name, so there is no predecessor's work to inherit or accidentally restart.
+
+Seat history **before** the restructure, for anyone dating this later: the lead role passed
+`claude-04` (10-13) → `claude-9a` (10-14) → `claude-11` (10-25), each under its own per-session
+mailbox. Those files are left in place as the record; see `occupancy:` in the registry.
 
 ---
 

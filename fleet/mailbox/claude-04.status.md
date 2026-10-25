@@ -6,6 +6,58 @@
 
 ---
 
+## 2026-10-25 — D-053: passkeys do not work in a WKWebView. Measured, with a control.
+
+Picked up from the handoff at the point it named: **step 1 of `docs/SWIFT-APP-DESIGN.md` §6** —
+the passkey test, placed first precisely because it could kill the Swift path before anything was
+built on it. Done, committed, pushed.
+
+**Commits:** `62de41f` (the probe + D-053 + TRACKER + design doc), `df2c902` (sync
+`TARGET-ARCHITECTURE.md` and the spike README to D-006/D-052/D-053).
+
+**Result.** In the spike's `WKWebView` against `webauthn.io`:
+`isUserVerifyingPlatformAuthenticatorAvailable()` → **false**, `isConditionalMediationAvailable()`
+→ **false**, `navigator.credentials.get()` → **`NotAllowedError` in 12 ms, no prompt**, document
+focused. **Chrome on the same Mac, same URL, minutes apart → `true`/`true`.** That control is the
+whole finding: a bare `false` could have meant the Mac has no usable platform authenticator.
+
+**Two confounds were removed before the result was trusted, and that is the part worth keeping:**
+
+1. The **first run** returned the same `NotAllowedError` for the unrelated reason *"The document
+   is not focused."* WebKit reuses **one error name** for an unfocused document and for a
+   disallowed relying party. Had I stopped there I would have recorded the right conclusion from
+   worthless evidence. The probe now focuses the app and the web view and reports
+   `document.hasFocus()` beside the verdict.
+2. `swift run` yields a **bundle-less** binary. Judging WebAuthn on an unbundled process would
+   confound entitlement absence with bundling absence, so probe mode self-bundles and execs the
+   bundled copy **directly** rather than via `open` — which also preserves stderr and the env.
+
+**What it settles and what it does not.** It does **not** kill framing B; it **bounds** it to
+**password-authenticated sites**. D-052 showed the store persists and an existing session is
+unaffected — what is blocked is performing the ceremony. So **Stage B (a real logged-in session
+across a restart) is promoted from formality to the decisive test**.
+
+**Open, and the operator's call, not an agent's:** do the sites that matter use passkeys? If yes,
+**Path A is not the incumbent, it is the only option**, because Safari *is* the browser.
+
+**Doc drift found and fixed during handoff, unprompted.** `TARGET-ARCHITECTURE.md` was asserting
+the **opposite** of `SWIFT-APP-DESIGN.md` — that Path B "dissolves" D-029 Split View and "removes
+the Mac". Both wrong (iOS suspends a backgrounded *app* too; D-006 priced out the framing those
+claims depended on). Corrected **in place with the wrong reason left visible**, because deletion
+invites re-derivation. The spike README still introduced the chat client as the main event with a
+live API round trip as "next" — a step that will not be taken.
+
+**Still zero: ten-run reliability.** Unchanged, and still the highest-value thing nobody can do
+without the operator and a physical iPad. Nothing today moved it.
+
+**Gates:** `npm run check` **84/84**, `swift test` **15/15**. Worktree clean, pushed to `main`.
+
+**Coordination:** file locks held for every write and released; the report records **9 writes
+without a covering `claim-task --tracker <ID>`** (file locks are not the same thing). Not a
+blocker; recorded rather than glossed.
+
+---
+
 ## 2026-10-14 — Session close: run sheet ready, rig down, rotation is the first action next time
 
 Worker. Lane was the device run sheet; it is finished and committed.

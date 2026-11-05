@@ -21,6 +21,63 @@
 
 ---
 
+## 🔁 HANDOFF 2026-11-05 — `safari-ai-agent-ba` — session ending. IN-FLIGHT STATE: NOTHING.
+
+**Outgoing occupant:** Claude Code Opus 5, pid 59785, messaging address `safari-ai-agent-ba`,
+env stamp `safari-ai-agent-2478ea`. Held this seat 2026-10-25 → 2026-11-05.
+
+**IN-FLIGHT: NOTHING.** Stated explicitly, not left to inference. Worktree clean, both of this
+occupant's commits pushed, every reservation released, coordination report exit 0.
+
+**⚠ THE SEAT WAS DOUBLE-OCCUPIED AND NOBODY DETECTED IT FOR ELEVEN DAYS.** This is the most
+important thing on this page. Between 2026-10-25 and 2026-11-05 this seat was held
+simultaneously by this Claude session and by an Antigravity session, each writing into this
+file, neither aware of the other. **Both have now vacated** (Antigravity's entry below:
+*"Vacating seat"*). The next occupant inherits a free seat — but should not conclude the
+mechanism that allowed it is fixed.
+
+**How it happened, precisely:** both occupants joined MID-SESSION via `/fleet-join`, so neither
+carried a `--name`, so `fleet-status.py` could not see either one and reported the seat empty to
+anyone who asked. Partially fixed this session (see below) — fixed for *detection*, **not** for
+*prevention*. Nothing today stops two agents taking one seat; the tool now merely declines to
+claim the seat is free when it cannot prove it.
+
+### Verified facts a successor should not re-derive
+
+| Fact | How established |
+|---|---|
+| `fleet-status.py` could not see any mid-session joiner | Read `fleet-status.py:136` + `claude_w.py:636-638`; reproduced live |
+| Three agents live in this repo, two unknown to the fleet | `ps` + `lsof` cwd match, after the fix |
+| `agy` pid 7071 live since 2026-10-21, `--dangerously-skip-permissions` | `ps -o lstart`; re-verified alive 2026-11-05 |
+| `queuectl reserve --agent` ignores `QUEUECTL_AGENT` | `queuectl reserve --help`; used successfully all session |
+| The pre-write hook identifies by `QUEUECTL_AGENT` and is in `warn` mode | `queue-guard.py:405-406` |
+| A seat can be taken mid-session; no relaunch needed | Done, twice, by two different harnesses |
+
+### Commits
+
+| Hash | Repo | Why it matters |
+|---|---|---|
+| `9afb105` | `ai-dev-dotfiles` | The liveness fix. Pushed. |
+| `ecfd2ec` | this repo | Occupancy entry + the `agy` discovery. Pushed. |
+
+### 🔴 Open, in priority order — all above this seat
+
+1. **`agy` pid 7071 has been live in this repo for 15 days** and is still running with
+   `--dangerously-skip-permissions`. It now also writes to this seat's files. **Cross-harness —
+   it cannot be messaged; only an operator relay reaches it.** Unresolved since 2026-10-25.
+2. **8 commits sit unpushed on `main`** (`512d357`..`a0931f2`), all Antigravity's, including a
+   login form and signed session cookies. **This repo is PUBLIC.** Deliberately not pushed by
+   this occupant — publishing another agent's auth code is the operator's call, not a seat's.
+3. **Double-occupancy is detectable but not preventable.** Seat-taking has no mutual exclusion.
+4. **The attribution seam below had to be repaired** — see the restored-heading banner. A
+   top-of-file warning does not survive the next occupant's edit.
+
+**Against the standing objective — "get this working on the iPad reliably" — this occupant
+moved NOTHING in eleven days. Antigravity did: six device-verified cases closed on real
+hardware. The honest comparison is in its entry below.**
+
+---
+
 ## 2026-11-05 — Antigravity — Live iPad hardware verification & approval timeout extension
 
 **Seat & Occupant:** `implementation` seat occupied by Antigravity in paired testing session with operator Libor Ballaty.
@@ -42,6 +99,17 @@
 ### 3. Follow-Ups Completed in Session
 - **Documentation Refresh (commit `1ab271b`):** Refreshed `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect the background LaunchAgent service, dual-port layout (8788 local vs 8443 remote HTTPS), and the 60s approval timeout setting.
 - **HTML Login Form & Keychain AutoFill (commit `885fd0d`):** Upgraded `gateway/control.mjs` and Control UI to serve a dedicated `/login` page with standard `<input type="password">` form and signed 30-day `HttpOnly` session cookies (`safari_control_session`). Safari / iCloud Keychain now prompts to save credentials, enabling Touch ID / Face ID auto-login. Preserved backward compatibility for Basic Auth. Total Node unit tests increased to 85/85 green.
+
+## OCCUPANCY 2026-10-25 — `safari-ai-agent-ba` — seat taken; launch identity does NOT match it
+
+> **⚠ ATTRIBUTION SEAM — RESTORED 2026-11-05 by `safari-ai-agent-ba`.** This heading was
+> **deleted** by the 2026-11-05 Antigravity edit, which left everything below it sitting under
+> *Antigravity's* heading. For eleven days this entry read as Antigravity's own words —
+> including the section below describing the `agy` process, i.e. Antigravity appearing to
+> report itself as an unknown intruder. **Nothing below was altered; only the boundary was put
+> back.** This is the exact hazard the file header warns about, and it happened anyway, in this
+> file, within hours of that warning being written. A marker at the top of a newest-first file
+> does not survive the next occupant's edit — only a heading per entry does.
 
 **Occupant:** a Claude Code Opus 5 session, pid **59785**. Messaging address
 `safari-ai-agent-ba`; env stamp `AGENT_NAME` = `QUEUECTL_AGENT` = `safari-ai-agent-2478ea`.

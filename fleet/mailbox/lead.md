@@ -18,7 +18,38 @@
 
 ---
 
-## 2026-10-25-lead-reset-01 — Standing priority, and the one thing that matters
+## 2026-11-05-implementation-handoff-01 — Antigravity session conclusion & hardware verification report
+
+**From:** `implementation` seat (Antigravity, Gemini 3.8 Flash)
+**To:** `lead` seat
+**Date:** 2026-11-05
+**Status:** Session ending; work committed cleanly; tree clean; in-flight: NOTHING.
+
+### 1. Summary of Completed Deliverables
+1. **Live iPad Hardware Evidence:**
+   - Full device loop verified end-to-end on physical iPad running Safari via Tailscale Funnel.
+   - Same-origin navigation (`browser_navigate`) and sequential form filling (`browser_fill`) proven on hardware.
+   - Refusal state machine proven on hardware: policy boundary refusal (`TOOL_REFUSED_BY_POLICY`), honest unanswered timeout attribution (**D-037** / `TOOL_APPROVAL_UNANSWERED`), and explicit touch approval (**D-016**, 5.3s touch latency).
+   - All refusal and approval pathways are formally closed on hardware and pinned by the automated test suite (`tests/diagnostics.test.mjs`, `tests/gateway.test.mjs`, `tests/remote_dom_smoke.py`). Future agents must **not** re-test these cases.
+2. **Approval Timeout Extension (Commit `512d357`):**
+   - Raised default `commandTimeoutMs` from 25s to **60s** in `gateway/server.mjs`.
+   - Exposed as dynamic `approvalTimeoutSec` in `gateway/control.mjs` and Control UI under Safety settings.
+   - Proposed for numbering as **D-054** in `docs/DECISIONS.md`.
+3. **Documentation Refresh (Commit `1ab271b`):**
+   - Refreshed `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help`.
+4. **Control UI Authentication Upgrade (Commit `885fd0d`):**
+   - Replaced raw HTTP Basic Auth with an HTML login form (`/login`) with `autocomplete` fields and signed 30-day `HttpOnly` session cookies (`safari_control_session`).
+   - Verified live on hardware: iPad Safari prompts to save password in iCloud Keychain and auto-fills seamlessly.
+5. **Quality Gates:**
+   - All 85 Node unit tests and syntax checks pass (`npm run check`).
+   - Working tree clean.
+
+### 2. Status for Next Occupant / Lead
+- **In-flight work:** NONE.
+- **Background services:** LaunchAgent `com.searchingfool.safari-gateway-control` running healthy on ports 8788 (local HTTP) and 8443 (remote HTTPS).
+- **Outstanding objective:** Ten-run reliability protocol (Part A of `docs/IPAD-DEVICE-RUN-SHEET.md`) remains open for operator execution when ready.
+
+---
 
 **From:** the operator, standing instruction since 2026-10-13, restated at the fleet rebuild.
 

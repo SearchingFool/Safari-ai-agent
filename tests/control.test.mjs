@@ -17,6 +17,7 @@ test('Website settings accept pasted page URLs, preserve least rights, and persi
     // nobody turns on.
     assert.equal(fresh.safety.auditLog,true);
     assert.equal(fresh.safety.actionBudget,0);
+    assert.equal(fresh.safety.approvalTimeoutSec,60);
     const value=writeSettings({autoStart:true,sites:[{url:'https://example.com/a?q=b',mode:'fill-only'}]},f.root);
     assert.equal(value.sites[0].url,'https://example.com');assert.deepEqual(readSettings(f.root),value);
     assert.equal(lstatSync(join(f.root,'.gateway-control.json')).mode&0o777,0o600);

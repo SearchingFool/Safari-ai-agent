@@ -36,6 +36,8 @@ export function controlPassword(root=ROOT){
 export const SAFETY_DEFAULTS = Object.freeze({
   auditLog:        {value: true,  built: true,  label: 'Record what the agent did and what you approved'},
   auditRotateMb:   {value: 25,    built: true,  label: 'Start a new log file after this many MB'},
+  approvalTimeoutSec:
+                   {value: 60,    built: true,  label: 'Seconds before an unanswered approval prompt expires (10–300)'},
   reconsentOnEscalation:
                    {value: false, built: false, label: 'Ask again before acting on a trusted site if an unlisted site was read first'},
   actionBudget:    {value: 0,     built: false, label: 'Stop and ask after this many actions in a session (0 = no limit)'},
@@ -171,6 +173,7 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
       mkdirSync(join(root,'logs'),{recursive:true});
       gateway=makeGateway({clientToken:credentials.MCP_CLIENT_TOKEN,deviceToken:credentials.DEVICE_TOKEN,
         demoPassword:credentials.DEMO_PASSWORD,allowedOrigins:allowed,sitePolicy:modes,readAnyOrigin:true,defaultSiteMode:'ask',routineActions:true,
+        commandTimeoutMs:Math.max(5000,Math.min(600000,(Number(config.safety.approvalTimeoutSec)||60)*1000)),
         // D-049. Operator-chosen, not env-only: the panel is where these live.
         logRotateMb:config.safety.auditRotateMb, auditLog:config.safety.auditLog,
         // D-049. The panel builds its own logger, so the operator's toggles must

@@ -17,9 +17,9 @@ Updated: 2026-11-05 | This tracker tracks implementation evidence, not ideas. La
 - **Dynamic Control UI Setting:** Added `approvalTimeoutSec` (default 60s, range 10–300s) to `SAFETY_DEFAULTS` in `gateway/control.mjs`, passed to `makeGateway`, and automatically rendered as a number input in the Control Panel under Safety settings.
 - **Verification:** All 84 unit tests in `npm run check` pass cleanly; control server restarted and running with `approvalTimeoutSec: 60`.
 
-**Queued tasks from operator:**
-1. **Setup & running documentation refresh:** Review and update `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect LaunchAgent service, dual-port scheme (8788 local vs 8443 remote HTTPS), and current credentials workflow.
-2. **Control UI Authentication upgrade:** Replace raw HTTP Basic Auth with an HTML login form (`<input type="password">`) and `HttpOnly` session cookie so Safari and iCloud Keychain prompt to save credentials and enable Face ID / Touch ID AutoFill.
+**Follow-ups completed in this session:**
+1. **Setup & running documentation refresh (commit `1ab271b`):** Updated `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect LaunchAgent service, dual-port scheme (8788 local vs 8443 remote HTTPS), and current credentials workflow.
+2. **Control UI Authentication upgrade (commit `885fd0d`):** Implemented a dedicated HTML login form (`/login`) with `autocomplete="username"` and `autocomplete="current-password"` alongside signed 30-day `HttpOnly` session cookies (`safari_control_session`). Safari and iCloud Keychain now prompt to save credentials on first login, enabling Face ID / Touch ID AutoFill on future visits. Legacy HTTP Basic Auth is preserved for backward compatibility.
 
 ## 2026-10-25 — Fleet coordination was silently dead for 12 days; fixed and verified
 

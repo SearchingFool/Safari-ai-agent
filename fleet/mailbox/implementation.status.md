@@ -37,9 +37,9 @@
 - **Operator Setting in Control UI:** Added `approvalTimeoutSec` (60s default, range 10–300s) to `SAFETY_DEFAULTS` in `gateway/control.mjs`, passed to `makeGateway`, automatically exposed in Web Control UI under Safety settings.
 - **Verification:** All 84 Node unit tests + syntax checks passed (`npm run check`). Running LaunchAgent restarted and verified healthy (`200 OK`).
 
-### 3. Queued Tasks
-- Review & refresh setup and running instructions (`docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, gateway `/help`).
-- Upgrade Control UI from HTTP Basic Auth to HTML `<form>` + secure `HttpOnly` session cookie for seamless iCloud Keychain / Touch ID AutoFill.
+### 3. Follow-Ups Completed in Session
+- **Documentation Refresh (commit `1ab271b`):** Refreshed `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect the background LaunchAgent service, dual-port layout (8788 local vs 8443 remote HTTPS), and the 60s approval timeout setting.
+- **HTML Login Form & Keychain AutoFill (commit `885fd0d`):** Upgraded `gateway/control.mjs` and Control UI to serve a dedicated `/login` page with standard `<input type="password">` form and signed 30-day `HttpOnly` session cookies (`safari_control_session`). Safari / iCloud Keychain now prompts to save credentials, enabling Touch ID / Face ID auto-login. Preserved backward compatibility for Basic Auth. Total Node unit tests increased to 85/85 green.
 
 **Occupant:** a Claude Code Opus 5 session, pid **59785**. Messaging address
 `safari-ai-agent-ba`; env stamp `AGENT_NAME` = `QUEUECTL_AGENT` = `safari-ai-agent-2478ea`.

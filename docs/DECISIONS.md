@@ -365,14 +365,26 @@ this exposure surface outright. Rotating to tidy a record is bookkeeping, not ri
 is the moment `DEMO_PASSWORD` regains an internet-reachable surface, and the only condition under
 which the residual uncertainty above becomes material. Close stale Safari tabs first (D-048).
 
-**Still open, and wider than this entry — the cloud archive now holds the longest-lived copy.** The
-nightly Google Drive backup (`~/bin/backup-to-gcloud`) excludes build and cache paths only; there
-is **no `.env` exclusion**, and it runs `rclone copy`, which never deletes. Every historical
-version of both credential files is therefore retained off-device permanently, and rotating on the
-Mac does not retire them. Keeping that is defensible (credentials survive a disk failure) and so is
-excluding `.env.*` and accepting a rebuild; what is not defensible is that it was never chosen.
-**Needs an operator decision, and it is not Safari-specific** — it applies to every repo on the
-machine.
+**Still open, and wider than this entry — credentials are backed up off-device.** The nightly
+Google Drive backup (`~/bin/backup-to-gcloud`) excludes build and cache paths only; there is **no
+`.env` exclusion**, so both credential files are copied to `gdrive:MacBookPro_Backup` every night,
+along with ~730 other `.env*` files across the machine.
+
+*Scope of that, stated precisely, because the first draft of this paragraph overstated it:* the
+flag set contains no `--backup-dir` and no versioning options, so `rclone copy` **overwrites** the
+destination in place. The archive therefore holds the **current** (post-rotation) values, not an
+accumulating history. Pre-rotation contents survive only as Google Drive's native file revisions,
+which expire on Drive's default retention. What the backup **does** retain indefinitely is any file
+**deleted locally** — "deletes do not propagate" means the last copy of a removed or renamed file
+persists in the archive with nothing on this machine pointing at it.
+
+So the live question is not "every old secret is archived forever" but the narrower one: **an
+off-device copy of current credentials exists on a consumer cloud account, and any credential file
+ever deleted locally still has a copy there.** Keeping that is defensible (credentials survive a
+disk failure) and so is excluding `.env.*` and accepting a rebuild; what is not defensible is that
+it was never chosen. **Needs an operator decision, and it is not Safari-specific** — it applies to
+every repo on the machine. *Reviewed 2026-11-05: operator elected to leave the current behaviour in
+place for now, pending that decision.*
 
 ---
 

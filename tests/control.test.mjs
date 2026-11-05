@@ -121,3 +121,28 @@ test('An existing server is reported but never stopped or replaced by the contro
     await manager.stop();assert.equal(await (await fetch(`http://127.0.0.1:${port}`)).text(),'external');
   }finally{await manager.close();await new Promise(r=>external.close(r));f.close();}
 });
+test('HTML login form sets secure session cookie and supports Keychain autofill',async()=>{
+  const manager={status:async()=>({phase:'stopped',settings:{autoStart:false,sites:[]}})};
+  const reservation=createServer();await new Promise(r=>reservation.listen(0,'127.0.0.1',r));const port=reservation.address().port;await new Promise(r=>reservation.close(r));
+  const base=`http://127.0.0.1:${port}`;
+  const control=createControl({password,manager,origins:[base]});await new Promise(r=>control.server.listen(port,'127.0.0.1',r));
+  try{
+    const loginPage=await (await fetch(base+'/login')).text();
+    assert.match(loginPage,/autocomplete="username"/);assert.match(loginPage,/autocomplete="current-password"/);assert.match(loginPage,/action="\/login"/);
+    const rootRedirect=await fetch(base+'/',{headers:{Accept:'text/html,application/xhtml+xml'},redirect:'manual'});
+    assert.equal(rootRedirect.status,303);assert.equal(rootRedirect.headers.get('location'),'/login');
+    const failResp=await fetch(base+'/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'username=safari-control&password=wrongpassword'});
+    assert.equal(failResp.status,401);assert.match(await failResp.text(),/Invalid username or password/);
+    const loginResp=await fetch(base+'/login',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`username=safari-control&password=${password}`,redirect:'manual'});
+    assert.equal(loginResp.status,303);assert.equal(loginResp.headers.get('location'),'/');
+    const setCookie=loginResp.headers.get('set-cookie');
+    assert.match(setCookie,/safari_control_session=[a-z0-9]+\.[a-f0-9]{64}/);assert.match(setCookie,/HttpOnly/);assert.match(setCookie,/SameSite=Strict/);
+    const cookieVal=setCookie.split(';')[0];
+    const authedResp=await fetch(base+'/',{headers:{Cookie:cookieVal}});
+    assert.equal(authedResp.status,200);assert.match(await authedResp.text(),/Gateway controls/);
+    const alreadyAuthed=await fetch(base+'/login',{headers:{Cookie:cookieVal},redirect:'manual'});
+    assert.equal(alreadyAuthed.status,303);assert.equal(alreadyAuthed.headers.get('location'),'/');
+    const logoutResp=await fetch(base+'/logout',{headers:{Cookie:cookieVal},redirect:'manual'});
+    assert.equal(logoutResp.status,303);assert.equal(logoutResp.headers.get('location'),'/login');assert.match(logoutResp.headers.get('set-cookie'),/Max-Age=0/);
+  }finally{await new Promise(r=>control.server.close(r));}
+});

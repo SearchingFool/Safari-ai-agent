@@ -1,7 +1,7 @@
 /** Authenticated Mac/iPad controller. Separate lifetime and credential from MCP. */
 import {createServer} from 'node:http';
 import {connect} from 'node:net';
-import {randomBytes,timingSafeEqual} from 'node:crypto';
+import {randomBytes,timingSafeEqual,createHmac} from 'node:crypto';
 import {readFileSync,writeFileSync,renameSync,lstatSync,chmodSync,mkdirSync,appendFileSync,statSync} from 'node:fs';
 import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -208,17 +208,111 @@ export function createManager({root=ROOT,host,ts,port=8787,makeGateway=createGat
     }),autoStart:()=>config.autoStart,close:()=>operation(stopInternal)};
 }
 const same=(a,b)=>typeof a==='string'&&Buffer.byteLength(a)===Buffer.byteLength(b)&&timingSafeEqual(Buffer.from(a),Buffer.from(b));
+
+export function parseCookies(header){
+  const out={};
+  if(typeof header!=='string')return out;
+  for(const part of header.split(';')){
+    const cut=part.indexOf('=');
+    if(cut>0){
+      const k=part.slice(0,cut).trim();
+      const v=part.slice(cut+1).trim();
+      try{out[k]=decodeURIComponent(v);}catch{out[k]=v;}
+    }
+  }
+  return out;
+}
+
+export function createSessionToken(password){
+  const ts=Date.now().toString(36);
+  const sig=createHmac('sha256',password).update(ts+':safari-control').digest('hex');
+  return `${ts}.${sig}`;
+}
+
+export function verifySessionToken(token,password){
+  if(typeof token!=='string'||!token.includes('.'))return false;
+  const [ts,sig]=token.split('.');
+  const time=parseInt(ts,36);
+  if(!time||isNaN(time)||Date.now()-time>30*86400*1000||Date.now()<time-60000)return false;
+  const expected=createHmac('sha256',password).update(ts+':safari-control').digest('hex');
+  return sig.length===expected.length&&timingSafeEqual(Buffer.from(sig),Buffer.from(expected));
+}
+
+function renderLoginPage(error=''){
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sign In — Safari Gateway Controls</title><link rel="stylesheet" href="/style.css"><style>main{max-width:380px;margin:48px auto;padding:0 16px}.card{background:white;padding:28px;border:1px solid #dce5eb;border-radius:16px;box-shadow:0 4px 18px #172b3a08}h1{font-size:24px;margin:0 0 6px}p{color:#486274;font-size:14px;margin:0 0 18px}.err{background:#fff2f0;border-left:4px solid #e04434;color:#a82215;padding:10px 14px;border-radius:6px;font-size:14px;margin-bottom:14px}label{display:block;margin:12px 0 6px;font-weight:600;font-size:14px}input[type="text"],input[type="password"]{display:block;width:100%;box-sizing:border-box;padding:10px;border:1px solid #b7cad6;border-radius:8px;font:inherit}button[type="submit"]{width:100%;margin-top:18px;padding:12px;background:#175e76;color:white;border:none;border-radius:8px;font:inherit;font-weight:600;cursor:pointer}button[type="submit"]:hover{background:#11485b}</style></head><body><main><div class="card"><p class="eyebrow" style="font-size:11px;letter-spacing:1.5px;color:#486274;font-weight:700;margin-bottom:4px">SAFARI AI AGENT</p><h1>Gateway controls</h1><p>Sign in with your separate control password.</p>${error?`<div class="err" role="alert">${error}</div>`:''}<form method="POST" action="/login" autocomplete="on"><label for="username">Username</label><input id="username" type="text" name="username" value="safari-control" autocomplete="username" required><label for="password">Password</label><input id="password" type="password" name="password" autocomplete="current-password" autofocus required><button type="submit">Sign in</button></form></div></main></body></html>`;
+}
+
 export function createControl({password,manager,origins,uiRoot=join(ROOT,'gateway/control-ui')}={}){
   if(!/^[a-f0-9]{64}$/.test(password))throw Error('A separate random control password is required');
   const allowed=new Set(origins),csrf=randomBytes(32).toString('hex');
   const json=(res,status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
+  const expectedBasic='Basic '+Buffer.from('safari-control:'+password).toString('base64');
   const server=createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');
-    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+    res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
     const hosts=new Set([...allowed].map(o=>new URL(o).host));
     if(!hosts.has(req.headers.host))return json(res,403,{error:'Unrecognised control-panel host'});
-    const expected='Basic '+Buffer.from('safari-control:'+password).toString('base64');
-    if(!same(req.headers.authorization,expected)){
+
+    const path=new URL(req.url,'http://localhost').pathname;
+
+    // Public stylesheet needed by login page and main app
+    if(req.method==='GET'&&path==='/style.css'){
+      res.writeHead(200,{'Content-Type':'text/css; charset=utf-8','Cache-Control':'no-store'});
+      return res.end(readFileSync(join(uiRoot,'style.css')));
+    }
+
+    const cookies=parseCookies(req.headers.cookie);
+    const hasValidCookie=Boolean(cookies.safari_control_session&&verifySessionToken(cookies.safari_control_session,password));
+    const hasValidBasic=same(req.headers.authorization,expectedBasic);
+    const authenticated=hasValidCookie||hasValidBasic;
+
+    // Public /login endpoints
+    if(req.method==='GET'&&path==='/login'){
+      if(authenticated){res.writeHead(303,{Location:'/','Cache-Control':'no-store'});return res.end();}
+      res.writeHead(200,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
+      return res.end(renderLoginPage());
+    }
+
+    if(req.method==='POST'&&path==='/login'){
+      let body='',bytes=0;
+      for await(const chunk of req){bytes+=chunk.length;if(bytes>8192)return json(res,413,{error:'Payload too large'});body+=chunk;}
+      let user='',pass='';
+      if(req.headers['content-type']?.includes('application/json')){
+        try{const d=JSON.parse(body);user=String(d.username||'');pass=String(d.password||'');}catch{}
+      }else{
+        const params=new URLSearchParams(body);
+        user=params.get('username')||'';pass=params.get('password')||'';
+      }
+      if(user==='safari-control'&&same(pass,password)){
+        const token=createSessionToken(password);
+        const isSecure=req.headers['x-forwarded-proto']==='https'||req.headers.host?.includes(':8443');
+        const cookieHeader=`safari_control_session=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000${isSecure?'; Secure':''}`;
+        if(req.headers['content-type']?.includes('application/json')){
+          res.setHeader('Set-Cookie',cookieHeader);
+          return json(res,200,{ok:true});
+        }
+        res.writeHead(303,{Location:'/','Set-Cookie':cookieHeader,'Cache-Control':'no-store'});
+        return res.end();
+      }
+      if(req.headers['content-type']?.includes('application/json')){
+        return json(res,401,{error:'Invalid username or password'});
+      }
+      res.writeHead(401,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'});
+      return res.end(renderLoginPage('Invalid username or password. Check .env.gateway-control'));
+    }
+
+    // Public /logout endpoint
+    if(req.method==='GET'&&path==='/logout'){
+      res.writeHead(303,{Location:'/login','Set-Cookie':'safari_control_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0','Cache-Control':'no-store'});
+      return res.end();
+    }
+
+    // Unauthenticated requests
+    if(!authenticated){
+      if(req.method==='GET'&&path==='/'&&req.headers.accept?.startsWith('text/html')){
+        res.writeHead(303,{Location:'/login','Cache-Control':'no-store'});
+        return res.end();
+      }
       res.setHeader('WWW-Authenticate','Basic realm="Safari Gateway Controls", charset="UTF-8"');
       return json(res,401,{error:'Sign in with safari-control and your separate control password'});
     }

@@ -1,6 +1,6 @@
 # Gateway controls — Mac and iPad
 
-Updated: 2026-10-13. Implemented and locally verified; public control forwarding, login-service installation and the updated script still need an owner-side iPad run.
+Updated: 2026-11-05. Verified on physical iPad hardware; LaunchAgent lifecycle (`com.searchingfool.safari-gateway-control`), 0.2.4 permission model, and dynamic 60s approval timeout active.
 
 ## First use
 
@@ -38,6 +38,13 @@ Navigation is currently same-origin only; crossing to another hostname or scheme
 When Remote AI offers **Always allow this button on this page**, it saves approval in isolated Userscripts storage for that identifiable control on that exact origin, path and query. Reloads, reconnects, controller restarts and Stop do not erase it. A different button does not inherit it; changes to the label, ID, link destination or page may require a new approval. Ambiguous/unnamed controls cannot receive saved approval. Current site policy and classification are always checked first. Submissions, data changes, unclear and blocked actions cannot use a saved approval. Revoke individual approvals or **Revoke all** in Remote AI. Stop disconnects and cancels execution; it preserves these saved preferences.
 
 Full permission already executes recognised routine controls automatically, so those actions need no Always allow prompt. The stored approvals apply where a permitted routine action still prompts, such as a legacy gateway configuration without automatic routine actions. Commanded navigation has no button identity and asks each time outside full permission.
+
+### Safety settings and approval timeout
+
+The control panel provides dynamic controls under **Safety settings**:
+- **Audit logging (`auditLog`):** Records what the agent did and what you approved in `logs/gateway-diagnostics.jsonl`.
+- **Log rotation size (`auditRotateMb`):** Rotates the diagnostic log once it reaches this size (default 25 MB).
+- **Approval timeout (`approvalTimeoutSec`):** Configures how many seconds an approval prompt stays open on the iPad before expiring as unanswered (default **60 seconds**, range 10–300s). The iPad bridge calculates `expiresAt - 1.5s`, giving the operator ~58.5 seconds to review consequential actions on touch hardware. Changes apply immediately upon clicking **Save settings**.
 
 The controller starts at Mac login; the gateway starts only when requested, unless you enable **Start the gateway automatically when I log in** and save. Startup settings and site permissions persist privately in `.gateway-control.json`.
 

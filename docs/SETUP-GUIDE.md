@@ -28,7 +28,13 @@ Each part says **which device you are on**. If a step does not name a device, it
 
 ## What you are building
 
-**UI setup added 2026-10-13:** For gateway Start/Stop from the Mac or iPad, automatic startup, and website permissions without editing scripts, use [Gateway controls](GATEWAY-CONTROLS.md). The older Terminal setup below remains available. The new controller is separately authenticated and stays available when the gateway is stopped; reading does not need a site-list entry.
+**UI setup & LaunchAgent (recommended):** For managed startup on Mac and iPad, double-click **`Safari Gateway.command`** (or run `npm run control:install`). This installs a per-user background controller (`com.searchingfool.safari-gateway-control`) that starts the gateway automatically and provides a web control panel:
+- **Mac local control:** `http://127.0.0.1:8788`
+- **iPad remote control:** `https://your-mac-name.tailxxxx.ts.net:8443` (Notice port **8443**, not 8788)
+- **Public MCP & Demo gateway:** `https://your-mac-name.tailxxxx.ts.net` (standard port 443 -> 8787)
+- **In-app setup guide:** `https://your-mac-name.tailxxxx.ts.net/help`
+
+The legacy foreground Terminal script (`bash tools/start-mac-tailscale-test.sh`) remains available for manual debugging, but will report "port 8787 occupied" if the background controller is already active. Stop the controller before running the legacy script.
 
 Three pieces talk to each other:
 
@@ -108,18 +114,35 @@ Three things now warn you about this, but closing the tabs first avoids it entir
 
 ### Step 1.3 — Start it
 
+You have two choices:
+
+#### Option A: Managed Background Service with Web UI (Recommended)
+Double-click **`Safari Gateway.command`** in Finder, or run:
+```sh
+npm run control:install
+```
+This installs the macOS LaunchAgent (`com.searchingfool.safari-gateway-control`), starts the service, and opens the Web Control Panel at `http://127.0.0.1:8788`.
+- Sign in with username **`safari-control`** and the separate control password stored in `.env.gateway-control`.
+- Click **Start gateway**. The controller manages port 443 Funnel and 8787 in the background without keeping a Terminal window open.
+
+#### Option B: Foreground Terminal Script (Manual Debugging)
+If you prefer running directly in the foreground, ensure the background service is stopped first, then run:
 ```sh
 bash tools/start-mac-tailscale-test.sh
 ```
+*Note: If you see "localhost:8787 is already occupied", the background LaunchAgent from Option A is already running!*
 
-The first run creates three secret passwords automatically and stores them on your Mac only. **Leave this Terminal window open.** Closing it stops everything.
+The first run creates the secret passwords automatically in `.env.mac-tailscale` and `.env.gateway-control`. If using Option B, **leave that Terminal window open**.
 
-You will see something like:
+You will see / have available:
 
 ```
-Claude MCP URL: https://your-mac-name.tailxxxx.ts.net/mcp
-iPad test page: https://your-mac-name.tailxxxx.ts.net/demo
-Demo username: safari-demo
+Claude MCP URL:     https://your-mac-name.tailxxxx.ts.net/mcp
+In-app setup guide: https://your-mac-name.tailxxxx.ts.net/help
+iPad test page:     https://your-mac-name.tailxxxx.ts.net/demo
+iPad control panel: https://your-mac-name.tailxxxx.ts.net:8443
+Demo username:      safari-demo
+Control username:   safari-control
 ```
 
 **Write down that web address.** You need it twice.

@@ -64,10 +64,11 @@ stale.</b> A stale tab keeps retrying once a second and fails, and it reports th
 its own panel &mdash; the tab you are not looking at. <b>Close every tab of this page except one.</b></p>
 
 <h2>On the Mac &mdash; start the gateway</h2>
+<p><b>Recommended:</b> Use the background service via the Web Control Panel at <code>http://127.0.0.1:8788</code> (or <code>npm run control:install</code>) and press <b>Start gateway</b>.</p>
+<p>Alternatively, for manual foreground debugging:</p>
 <pre>cd &lt;your Safari-ai-agent folder&gt;
 bash tools/start-mac-tailscale-test.sh</pre>
-<p>Leave that Terminal window open; closing it stops everything. It prints this gateway's address
-and creates the credentials if they do not exist.</p>
+<p>If using the manual script, leave that Terminal window open (closing it stops the gateway). It prints the gateway address and generates credentials if they do not exist.</p>
 
 <h2>In a browser &mdash; connect Claude</h2>
 <ol>

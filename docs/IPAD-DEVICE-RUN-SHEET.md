@@ -37,9 +37,13 @@ git log --oneline -1          # record this SHA on the results sheet
 cat VERSION                   # record this too
 ```
 
-**Start the rig and leave this terminal visible:**
+**Start the rig (use either the managed LaunchAgent or the Terminal script):**
 
 ```bash
+# Recommended: Ensure the background LaunchAgent is active and started via:
+# http://127.0.0.1:8788 (or https://<tailnet-name>:8443 on iPad)
+#
+# Alternatively, for manual foreground debugging (only if LaunchAgent is stopped):
 SAFARI_EXTRA_ORIGINS=... bash tools/start-mac-tailscale-test.sh
 ```
 

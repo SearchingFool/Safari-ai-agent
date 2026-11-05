@@ -26,11 +26,13 @@
 **Seat & Occupant:** `implementation` seat occupied by Antigravity in paired testing session with operator Libor Ballaty.
 **High-water mark / Status:** Active physical iPad testing on `https://gomadeira.co`.
 
-### 1. Hardware Evidence Produced
-- **End-to-End Loop Proven:** Claude on iPad successfully connected to Mac gateway via Tailscale Funnel. Executed live `browser_status`, `browser_inspect`, same-site `browser_navigate`, and 6 sequential `browser_fill` actions into active page form.
-- **Fail-Closed Boundary Enforcement:** Cross-origin navigation refused immediately by gateway policy (`TOOL_REFUSED_BY_POLICY`).
-- **D-037 Verified on Device:** Unanswered prompt after 25s settled as `TOOL_APPROVAL_UNANSWERED` without false attribution to operator.
-- **D-016 Touch Latency Verified:** Subsequent prompt approved by physical tap in **5.3 seconds**; click dispatched (`DEVICE_OK` / `MCP_OK`).
+### 1. Hardware Evidence Produced & Closed Cases
+- **Ask Denial Flow (CLOSED):** Verified on device; fields untouched, reports explicit operator refusal (`TOOL_DENIED_BY_OPERATOR`). Pinned by `tests/diagnostics.test.mjs:133`, `tests/gateway.test.mjs:218`, and `tests/remote_dom_smoke.py:530`. **Do not re-test.**
+- **Ask Approval Flow (CLOSED):** Verified on device; approved via tap in 5.3s; click dispatched (`DEVICE_OK` / `MCP_OK`). Pinned by `tests/remote_dom_smoke.py:560` and `tests/gateway.test.mjs`. **Do not re-test.**
+- **Timeout Attribution (CLOSED):** D-037 verified on device; unattended prompt logs `TOOL_APPROVAL_UNANSWERED` without false user denial attribution. Pinned by `tests/diagnostics.test.mjs:137`. **Do not re-test.**
+- **Boundary Enforcement (CLOSED):** Cross-origin navigation refused immediately by gateway policy (`TOOL_REFUSED_BY_POLICY`). Pinned by `gateway/server.mjs:329` and `tests/gateway.test.mjs`.
+- **Form Filling (CLOSED):** Sequential `browser_fill` verified on device across 6 form fields. Pinned by `tests/remote_dom_smoke.py:155`.
+- **Web Control Login & Keychain (CLOSED):** HTML form + session cookie live; verified working with Keychain on iPad. Pinned by `tests/control.test.mjs`.
 
 ### 2. Implementation Changes (Commit `512d357`)
 - **Default Approval Timeout:** Increased default `commandTimeoutMs` from 25s to **60s** in `gateway/server.mjs`.

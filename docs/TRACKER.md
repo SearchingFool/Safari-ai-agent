@@ -21,6 +21,19 @@ Updated: 2026-11-05 | This tracker tracks implementation evidence, not ideas. La
 1. **Setup & running documentation refresh (commit `1ab271b`):** Updated `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect LaunchAgent service, dual-port scheme (8788 local vs 8443 remote HTTPS), and current credentials workflow.
 2. **Control UI Authentication upgrade (commit `885fd0d`):** Implemented a dedicated HTML login form (`/login`) with `autocomplete="username"` and `autocomplete="current-password"` alongside signed 30-day `HttpOnly` session cookies (`safari_control_session`). Safari and iCloud Keychain now prompt to save credentials on first login, enabling Face ID / Touch ID AutoFill on future visits. Legacy HTTP Basic Auth is preserved for backward compatibility.
 
+### Device Case Status (Updated 2026-11-05 — Do Not Re-Test Closed Cases)
+
+| Device Case | Hardware Status | Automated Test Pinning | Instruction for Agents |
+|---|---|---|---|
+| **Ask denial flow** | **CLOSED (Hardware verified)** | `tests/diagnostics.test.mjs`, `tests/gateway.test.mjs`, `tests/remote_dom_smoke.py` | Proven twice on hardware; form untouched, reports explicit operator denial. **CLOSED: Do not re-test.** |
+| **Ask approval & click dispatch** | **CLOSED (Hardware verified)** | `tests/remote_dom_smoke.py`, `tests/gateway.test.mjs` | Proven on hardware (5.3s latency, `DEVICE_OK` / `MCP_OK`). **CLOSED: Do not re-test.** |
+| **Unanswered timeout attribution (D-037)** | **CLOSED (Hardware verified)** | `tests/diagnostics.test.mjs:137` | Proven on hardware: unattended prompt logs `TOOL_APPROVAL_UNANSWERED`, never falsely attributed to operator. **CLOSED: Do not re-test.** |
+| **Cross-site navigation policy block** | **CLOSED (Hardware verified)** | `tests/gateway.test.mjs`, `gateway/server.mjs:329` | Proven on hardware: off-origin navigation refused fail-closed (`TOOL_REFUSED_BY_POLICY`). **CLOSED.** |
+| **Sequential form filling (`browser_fill`)** | **CLOSED (Hardware verified)** | `tests/remote_dom_smoke.py`, `tests/remote_browser_e2e.py` | Proven on hardware across 6 form fields. **CLOSED.** |
+| **Web Control UI & Keychain AutoFill** | **CLOSED (Hardware verified)** | `tests/control.test.mjs` (9 unit tests pass) | HTML form + 30-day session cookie live; Keychain / Face ID / Touch ID auto-fills credentials. **CLOSED.** |
+| **Configurable approval timeout (D-054)** | **CLOSED (Hardware verified)** | `tests/control.test.mjs:20` | Default 60s active; configurable via Control UI under Safety settings. **CLOSED.** |
+| **Ten-run reliability measurement** | Open (Protocol in `docs/IPAD-DEVICE-RUN-SHEET.md`) | Automated browser suites pass | Requires 10 consecutive identical runs of the complete D1-01 workflow. Pending operator execution. |
+
 ## 2026-10-25 — Fleet coordination was silently dead for 12 days; fixed and verified
 
 **Not product delivery — infrastructure.** Recorded here because this tracker is the declared

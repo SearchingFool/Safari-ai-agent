@@ -1,6 +1,25 @@
 # Safari AI Agent — Delivery tracker
 
-Updated: 2026-10-25 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (`implementation` seat, fleet-coordination session).
+Updated: 2026-11-05 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Antigravity (`implementation` seat, physical iPad hardware test session).
+
+## 2026-11-05 — Live iPad hardware testing on Go Madeira and Approval Timeout extension
+
+**Product delivery & hardware evidence.** Conducted live testing on a physical iPad (`100.88.57.107`) connected via Tailscale Funnel to the Mac gateway on `https://gomadeira.co`.
+
+**Hardware Evidence Captured:**
+1. **End-to-end device loop:** Claude on iPad successfully connected, inspected DOM elements via `browser_inspect`, and executed multiple sequential form fills (`browser_fill`) into the active web page.
+2. **Navigation scope & boundary enforcement:** Same-site navigation executed cleanly via `browser_navigate`; an external navigation attempt outside the allowed origin was immediately refused fail-closed by the gateway (`TOOL_REFUSED_BY_POLICY`), verifying that destination boundaries hold on device.
+3. **D-037 verified on hardware:** When an approval prompt sat unanswered for 25s, it was cleanly logged as `TOOL_APPROVAL_UNANSWERED` ("browser_click was offered for approval and NOBODY ANSWERED. This is not an operator decision"), confirming that timeout silence is never falsely attributed as an operator refusal.
+4. **Human touch approval & latency (D-016):** Operator physically tapped **Allow** on the iPad prompt; approved in **5.3 seconds** (well within budget) and dispatched with `DEVICE_OK` and `MCP_OK`.
+
+**Operator feedback & code implementation:**
+- **Approval Timeout extended (commit `512d357`):** The default 25s timeout was too tight for humans reading consequential prompts on touch hardware. Increased default `commandTimeoutMs` to **60s** in `gateway/server.mjs`.
+- **Dynamic Control UI Setting:** Added `approvalTimeoutSec` (default 60s, range 10–300s) to `SAFETY_DEFAULTS` in `gateway/control.mjs`, passed to `makeGateway`, and automatically rendered as a number input in the Control Panel under Safety settings.
+- **Verification:** All 84 unit tests in `npm run check` pass cleanly; control server restarted and running with `approvalTimeoutSec: 60`.
+
+**Queued tasks from operator:**
+1. **Setup & running documentation refresh:** Review and update `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, and gateway `/help` to reflect LaunchAgent service, dual-port scheme (8788 local vs 8443 remote HTTPS), and current credentials workflow.
+2. **Control UI Authentication upgrade:** Replace raw HTTP Basic Auth with an HTML login form (`<input type="password">`) and `HttpOnly` session cookie so Safari and iCloud Keychain prompt to save credentials and enable Face ID / Touch ID AutoFill.
 
 ## 2026-10-25 — Fleet coordination was silently dead for 12 days; fixed and verified
 

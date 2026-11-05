@@ -21,7 +21,25 @@
 
 ---
 
-## OCCUPANCY 2026-10-25 — `safari-ai-agent-ba` — seat taken; launch identity does NOT match it
+## 2026-11-05 — Antigravity — Live iPad hardware verification & approval timeout extension
+
+**Seat & Occupant:** `implementation` seat occupied by Antigravity in paired testing session with operator Libor Ballaty.
+**High-water mark / Status:** Active physical iPad testing on `https://gomadeira.co`.
+
+### 1. Hardware Evidence Produced
+- **End-to-End Loop Proven:** Claude on iPad successfully connected to Mac gateway via Tailscale Funnel. Executed live `browser_status`, `browser_inspect`, same-site `browser_navigate`, and 6 sequential `browser_fill` actions into active page form.
+- **Fail-Closed Boundary Enforcement:** Cross-origin navigation refused immediately by gateway policy (`TOOL_REFUSED_BY_POLICY`).
+- **D-037 Verified on Device:** Unanswered prompt after 25s settled as `TOOL_APPROVAL_UNANSWERED` without false attribution to operator.
+- **D-016 Touch Latency Verified:** Subsequent prompt approved by physical tap in **5.3 seconds**; click dispatched (`DEVICE_OK` / `MCP_OK`).
+
+### 2. Implementation Changes (Commit `512d357`)
+- **Default Approval Timeout:** Increased default `commandTimeoutMs` from 25s to **60s** in `gateway/server.mjs`.
+- **Operator Setting in Control UI:** Added `approvalTimeoutSec` (60s default, range 10–300s) to `SAFETY_DEFAULTS` in `gateway/control.mjs`, passed to `makeGateway`, automatically exposed in Web Control UI under Safety settings.
+- **Verification:** All 84 Node unit tests + syntax checks passed (`npm run check`). Running LaunchAgent restarted and verified healthy (`200 OK`).
+
+### 3. Queued Tasks
+- Review & refresh setup and running instructions (`docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, `docs/IPAD-DEVICE-RUN-SHEET.md`, gateway `/help`).
+- Upgrade Control UI from HTTP Basic Auth to HTML `<form>` + secure `HttpOnly` session cookie for seamless iCloud Keychain / Touch ID AutoFill.
 
 **Occupant:** a Claude Code Opus 5 session, pid **59785**. Messaging address
 `safari-ai-agent-ba`; env stamp `AGENT_NAME` = `QUEUECTL_AGENT` = `safari-ai-agent-2478ea`.

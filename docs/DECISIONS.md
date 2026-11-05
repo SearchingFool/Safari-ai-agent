@@ -699,6 +699,21 @@ question with a measured premise.
 
 ---
 
+### Proposed D-054 — Extend default approval timeout from 25s to 60s and expose in Control UI
+
+**Status: IMPLEMENTED 2026-11-05 (commit 512d357). Proposed for numbering by lead seat.**
+
+**What was observed on physical hardware:**
+During paired hardware testing on iPad with operator Libor Ballaty, consequential action prompts (such as `browser_click`) timed out under the original 25s window (`commandTimeoutMs = 25000`, settling at ~23.5s in the browser bridge). While 25s was sufficient for desktop mouse testing (D-016), reading and assessing an action prompt on a tablet in Split View requires more human breathing room.
+
+**What was implemented:**
+1. Increased default `commandTimeoutMs` in `gateway/server.mjs` from 25,000 ms to **60,000 ms (60 seconds)**.
+2. Added `approvalTimeoutSec: {value: 60, built: true, label: 'Seconds before an unanswered approval prompt expires (10–300)'}` to `SAFETY_DEFAULTS` in `gateway/control.mjs`.
+3. Wired `approvalTimeoutSec` into `createManager` -> `makeGateway`, allowing dynamic operator configuration via the web Control Panel (`:8788` / `:8443`) under Safety settings.
+4. Pinned by unit test in `tests/control.test.mjs`; all 84 Node tests pass.
+
+---
+
 ### Verified external sources (2026-10-11)
 
 Consulted while forming D-019 through D-022. Primary specs and peer-reviewed work, not vendor blog posts where avoidable.

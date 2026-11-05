@@ -260,8 +260,11 @@ the product.
 ### D-046 — AGENT ERROR: three live secrets were printed to a transcript without being asked for. D-010 is partially void until rotation
 
 **Status: recorded 2026-10-14. UNAUTHORIZED disclosure caused by the agent (`claude-9a`), not by
-an operator instruction. ROTATION REQUIRED, not yet done.** **No secret value appears in this
-repository.**
+an operator instruction. RECONCILED 2026-11-05 — `DEVICE_TOKEN` rotation CONFIRMED, the other two
+almost certainly rotated with it, and no live remote exposure remains. D-010 holds again for the
+device token; the residual action is now a tripwire, not a standing task — see the reconciliation
+at the end of this entry.** **No secret value appears in this repository — re-verified
+2026-11-05.**
 
 **Why this entry exists.** D-010 records the privacy model as *"Three distinct local secrets (MCP
 caller, device, demo login); none leave the Mac."* On 2026-10-14 that property stopped being true
@@ -296,18 +299,22 @@ already holds it, so disclosing it had no benefit. That separation is intact.
 `DEVICE_TOKEN` is the material one: `docs/DEVICE-LIFECYCLE.md` already describes it as *a standing
 grant to drive a browser*. Combined with the public gateway address it is the iPad half of the
 auth pair. `CONTROL_PASSWORD` grants gateway Start/Stop and site-permission editing through the
-public control endpoint.
+control endpoint. *(Corrected 2026-11-05: this previously read "the **public** control endpoint."
+The control panel binds `127.0.0.1:8788` only and is never published by the Funnel, so it is
+reachable only from the Mac itself. The original wording overstated the reach of this one secret,
+which matters because an overstated exposure drives the same wasted response as an understated
+one.)*
 
 **Mitigating facts, not excuses.** The endpoints remain authenticated and loopback-bound behind
 Tailscale; nothing was widened. The capability ceilings are unchanged — a device token cannot
 raise its own policy tier, and D-042's invariant still means only `ROUTINE` controls auto-execute.
 So the disclosure widens *who could impersonate the iPad*, not *what the iPad may do*.
 
-**REQUIRED next action — rotation, which restores D-010.** Delete the three lines from
-`.env.mac-tailscale` and `.env.gateway-control`, restart the controller so the launcher
-regenerates them, then re-paste the device token on the iPad once. **This is the first action of
-the next session at the Mac.** Until it is done, treat these three secrets as compromised-grade
-and **D-010 as partially void**. When it is done, record it here and D-010 holds again.
+**Required action as originally written — rotation, which restores D-010.** Delete the three lines
+from `.env.mac-tailscale` and `.env.gateway-control`, restart the controller so the launcher
+regenerates them, then re-paste the device token on the iPad once. **Largely discharged: the
+evidence below shows this procedure was run on 2026-10-24. What remains is a tripwire, not a
+standing task — see the 2026-11-05 reconciliation at the end of this entry.**
 
 **Why the agent did not rotate them itself.** Rotation invalidates the device token immediately.
 The operator was remote and signing off, so rotating would have stranded them — no iPad
@@ -324,6 +331,48 @@ would let the demo password alone reveal the device token, collapsing two separa
 one. That rejection still stands. So the answer is neither the forbidden chat channel nor the
 rejected page: **a remote transfer that preserves secret separation is unsolved and should be
 designed before the next remote setup.** Do not solve it by building the rejected page.
+
+**2026-11-05 — RECONCILED against evidence. The rotation happened; this entry had gone stale.**
+Checked by an agent carrying the `openInfraManager-1652aa` identity, at the operator's explicit
+request. Recorded with that identity named because a write into this repo from another repo's
+session should be attributable rather than silent — this fleet's lead did not see it happen. **No
+secret value was read or printed during the check**; only file timestamps, socket bindings and git
+metadata were inspected, which is the narrower reading this entry exists to insist on.
+
+- **`DEVICE_TOKEN` — rotation CONFIRMED.** D-048 (fixed 2026-10-24) records 98
+  `DEVICE_TOKEN_MISMATCH` rejections from a Safari tab left open *"from before the rotation."* A
+  tab can only mismatch against a value that moved.
+- **`CONTROL_PASSWORD` and `DEMO_PASSWORD` — almost certainly rotated with it, not independently
+  proven.** Both files named in the required action were rewritten that same evening:
+  `.env.mac-tailscale` at 19:05 and `.env.gateway-control` at 19:57. Two files, 52 minutes apart,
+  matches the procedure above being run end to end rather than one line being edited. Short of
+  reading the values — the exact error this entry records — that is as far as evidence goes.
+- **No secret value in this repository — re-verified.** `.env.*` is gitignored (`.gitignore:33`)
+  and `.env.mac-tailscale` has never appeared in history on any branch; `.llm_sessions/` is
+  gitignored (`.gitignore:29`); and a pattern scan of all 18 committed `fleet/` files found no key,
+  token or password *value* — every `sk-` hit was "ask-mode" or "task-worktree".
+- **No live remote exposure today.** Gateway and control panel both bind `127.0.0.1` only, and
+  `tailscale funnel status` reports no serve config, so nothing is published. The one credential
+  that was ever internet-facing is the one proven rotated.
+
+**Decision: do NOT rotate again now, and that is deliberate.** Rotation is the remedy for a
+*reachable* credential, and there is no remote surface to protect today. Against that it costs
+physical presence at the Mac, an iPad re-pair, and the silent stale-tab failure D-048 took four
+rounds to diagnose — and D-047's addendum notes the Swift path would remove the Mac, the Funnel and
+this exposure surface outright. Rotating to tidy a record is bookkeeping, not risk reduction.
+
+**TRIPWIRE, replacing the standing task: rotate all three BEFORE the Funnel is next enabled.** That
+is the moment `DEMO_PASSWORD` regains an internet-reachable surface, and the only condition under
+which the residual uncertainty above becomes material. Close stale Safari tabs first (D-048).
+
+**Still open, and wider than this entry — the cloud archive now holds the longest-lived copy.** The
+nightly Google Drive backup (`~/bin/backup-to-gcloud`) excludes build and cache paths only; there
+is **no `.env` exclusion**, and it runs `rclone copy`, which never deletes. Every historical
+version of both credential files is therefore retained off-device permanently, and rotating on the
+Mac does not retire them. Keeping that is defensible (credentials survive a disk failure) and so is
+excluding `.env.*` and accepting a rebuild; what is not defensible is that it was never chosen.
+**Needs an operator decision, and it is not Safari-specific** — it applies to every repo on the
+machine.
 
 ---
 

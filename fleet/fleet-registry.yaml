@@ -7,7 +7,7 @@
 # Created: 2026-10-25
 
 fleet_id: safari-ai-agent
-repo: .
+repo: /Users/liborballaty/LocalProjects/GitHubProjectsDocuments/Safari-ai-agent
 integration_branch: main
 production_branch: main
 mailbox: fleet/mailbox              # IN-REPO. The central path is a symlink here.

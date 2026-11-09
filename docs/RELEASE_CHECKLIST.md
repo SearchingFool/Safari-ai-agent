@@ -1,10 +1,57 @@
 # B1–D release acceptance checklist
 
-**Status: BLOCKED on reliability and security review.** Do not tag the AI-driven iPad MVP as accepted until every mandatory item is evidenced. These are operational tests that cannot be replaced with local simulation.
+**Status as of 2026-11-09: pilot release preparation, not product acceptance.** The Tailscale-based
+self-hosted procedure is documented, and the latest tracker records real iPad workflow and
+approval evidence from 2026-11-05. The ten-run reliability protocol and independent security
+review remain open. Stop-while-queued and recovery evidence must also be reconciled against the
+tracker before any broader acceptance claim. Do not describe the MVP as accepted.
+
+**Distribution state:** the install instructions currently point to the raw `main` userscript,
+which is mutable and has no automatic update metadata. The public repository had no versioned
+GitHub Release as of this update. Before inviting pilot users, publish a versioned artifact and
+tell each user which gateway-host setup they are using. The current managed controller supports
+the Mac/Tailscale Funnel path; the other options in the [setup guide](SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested)
+are untested notes, not supported procedures.
 
 **2026-10-11 — the device blocker is cleared.** The full natural-language workflow ran on the **physical iPad**: Claude on iPad drove a real Safari tab through 17 tool calls with no copy/paste. Operator denial, disallowed navigation and stale references were all refused, each by a different layer. B1-01, B1-02, B2-01, C1-01, C2-01 and D1-01 are closed on device.
 
-**What is left is no longer about whether it works.** Outstanding: Stop while a command is queued, same-origin recovery, **ten-run reliability**, and an **independent security review**.
+The dated entries below retain the original acceptance history. For current open gates, use the
+status summary above and the canonical [delivery tracker](TRACKER.md), rather than treating
+historical unchecked boxes as a current device-test report.
+
+## Current full-MVP acceptance gates
+
+These remain open in the latest tracker record (2026-11-05). Do not claim general release or
+full MVP acceptance until the owner records evidence and closes them:
+
+- [ ] Run and record the ten-run reliability protocol.
+- [ ] Complete and record an independent security review.
+- [ ] Verify Stop while a command is queued on the target device.
+- [ ] Verify same-origin recovery on the target device without repeating a prior action.
+- [ ] Have the owner review the evidence and accept D2-01; agents must not close this gate.
+
+The setup and publication steps below can prepare a controlled pilot, but they do not close these
+acceptance gates.
+
+## Pilot publication checklist
+
+These items establish a controlled, documented pilot distribution. They do not close the separate
+full-MVP acceptance gates below.
+
+- [x] Align the current source and generated `.user.js` panel label with its `@version` metadata (0.2.5). Recheck the version when freezing the release artifact.
+- [ ] Publish a versioned GitHub Release with the `.user.js` artifact, release notes, and an update
+  path. Do not instruct pilot users to install from the moving `main` branch.
+- [ ] State that the gateway host is user/operator-managed. For the tested route, provide the Mac,
+  Node.js 22+ for the documented pilot setup and quality-check gate, Tailscale Funnel, separate
+  MCP/device credentials, and Claude custom remote MCP connector requirements in the
+  [setup guide](SETUP-GUIDE.md).
+- [ ] Before onboarding each user, verify that their exact public HTTPS `/mcp` endpoint is reachable
+  by the remote AI provider, the gateway's website-origin policy is scoped correctly, and the iPad
+  can reach the same gateway URL. A private VPN alone does not satisfy the AI caller requirement.
+- [ ] Rehearse the documented install, first read-only use, update, Stop, and removal steps on the
+  target iPad. Keep alternate tunnels marked untested until each exact configuration is verified.
+- [ ] Give each pilot user unique credentials and an explicit support/contact route. Do not share
+  device or MCP credentials between pilots.
 
 **2026-10-11 (late) — network loss mid-command PASSED on device.** Command claimed by the iPad, Airplane Mode enabled before answering, no result ever returned: the gateway reported *"timed out; action outcome may be uncertain"* after 24.9 s. It did **not** invent a success and did **not** claim a definite failure. The bridge also **recovered unaided** once the network returned — same instance id, no re-pairing.
 

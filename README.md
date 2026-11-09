@@ -2,7 +2,12 @@
 
 **Integration candidate — Claude/iPad workflow proven; final reliability and security acceptance remain open.**
 
-**2026-10-13:** [Gateway controls](docs/GATEWAY-CONTROLS.md) add Mac/iPad Start/Stop, automatic startup and website permissions through a UI. Reading is available across websites; site entries grant action permissions. The remote script build is **0.2.5**. These new controls passed local engineering checks and Mac Safari UI verification; updated iPad acceptance is still pending. Double-click **Safari Gateway.command** to set them up. [ChatGPT/Gemini feasibility research](docs/PROVIDER-IPAD-RESEARCH.md) is recorded for an owner-approved next plan.
+**Status as of 2026-11-09: controlled pilot candidate, not accepted product.** The tracker records
+physical iPad workflow, approval, policy refusal, form-fill, and control-panel evidence from
+2026-11-05. The ten-run reliability protocol and independent security review remain open; the
+owner has not accepted the full MVP. The current remote userscript is **0.2.5**. Tailscale Funnel
+is the tested gateway path; the setup guide's other tunnel references are untested and are not
+supported setup procedures. No versioned pilot release has been published.
 
 An iPad-first browser automation project under SearchingFool. A user asks a supported AI assistant to inspect, search, navigate, fill and interact with ordinary webpages in Safari; an independently constrained Userscripts bridge executes the approved actions. No iPad-local LLM or Apple Developer membership is required for the Userscripts prototype.
 
@@ -93,14 +98,16 @@ flowchart LR
 
 ## What is required, what is optional, and what Tailscale gives you
 
-**There is exactly one hard networking requirement: a public HTTPS address for your Mac.**
-Everything else is a choice.
+**The remote AI provider must be able to reach the gateway over public HTTPS.** The gateway can
+run on a computer or server you control; the tested setup in this repository runs it on a Mac.
+The iPad does not need to join the host's private VPN.
 
 | | Required? | Why |
 |---|---|---|
-| **A public address with a trusted TLS certificate** | **Yes** | The model runs on **Anthropic's servers**. They must be able to reach your Mac. There is no way around this while the model is remote. |
+| **A public address with a trusted TLS certificate** | **Yes** | The remote MCP client runs outside your private network and must reach the gateway. |
+| **A gateway host that stays online** | **Yes** | The gateway must run while the user works. The documented controller and acceptance evidence currently target macOS. |
 | **A private network (VPN) between your own devices** | **No — optional** | Your iPad reaches the gateway over the *same public address*. The **device token** is what authenticates it, not the network. |
-| **Tailscale specifically** | **No** | It is one way to get the above. See below. |
+| **Tailscale specifically** | **No, but it is the tested route** | The supplied Mac controller and setup script use Tailscale Funnel. Other tunnel options need manual setup and have not been tested with this product. |
 
 ### Why the VPN is optional, stated plainly
 
@@ -119,27 +126,38 @@ Two separate jobs that happen to arrive in one app:
 
 | Tailscale feature | What it gives you | Could something else do it? |
 |---|---|---|
-| **Funnel** | A **public** HTTPS address with a real, trusted certificate — no domain to buy, no router to configure, no certificate to renew, no hosting bill | Yes: Cloudflare Tunnel, ngrok, or port-forwarding with your own domain and Let's Encrypt |
+| **Funnel** | A **public** HTTPS address with a real, trusted certificate — no domain to buy, no router to configure, no certificate to renew, no hosting bill | Other tunnels can publish HTTPS, but their requirements and limits differ; see the untested options in the [setup guide](docs/SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested). |
 | **The tailnet** | A private path between your Mac, iPad and phone | Yes: WireGuard, OpenVPN, ZeroTier — or just the same Wi-Fi |
 
 **A VPN alone is not a substitute.** Swap Tailscale for plain WireGuard and your iPad still works,
 but **Claude stops entirely** — there is no longer a public address for Anthropic to call. Public
 ingress and a VPN are different capabilities; Tailscale just happens to do both.
 
-**Nothing in the permission model depends on Tailscale.** The gateway and the browser bridge
-contain no reference to it. It carries the bytes; it has no say in what the agent may do.
+**The browser bridge and MCP gateway protocol do not depend on Tailscale.** The supplied Mac
+controller and launcher do: they discover a Tailscale hostname, start and stop Funnel, and build
+the control-panel URLs from that hostname. An alternative tunnel therefore needs a manually
+configured public gateway URL and may need a separate control-panel route; it is not managed by
+the supplied Start/Stop controller. Tunnel choice does not change the browser permission model.
 
-> **Want no public address at all?** That is the one thing a different VPN cannot give you, and it
-> is the reason the [Swift in-app path](docs/DECISIONS.md) is being evaluated: an app talking to
-> Anthropic directly from the iPad needs no gateway, no tunnel and nothing exposed. See
-> [D-047](docs/DECISIONS.md).
+> **Want no public gateway address at all?** No VPN or tunnel option provides that for this
+> architecture: the remote MCP client still has to reach the gateway. The Swift browser-host
+> alternative is also designed to use the existing gateway, so it does not currently remove this
+> requirement. See [the Swift path status](docs/SWIFT-APP-DESIGN.md).
 
 ## Installing it — start here if you are new
 
-**You need:** a **Mac** (macOS 12+, awake and online) · an **iPad** (iPadOS 15.1+) ·
-**[Tailscale](https://tailscale.com)** on the **Mac** (see below — on the iPad it is optional) ·
-a **Claude account** that supports custom connectors · **Node.js 20+** on the Mac ·
+**For the tested path you need:** a **Mac** (macOS 12+, awake and online) · an **iPad** (iPadOS 15.1+) ·
+**[Tailscale](https://tailscale.com)** on the **Mac** (the iPad may use the public HTTPS route without joining the tailnet) ·
+a **Claude account** that supports custom connectors · **Node.js 22+** on the Mac for the documented
+pilot setup and quality-check gate ·
 about **30 minutes**.
+
+The Tailscale setup is the only end-to-end documented host-and-tunnel procedure. The gateway
+could be hosted elsewhere, but the owner must provide a public HTTPS MCP endpoint and configure
+the host, credentials, origin policy and lifecycle themselves. VPNs that only connect private
+devices do not make the gateway reachable to Claude. See the setup guide's [untested tunnel
+options](docs/SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested) before choosing a different
+host or tunnel.
 
 **Read the risks above first**, then follow **[the setup guide](docs/SETUP-GUIDE.md)** — it is
 written step by step for non-technical users and names which device each step happens on. It
@@ -201,12 +219,12 @@ messages on screen cannot.
 | Component | Function | State |
 |---|---|---|
 | `scripts/safari-ai-agent.user.js` | Manual **Browser Lab**; no remote AI connection | v0.1.1; previous iPad form testing |
-| `scripts/safari-ai-agent-remote.user.js` | Separately installed, opt-in remote Userscripts bridge | **v0.2.5**; tested with mocked Userscripts APIs in Chromium |
-| `gateway/server.mjs` | Authenticated MCP Streamable HTTP gateway, per-device action queue and authorization | Local HTTP tests passed; not deployed |
-| `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Tested through gateway; actual Safari flow pending |
+| `scripts/safari-ai-agent-remote.user.js` | Separately installed, opt-in remote Userscripts bridge | **v0.2.5**; automated checks and physical iPad workflow evidence; ten-run reliability is still open |
+| `gateway/server.mjs` | Authenticated MCP Streamable HTTP gateway, per-device action queue and authorization | Mac-hosted self-managed gateway; not a managed multi-user service |
+| `/demo` and `/demo/product` | Harmless two-page test site served by gateway itself | Test fixture; use for first-run checks |
 | `Dockerfile` | Node 22 container gateway, non-root runtime | Created; image build needs Docker-equipped environment |
 
-The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Managed controls and the CLI default to asking in Safari before every fill, click and same-site navigation, with no standing approvals. Explicit website entries can restrict actions to reading, allow ordinary fills and navigation without clicks, or automatically execute recognised navigation and page interactions. Generic form submissions always require their own approval. Payment, account-deletion and credential/security controls remain refused. Remote script **0.2.4** is required for category-based full permission and persistent button approvals; **0.2.5** adds warnings about stale tabs left open across a password change. Older scripts retain their previous approval behavior until updated.
+The gateway exposes seven browser tools: `browser_status`, `browser_inspect`, `browser_fill`, `browser_click`, `browser_navigate`, `browser_verify`, `browser_cancel`. The iPad bridge uses the GM extension APIs in an isolated content-script context; no model credentials or arbitrary model-generated JavaScript reach the webpage. Reading is permitted across websites. Site permissions can restrict the agent to reading, require approval for each action, allow fills, or automatically execute recognised routine actions. Submissions, data changes and unclear actions still ask; payment, account-deletion and credential/security controls are refused. The current remote script is **0.2.5**. There is no automatic script update; the pilot install instructions distinguish the current development artifact from a future versioned release.
 
 ## Run automated checks
 

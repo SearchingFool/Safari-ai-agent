@@ -1,6 +1,6 @@
 # Gateway controls — Mac and iPad
 
-Updated: 2026-11-05. Verified on physical iPad hardware; LaunchAgent lifecycle (`com.searchingfool.safari-gateway-control`), 0.2.4 permission model, and dynamic 60s approval timeout active.
+Updated: 2026-11-09. The Mac control panel, login flow and dynamic 60s approval timeout were verified on physical iPad hardware on 2026-11-05. The source userscript is 0.2.5; the installed script version during that hardware session was not recorded. This controller manages Tailscale Funnel only.
 
 ## First use
 
@@ -10,7 +10,7 @@ Updated: 2026-11-05. Verified on physical iPad hardware; LaunchAgent lifecycle (
 4. Click **Start gateway**. The MCP URL stays the same, so the existing Claude connector needs no URL change.
 5. On the iPad, open the panel's **iPad controls** URL (the same Mac hostname with `:8443`), sign in with the control credential, and bookmark it. Transfer the password with Universal Clipboard or AirDrop if necessary; keep it out of chats. You can now start or stop the gateway from either device.
 6. In **iPad Safari**, open **Install the updated remote userscript** from the panel. It opens the published raw GitHub artifact and requires no login. Accept Userscripts' install/replace prompt. The published script contains no runtime credentials; pairing values stay in isolated Userscripts storage. The authenticated local build route remains available for development, but Userscripts' separate installer fetch does not reliably inherit Safari's Basic-auth login and can return “failed to fetch.” Publish the new script before asking the owner to install it.
-7. Install remote script **0.2.4** for category permissions and saved button approvals. On a webpage, enable Userscripts in Safari if needed, then tap **Remote AI → Connect**. Leave **Connect across websites** enabled. Newly opened websites allow reads and ask before actions. Safari and Claude must remain visible together for page execution.
+7. Install remote script **0.2.5** (or a later versioned pilot artifact) for category permissions, saved button approvals and stale-tab warnings. Until a versioned pilot release is published, the raw `main` install link is a development artifact. On a webpage, enable Userscripts in Safari if needed, then tap **Remote AI → Connect**. Leave **Connect across websites** enabled. Newly opened websites allow reads and ask before actions. Safari and Claude must remain visible together for page execution.
 
 The Mac must stay awake, online, signed in to Tailscale and logged in. The gateway uses `caffeinate` while running. iPad requests use the public HTTPS endpoint and do not require the iPad to belong to the tailnet. Test with the iPad's Tailscale app on and off separately. This does not support Tailscale being off on the hosting Mac, waking a sleeping Mac, or starting before Mac login.
 
@@ -52,7 +52,7 @@ The controller starts at Mac login; the gateway starts only when requested, unle
 
 Double-click **Remove Gateway Controls.command** to remove the per-user login service and stop its owned gateway/control forwarding. It preserves local settings/passwords and does not reset unrelated Tailscale services.
 
-The remote forwarding uses the port-specific foreground Funnel command documented by [Tailscale](https://tailscale.com/docs/reference/tailscale-cli/funnel). A port conflict is reported rather than replacing an existing service.
+The remote forwarding uses the port-specific foreground Funnel command documented by [Tailscale](https://tailscale.com/docs/reference/tailscale-cli/funnel). A port conflict is reported rather than replacing an existing service. Cloudflare Tunnel and ngrok are described only as untested alternatives in the [setup guide](SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested); this controller does not configure them. A private VPN by itself does not provide the public HTTPS MCP endpoint the remote AI caller needs.
 
 ## Acceptance run
 
@@ -64,4 +64,4 @@ The remote forwarding uses the port-specific foreground Funnel command documente
 6. Repeat the iPad control/status test with iPad Tailscale on, then off. Keep Mac Tailscale on.
 7. If desired, enable automatic gateway start, log out/in on the Mac, and verify. Then test removal of the login controller separately.
 
-Engineering evidence: 79 Node/build tests, five Chromium browser suites, and native Mac Safari control-panel authentication/add/save verified on 2026-10-13. The new public 8443 control endpoint, actual login-agent lifecycle and new iPad script behavior are not yet accepted on hardware. The existing Terminal rig was not migrated during development.
+The earlier engineering evidence recorded below reflects the 2026-10-13 state. The later 2026-11-05 iPad run documented in [the delivery tracker](TRACKER.md) verifies the controller login/Keychain flow and settings; do not infer from it that every installation or tunnel alternative has been validated. The existing Terminal rig was not migrated during development.

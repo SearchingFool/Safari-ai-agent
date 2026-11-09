@@ -4,8 +4,8 @@
 **Description:** Complete setup walkthrough for connecting Claude to Safari on an iPad, written for someone who does not write code. Covers the Mac side, the Claude side, the iPad side, and how to stop everything.
 **Author:** Claude Code (Opus 5)
 **Created:** 2026-10-11
-**Last Updated:** 2026-10-11
-**Last Updated By:** Claude Code (Opus 5)
+**Last Updated:** 2026-11-09
+**Last Updated By:** Libor Ballaty, with Codex (implementation seat, `2026-11-09-pilot-release-01`)
 
 ---
 
@@ -28,13 +28,13 @@ Each part says **which device you are on**. If a step does not name a device, it
 
 ## What you are building
 
-**UI setup & LaunchAgent (recommended):** For managed startup on Mac and iPad, double-click **`Safari Gateway.command`** (or run `npm run control:install`). This installs a per-user background controller (`com.searchingfool.safari-gateway-control`) that starts the gateway automatically and provides a web control panel:
+**Tailscale on a Mac (the tested path):** Double-click **`Safari Gateway.command`** (or run `npm run control:install`). This installs a per-user background controller (`com.searchingfool.safari-gateway-control`) that starts the gateway and Tailscale Funnel, then provides a web control panel:
 - **Mac local control:** `http://127.0.0.1:8788`
 - **iPad remote control:** `https://your-mac-name.tailxxxx.ts.net:8443` (Notice port **8443**, not 8788)
 - **Public MCP & Demo gateway:** `https://your-mac-name.tailxxxx.ts.net` (standard port 443 -> 8787)
 - **In-app setup guide:** `https://your-mac-name.tailxxxx.ts.net/help`
 
-The legacy foreground Terminal script (`bash tools/start-mac-tailscale-test.sh`) remains available for manual debugging, but will report "port 8787 occupied" if the background controller is already active. Stop the controller before running the legacy script.
+The legacy foreground Terminal script (`bash tools/start-mac-tailscale-test.sh`) remains available for manual debugging, but will report "port 8787 occupied" if the background controller is already active. Stop the controller before running the legacy script. The provided controller and launcher currently manage Tailscale only.
 
 Three pieces talk to each other:
 
@@ -51,18 +51,42 @@ Safari on your iPad          ("the bridge")
 The web page
 ```
 
-Your Mac must stay **awake and online** the whole time. The iPad Safari tab must stay **in front**. Nothing works in the background — that is a limitation of iPad Safari, not a bug.
+The gateway host must stay **awake and online** the whole time. The iPad Safari tab must stay **in front**. Nothing works in the background — that is a limitation of iPad Safari, not a bug.
 
 ## What you need
 
 | | |
 |---|---|
-| A Mac | macOS 12 or later, awake and online |
+| A Mac (tested host) | macOS 12 or later, awake and online |
 | An iPad | iPadOS 15.1 or later |
-| Tailscale | **Required on the Mac** — it provides the public HTTPS address Claude needs. **Optional on the iPad**: signing in on both is recommended (a private path between your devices) but the iPad works without it, because it reaches the Mac over the same public address |
+| Tailscale | **Required on the Mac for this procedure** — Funnel provides the public HTTPS address Claude needs. **Optional on the iPad**: the iPad can reach the gateway at that public address without joining the tailnet |
 | A Claude account | one that supports custom connectors |
-| Node.js 20+ | on the Mac only |
+| Node.js 22+ | required for the documented pilot setup and quality-check gate (the package engine declares Node.js 20+ for runtime use) |
 | About 30 minutes | first time through |
+
+### Other VPN and tunnel options (not tested)
+
+The gateway can run on another computer or server, but **the AI provider's remote MCP client must
+be able to reach its public HTTPS `/mcp` address**. A private VPN between the user's iPad and
+gateway does not make a private address reachable from Anthropic. Keep the gateway bound to
+loopback behind the tunnel, use distinct MCP and device credentials, and restrict actions with
+the correct website-origin policy. The supplied controller derives URLs from Tailscale and starts
+Tailscale Funnel; it does not configure the alternatives below. Their use requires an operator to
+set up the gateway and ingress manually, keep the service running, verify authentication and
+recovery, and provide an endpoint the MCP client can call. These notes are **not support or
+compatibility claims**.
+
+| Option | What it provides | Pilot caveats |
+|---|---|---|
+| [Tailscale Funnel](https://tailscale.com/docs/features/tailscale-funnel) | Public HTTPS forwarding from the gateway host. This is the only tunnel used by the supplied and hardware-tested Mac procedure; it is available on all Tailscale plans. | Funnel is in beta. It requires MagicDNS, HTTPS certificates, a Funnel-enabled tailnet policy, a `.ts.net` hostname, and listens only on ports 443, 8443 or 10000. Bandwidth is limited. |
+| [Cloudflare Quick Tunnel](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/) | A temporary public `trycloudflare.com` URL without a Cloudflare account or domain. | Cloudflare says it is for testing, has no uptime guarantee, changes hostname each run, and does not support SSE. This gateway currently uses JSON POST responses rather than SSE, but the external MCP connector through a Quick Tunnel remains untested. |
+| [Named Cloudflare Tunnel](https://developers.cloudflare.com/tunnel/get-started/) | Stable public hostname routed to a local service through `cloudflared`. | Requires a Cloudflare account and a domain on Cloudflare; the domain may have a cost. If Cloudflare Access is enabled, the non-interactive MCP client must be able to satisfy that policy as well as gateway authentication. |
+| [ngrok Free](https://ngrok.com/docs/pricing-limits) | Public HTTPS endpoint on one assigned development domain. | The current free limits include 20,000 HTTP requests and 1 GB transfer per month, plus a browser interstitial. Since this bridge polls about once every 1.2 seconds while connected, its request quota is unlikely to suit continuous pilot use. |
+| [ZeroTier Personal](https://www.zerotier.com/pricing/) | Private network access (free for personal, non-commercial use, currently up to 10 devices on one network). | This is VPN connectivity, not a public HTTPS MCP endpoint. It does not by itself let an internet-hosted Claude connector reach a private gateway. |
+
+Do not expose the control service merely to make it reachable from the iPad. With a different
+tunnel, use a separate, reviewed way to operate Start/Stop; the provided remote control URL also
+assumes Tailscale.
 
 ---
 
@@ -211,7 +235,7 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
 >
 > Both secrets live only in `.env.mac-tailscale` on the Mac. Copy them across with Universal Clipboard (Step 3.3); never type them into a chat, email or message.
 >
-> The Mac launcher must be **running** in a Terminal window the whole time, and the Mac must stay awake.
+> For the managed controller path, the gateway host must stay awake and online; the terminal used to install the LaunchAgent does not need to remain open. For the legacy foreground script, its Terminal window must stay open.
 
 ### Step 3.1 — Install Userscripts
 
@@ -219,7 +243,7 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
 2. Search for **Userscripts** (by Justin Wasack) and install it
 3. Open **Settings** → **Apps** → **Safari** → **Extensions**
 4. Turn **Userscripts** on
-5. Tap it, and set your Mac's `.ts.net` address to **Allow**
+5. Tap it, and set your gateway's exact public hostname to **Allow**
 
 ### Step 3.2 — Install the script
 
@@ -227,7 +251,16 @@ Expect `connected: false`. That is correct — the iPad is not attached yet. If 
    `https://raw.githubusercontent.com/SearchingFool/Safari-ai-agent/main/scripts/safari-ai-agent-remote.user.js`
 2. Userscripts should offer to install it. Accept.
 
-> **There is no automatic update.** The script carries no `@updateURL`, so Userscripts will never tell you a newer version exists. **To update, repeat this step** — open the same address and accept the replace prompt. If the Mac side has been updated and the iPad behaves oddly, reinstall before debugging anything else.
+> **This is the current development install URL, not a pinned release.** It follows the moving
+> `main` branch. As of 2026-11-09 the public repository has no versioned GitHub Release. For a
+> pilot invitation, use the exact versioned install URL supplied by the pilot owner after a
+> release artifact exists; do not substitute a development URL.
+>
+> **There is no automatic update.** The script carries no `@updateURL`, so Userscripts will not
+> tell you a newer version exists. When the pilot owner announces an update, open that version's
+> install URL and accept the replace prompt. Reload the page and reconnect. If the Mac side has
+> been updated and the iPad behaves oddly, compare the script version shown in Remote AI with the
+> published release before debugging anything else.
 
 ### Step 3.3 — Get the iPad's password across
 
@@ -256,10 +289,10 @@ a real site, try the demo to tell "the agent is broken" apart from "this site is
 
 1. In Safari on the iPad, open **the site you want to work on**
 2. Tap **Remote AI** on that page
-4. **Base URL:** your `.ts.net` address with **nothing after it** — no `/mcp`, no `/demo`
-5. **Device token:** paste
-6. Tap **Save** — *the token field going blank is correct and deliberate*
-7. Tap **Connect**
+3. **Base URL:** the gateway's public HTTPS hostname with **nothing after it** — no `/mcp`, no `/demo`
+4. **Device token:** paste
+5. Tap **Save** — *the token field going blank is correct and deliberate*
+6. Tap **Connect**
 
 The status should read `Connected`.
 
@@ -472,11 +505,23 @@ gateway refuses to hand it work, rather than raising a prompt where you cannot s
 **When you finish, stop it.** The web address is public while it runs.
 
 1. On the iPad, tap **Stop** in the Remote AI panel
-2. On the Mac, click the Terminal window and press **Ctrl+C**
-3. Confirm nothing is still exposed:
+2. If you started the legacy foreground script, click its Terminal window and press **Ctrl+C**. If you used the managed control panel, Stop shuts down the gateway and its public MCP forwarding; the control panel remains available so you can start it again.
+3. Confirm the gateway is no longer publicly reachable:
    ```sh
-   tailscale funnel status
+   npm run gateway:status
    ```
+
+`gateway:status` checks the actual public health route and local controller. It is specific to the
+Tailscale setup documented here. Do not use
+`tailscale funnel status` alone to conclude that a foreground Funnel has stopped; see the
+[gateway status tool](GATEWAY-CONTROLS.md).
+
+## Removing the pilot setup
+
+1. Stop the gateway from the control panel. On the Mac, double-click **Remove Gateway Controls.command** to remove the LaunchAgent and its Tailscale forwarding.
+2. In the iPad **Userscripts** app, delete **Safari AI Agent Remote MCP** and revoke the Userscripts permission for the gateway hostname in Safari settings.
+3. If this device or gateway is being handed to someone else, follow the complete [device removal procedure](DEVICE-LIFECYCLE.md). It removes the saved device token and approvals and explains when to rotate credentials.
+4. If you are permanently retiring your own setup, remove its local private credentials and configuration from the Mac after stopping the service. Do not copy them into a shared folder or chat.
 
 ---
 
@@ -537,7 +582,8 @@ Compare that to the version shown in the **Remote AI** panel on the iPad. If the
 3. **Reload the page**, then press **Connect**
 
 **Your device token is kept.** You do not re-enter it for a script update — only after a password
-change.
+change. The script's version label must match the `@version` in the installed artifact; if they
+do not match, stop and use the published version information from the pilot owner.
 
 > **An old script is not harmless.** It fails closed on permission modes it does not understand,
 > so the agent may refuse actions for no visible reason. If something stopped working right after

@@ -1398,7 +1398,7 @@
     `;
     const root=document.createElement('div');root.innerHTML=`
       <button class="toggle" type="button">Remote AI</button><section class="panel" hidden>
-      <b>Safari AI Agent Remote · 0.2.4</b><p>This page can be read by a connected AI. Full permission runs recognised navigation and page interactions automatically; submissions, data changes and unclear actions ask. Payment, account-deletion and credential controls are refused on every site.</p>
+      <b>Safari AI Agent Remote · 0.2.5</b><p>This page can be read by a connected AI. Full permission runs recognised navigation and page interactions automatically; submissions, data changes and unclear actions ask. Payment, account-deletion and credential controls are refused on every site.</p>
       <label>Gateway HTTPS URL</label><input id="gateway" autocomplete="off" placeholder="https://your-domain.example" />
       <label>Device token (never share with an AI)</label><input id="secret" type="password" autocomplete="off" />
       <div class="actions"><button id="save" type="button">Save</button><button id="connect" type="button">Connect</button><button id="stop" type="button">Stop</button><button id="takeover" type="button" hidden>Take over</button></div>

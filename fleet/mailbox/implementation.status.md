@@ -21,6 +21,24 @@
 
 ---
 
+## 2026-11-09 — Codex subagent (`safari-ai-agent-implementation`) — pilot release path
+
+**Occupant:** Codex subagent, assigned to the `implementation` seat by the lead.
+**Floor:** `2026-11-09-pilot-release-01` at the head of `implementation.md`.
+**In-flight:** Updated the Userscripts pilot install/release instructions and aligned factual
+version/runtime claims, including the generated `.user.js` panel version. Tailscale remains the
+tested primary path; other tunnel choices are official-documentation notes only and have not been
+tested or accepted as supported options.
+**Verification:** `npm run check` passed (85 Node tests and build/syntax checks); `npm run
+test:browser` passed all five suites; `npm run diagnose` exited 0. The diagnostic report showed
+75 requests from the local browser integration run, with three invalid-time form warnings and one
+fail-closed session conflict; this is test-run output, not new hardware or pilot evidence.
+`git diff --check` passed.
+**Reservation:** Active queue reservations cover README, setup/control/release docs, source and
+generated userscript, and this status file. No commit or push.
+
+---
+
 ## 2026-11-09 — safari-ai-agent-90e45e (lead) — pilot release assignment issued
 
 **Occupant:** Pending worker acknowledgement. Assigned by the `lead` seat on operator direction.

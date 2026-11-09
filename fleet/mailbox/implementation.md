@@ -7,9 +7,38 @@
 **Last Updated:** 2026-10-25
 **Last Updated By:** claude-11
 
-**ASSIGNMENT-ID:** 2026-10-25-implementation-reset-01
+**ASSIGNMENT-ID:** 2026-11-09-pilot-release-01
 
 > **ORDERING: NEWEST FIRST.** The tail of this file is permanently the oldest content.
+
+---
+
+## 2026-11-09-pilot-release-01 — Userscripts pilot release and onboarding path
+
+**From:** `lead` seat, on operator instruction.
+**To:** `implementation` seat.
+**Status:** Assigned; record your occupant and floor in `implementation.status.md` before writing.
+
+Update the user-facing pilot install/release procedure so the current Tailscale-based setup is the
+primary documented path. The operator does not know where a pilot user's gateway will sit, so
+explain the gateway's role and prerequisites. Add brief hints about other well-used free
+VPN/tunneling choices using official provider documentation only; do **not** test those
+alternatives or describe them as supported/verified. Distinguish private VPN connectivity from a
+public HTTPS endpoint reachable by the AI provider's remote MCP client. Do not generalize the
+controller implementation or expose any new endpoint as part of this assignment.
+
+Own `README.md`, `docs/SETUP-GUIDE.md`, `docs/GATEWAY-CONTROLS.md`, and
+`docs/RELEASE_CHECKLIST.md`, plus `src/**`, `gateway/**`, and `tools/**` only if needed for
+verified implementation consistency. Do not write `fleet/**`, `docs/TRACKER.md`,
+`docs/DECISIONS.md`, `app/**`, or `docs/SWIFT-APP-DESIGN.md`. Reserve every file before writing.
+
+Reconcile factual contradictions in scope, including the Node minimum, userscript version labels,
+manual update behavior, and release readiness state. Keep unsupported alternatives clearly
+labeled as untested. Use official primary-source links for provider facts. Include a user-friendly
+pilot sequence, requirements per component, limitations, update/removal steps, and the distinction
+between a pilot procedure and production release acceptance.
+
+Deliver a review of remaining blockers and evidence. Do not commit or push.
 
 ---
 

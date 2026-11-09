@@ -14,6 +14,23 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-09 — safari-ai-agent-90e45e — release and Swift workstreams assigned
+
+**OCCUPANCY:** `safari-ai-agent-90e45e`, Codex session, assigned the `lead` seat by the
+operator on 2026-11-09. **Floor:** 2026-11-05 implementation handoff at the head below;
+fleet-status reported no live seat occupants and no findings before this assignment.
+
+**Assignments:** `implementation` is assigned the pilot release/onboarding path. Its scope now
+includes `docs/RELEASE_CHECKLIST.md`; its existing README and setup-guide ownership is unchanged.
+`swift-alternate` is a new function seat for `app/**` and `docs/SWIFT-APP-DESIGN.md`, targeting
+both macOS and iOS. The release path keeps Tailscale as the documented primary setup and may
+mention other free tunnel/VPN options only from official documentation; those alternatives are
+not to be represented as tested or supported. These are separate write scopes.
+
+**In-flight:** both workers are reviewing read-only until their seat inboxes and scopes are
+available in their worktrees. The operator's ten-run iPad reliability protocol remains open;
+this coordination work does not close it. No device acceptance or security review is claimed.
+
 ---
 
 ## 2026-10-25 — claude-11 — Fleet rebuilt; objective still untouched

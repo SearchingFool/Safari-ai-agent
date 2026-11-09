@@ -55,6 +55,7 @@ closing. An **occupant** is a session — ephemeral, hours.
 |---|---|---|
 | `lead` | Priority, gates, D-### numbering, integration. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` |
 | `implementation` | `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/implementation.*` |
+| `swift-alternate` | macOS/iOS Swift browser-host app and its design record | `mailbox/swift-alternate.*` |
 
 **Seats are named for their FUNCTION — never for their occupant.** Not a harness, not a model,
 not a person, not a role grant that can move. *A changeable attribute inside a durable

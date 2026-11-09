@@ -21,6 +21,19 @@
 
 ---
 
+## 2026-11-09 — safari-ai-agent-90e45e (lead) — pilot release assignment issued
+
+**Occupant:** Pending worker acknowledgement. Assigned by the `lead` seat on operator direction.
+**Floor:** `2026-11-09-pilot-release-01` at the head of `implementation.md`.
+**In-flight:** No worker edits yet; the release worker completed read-only research and is waiting
+for this assignment to be installed in its worktree.
+
+The assignment covers the Userscripts pilot setup/release path. Tailscale remains the primary
+documented procedure. Other VPN/tunnel choices may be summarized from official documentation only;
+they are not to be represented as tested or supported.
+
+---
+
 ## 🔁 HANDOFF 2026-11-05 — `safari-ai-agent-ba` — session ending. IN-FLIGHT STATE: NOTHING.
 
 **Outgoing occupant:** Claude Code Opus 5, pid 59785, messaging address `safari-ai-agent-ba`,

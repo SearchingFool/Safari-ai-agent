@@ -1,6 +1,7 @@
 # File: fleet/fleet-registry.yaml (repo-relative; this repo is PUBLIC — see README.md)
 # Description: Seats, write scopes and project gates for the safari-ai-agent fleet.
-#   Rebuilt 2026-10-25 by operator decision. The prior registry — 667 lines, 27% of it a dead
+#   Rebuilt 2026-10-25 by operator decision; scoped release and Swift seats added 2026-11-09
+#   by operator direction. The prior registry — 667 lines, 27% of it a dead
 #   per-session roster — is preserved verbatim at fleet/archive-2026-10-25/fleet-registry.yaml.
 #   Nothing was deleted; git history follows every file.
 # Author: Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat)
@@ -13,6 +14,7 @@ production_branch: main
 mailbox: fleet/mailbox              # IN-REPO. The central path is a symlink here.
 created: 2026-10-11
 rebuilt: 2026-10-25
+updated: 2026-11-09
 
 objective: >
   OPERATOR'S STATED GOAL, unchanged since 2026-10-13: "get this working on the iPad reliably."
@@ -57,12 +59,24 @@ seats:
     poll_key: implementation        # --agent implementation -> mailbox/implementation.md
     owns:
       - src/**, gateway/**, tools/**
-      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md
+      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md, docs/RELEASE_CHECKLIST.md
       - its own mailbox pair
     constraint: >
       Provider feasibility is RESEARCH ONLY. No provider implementation without explicit
       operator approval of a plan.
     mailbox: {inbox: mailbox/implementation.md, outbox: mailbox/implementation.status.md}
+
+  - id: swift-alternate
+    poll_key: swift-alternate
+    owns:
+      - app/**
+      - docs/SWIFT-APP-DESIGN.md
+      - its own mailbox pair
+    constraint: >
+      Build the alternate browser-host application for both macOS and iOS. Preserve the
+      measured WKWebView passkey limitation and current gateway boundary. No external
+      credentials, public exposure changes, paid services, or operator-only device prompts.
+    mailbox: {inbox: mailbox/swift-alternate.md, outbox: mailbox/swift-alternate.status.md}
 
 coordination:
   write_policy: reserve-before-write    # AGENTS.md §3; export QUEUECTL_AGENT

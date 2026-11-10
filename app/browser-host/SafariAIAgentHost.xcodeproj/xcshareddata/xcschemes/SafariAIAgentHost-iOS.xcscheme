@@ -20,6 +20,20 @@
                ReferencedContainer = "container:SafariAIAgentHost.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
+         <BuildActionEntry
+            buildForTesting = "YES"
+            buildForRunning = "NO"
+            buildForProfiling = "NO"
+            buildForArchiving = "NO"
+            buildForAnalyzing = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F904B592C7F7BE420B0BF08F"
+               BuildableName = "SafariAIAgentHostUITests.xctest"
+               BlueprintName = "SafariAIAgentHostUITests"
+               ReferencedContainer = "container:SafariAIAgentHost.xcodeproj">
+            </BuildableReference>
+         </BuildActionEntry>
       </BuildActionEntries>
    </BuildAction>
    <TestAction
@@ -28,6 +42,16 @@
       selectedLauncherIdentifier = "Xcode.DebuggerFoundation.Launcher.LLDB"
       shouldUseLaunchSchemeArgsEnv = "YES">
       <Testables>
+         <TestableReference
+            skipped = "NO">
+            <BuildableReference
+               BuildableIdentifier = "primary"
+               BlueprintIdentifier = "F904B592C7F7BE420B0BF08F"
+               BuildableName = "SafariAIAgentHostUITests.xctest"
+               BlueprintName = "SafariAIAgentHostUITests"
+               ReferencedContainer = "container:SafariAIAgentHost.xcodeproj">
+            </BuildableReference>
+         </TestableReference>
       </Testables>
    </TestAction>
    <LaunchAction

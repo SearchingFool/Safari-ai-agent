@@ -63,6 +63,20 @@ xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
+Run the iOS simulator UI smoke test on a booted simulator with:
+
+```sh
+xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj \
+  -scheme SafariAIAgentHost-iOS -configuration Debug \
+  -destination 'platform=iOS Simulator,id=<simulator-uuid>' \
+  -derivedDataPath /tmp/safari-ai-agent-ios-uitests \
+  CODE_SIGNING_ALLOWED=NO test
+```
+
+The UI test checks the disconnected gateway state, disabled pairing and inspection controls before
+navigation, then loads the sample page and verifies the local-only inspector shows its title and
+privacy note. It does not pair with a gateway or exercise remote actions.
+
 To launch in the iPad simulator (replace the destination UUID if needed):
 
 ```sh

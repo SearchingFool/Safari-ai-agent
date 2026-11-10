@@ -16,10 +16,12 @@ pivot (D-047). A separate shared-source Xcode app project builds for macOS and i
 has loaded the local fixture and run the shared engine in its named isolated world; the iPad
 simulator app has been installed and launched. The app now implements the same five page commands
 as the Userscripts bridge—inspect, verify, fill, click, and same-origin navigate—with shared core
-policy checks and native one-time approvals where policy requires them. Protocol unit tests and
-both platform builds pass. No end-to-end gateway exchange, remote action/approval runtime, or
-physical iPad run has occurred. Passkey login remains unavailable in third-party WKWebView (D-053);
-no decision to migrate has been taken.
+policy checks and native one-time approvals where policy requires them. The iOS simulator has
+completed a local HTTPS gateway connection, Keychain pairing, page load, and remote inspect/result
+exchange. The native approval prompt appears, but XCUITest has not reliably selected the iPad's
+system-presented sheet buttons, so fill/click approval and dispatch are not yet runtime-verified.
+Protocol unit tests and both platform builds pass. A physical iPad run has not occurred. Passkey
+login remains unavailable in third-party WKWebView (D-053); no decision to migrate has been taken.
 
 ## 2. The two framings, and why only one is viable
 
@@ -108,21 +110,26 @@ now the deciding factor if the sites that matter use passkeys.
 | Xcode app targets build for macOS and iOS Simulator | **proven 2026-11-10** — unsigned Debug builds |
 | iOS app opens | **proven in iPad simulator 2026-11-10** — current build installed and launched; no page loaded |
 | `src/core.js` is bundled unchanged | **proven 2026-11-10** — SHA-256 matches in both current app bundles |
-| Pairing UI, Keychain token storage, HTTPS poll/result transport and five command handlers compile | **proven by Xcode builds** — no gateway exchange exercised |
+| Pairing UI, Keychain token storage, HTTPS poll/result transport | **runtime-verified in iOS Simulator against an isolated local HTTPS fixture** — fixture-only token and page |
+| Remote inspect and result exchange | **runtime-verified in iOS Simulator** — snapshot returned for the fixture page |
+| Native approval prompt | **runtime-verified as presented** — XCUITest sees the native iPad sheet, but cannot reliably target its controls yet |
+| Fill/click/navigation dispatch, approval allow/deny and expiry | **not runtime-verified** — automated approval action times out |
 | Inspect, verify, fill, click, same-origin navigate use the shared engine and command policies | **implemented and code-reviewed** — no bridge runtime test |
 | A local macOS fixture page runs core inspection in the named world | **runtime-verified** — snapshot shown in the app; no field value exposed |
 | Per-command argument validation and expiry/origin checks | **proven by six Swift protocol unit tests** — does not verify model dispatch |
-| Native approval, refusal, timeout, and post-ack action dispatch | **implemented; no runtime verification** |
 | An in-app web view can authenticate to a **passkey** site | **NO — measured on macOS** (D-053), with Chrome on the same Mac as the control |
 | An in-app web view can authenticate to a **password** site | **not run.** Nothing measured blocks it; that is not the same as proven |
-| Gateway token, poll, command result, remote approval/action, active/hidden lifecycle | **not runtime-verified** |
+| Gateway token, poll, command result, remote inspect | **runtime-verified against the local fixture in iOS Simulator** |
+| Approval allow/deny, remote page-changing action, active/hidden lifecycle | **not runtime-verified** |
 | Physical iPad install/use | **not attempted** |
 
 The new app lives in `app/browser-host/`. The engine is registered in a named `WKContentWorld`,
 never in the page's JavaScript world. Local Inspect keeps its snapshot in the app. Gateway setup
 stores its device token in Keychain and polls only while the app and browser window are visible.
 Remote actions are constrained by the shared core and the gateway's per-origin policy; required
-approvals appear in a native app overlay and expire before the command deadline. Click and
+approvals appear in a native SwiftUI alert (presented as a sheet on the tested iPad simulator) and
+expire before the command deadline. The prompt appeared in the fixture run, but automation did not
+choose either response, so action dispatch remains unproven. Click and
 navigation are submitted to `/device/result` before dispatch and are reported as dispatched, not
 verified. Fill follows the existing Userscripts contract and updates the page before result
 submission. The app does not implement `browser_status` as a device command: that tool is fulfilled
@@ -158,11 +165,12 @@ Ordered so that each step can kill the path before the next one costs anything.
    decisive one rather than a formality.
 2. **Stage B — a real logged-in session across a restart.** Free. Needs a *password* login. D-052
    proved the store persists; this proves a *session* does, which is not the same claim.
-3. **Run the host-side command path against a local HTTPS gateway fixture.** Cover correct and
-   incorrect tokens, allowlist refusal, poll/result binding, policy changes, native approval,
-   approval expiry/denial, fill/click/navigation dispatch, cancellation, redirects, and app
-   backgrounding. The protocol package tests argument validation only; they do not exercise the
-   app model or transport.
+3. **Complete the host-side command path against a local HTTPS gateway fixture.** Correct-token
+   pairing, TLS trust, poll/result exchange, and inspect are verified. Still cover incorrect
+   tokens, allowlist refusal, policy changes, choosing allow and deny in the native prompt,
+   approval expiry, fill/click/navigation dispatch, cancellation, redirects, and app backgrounding.
+   XCUITest currently sees the iPad's native sheet but does not reliably select its buttons; a
+   manual simulator run or a stable UI automation query is still required.
 4. **Run the current app on an actual iPad.** Check browsing, password-authenticated session
    persistence across restart, clearing site data, lifecycle pause/resume, and Split View behavior.
    A simulator build is not device acceptance; provisioning and installation were not attempted.

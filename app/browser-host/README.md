@@ -91,6 +91,27 @@ xcrun simctl launch 265F98BB-E868-4766-BC06-F4C7BEACD782 \
 The simulator launch proves app startup only. It does not establish remote bridge behavior, gateway
 reachability, approval handling, persistence for authenticated sessions, or physical device use.
 
+## Exercise the Swift gateway bridge locally
+
+Run `app/browser-host/Tests/run-gateway-bridge-test.sh` from any checkout with Xcode and the iOS
+26.3 simulator runtime installed. It creates a disposable iPad simulator and a one-day loopback
+certificate, trusts that certificate only in the disposable simulator, starts a loopback-only copy
+of the repository gateway, runs the app UI tests, and deletes the simulator and temporary
+certificate afterward. The test uses fixture tokens and a harmless local page; it does not contact
+the pilot gateway or use its credentials. Build products and the `.xcresult` stay in the generated
+temporary directory under `/tmp` for inspection.
+
+The current simulator run verifies TLS trust, Keychain pairing, page load, HTTPS gateway
+authentication, poll/result exchange, and remote inspect against the harmless local fixture. It
+also presents the native approval sheet. **The run currently exits with a UI-test failure because
+XCUITest does not reliably target the sheet's allow/deny controls; fill/click results and
+disconnect/revocation have not passed this fixture test yet.** This does not contact the pilot
+gateway or use its credentials. Manual confirmation of allow and deny remains part of the test.
+It does not cover a physical iPad, passkeys, real VPN reachability, long suspension, or production
+signing. Set `SWIFT_TEST_RUNTIME_ID` and `SWIFT_TEST_DEVICE_TYPE` if your installed iOS simulator
+runtime or iPad type differs from this Mac's defaults. Set `SWIFT_TEST_ONLY=SafariAIAgentHostUITests/SafariAIAgentHostUITests/testGatewayInspectionFillAndNativeApproval`
+to rerun only the remote bridge flow while iterating; omit it to run the complete UI suite.
+
 ## Install from source
 
 This is a developer installation path, not a published app release. It requires a Mac with Xcode.

@@ -9,6 +9,16 @@
 
 > **Ordering: newest first.** Every worker entry must include its occupant and assignment floor.
 
+## 2026-11-10 — safari-ai-agent-90e45e (Codex) — traced the missing approval to an unclaimed fill command
+
+**Floor:** `2026-11-09-swift-alternate-01`.
+**Commit:** `c5200e1 debug: trace Swift gateway command processing`.
+**Changed:** Added safe stage status labels before fill-command validation, fresh isolated-world inspection, policy evaluation, and approval preparation. These messages exclude page content and fill values.
+**Measured:** The isolated iPad simulator passes pairing and remote inspection. In the next fixture run, the test queued `browser_fill`, but the app stayed at its ordinary connected status; none of the stage messages or approval controls appeared in the accessibility hierarchy. The gateway timed out the unclaimed command at 25 seconds. macOS and iOS builds succeeded earlier this turn; the six protocol tests pass. This points to a poll/session delivery issue after inspection, rather than a SwiftUI approval rendering issue, and still needs a root cause. The XCUITest result bundle and complete hierarchy are at `/tmp/SafariAIAgentSwiftBridgeFixture.BphDyJ/TestResults.xcresult`.
+**Still needed:** Determine why the active app no longer claims the next command after remote inspect. Then pass fill approval/dispatch, click allow/deny, same-origin navigation, and disconnect in the fixture; cover policy/lifecycle/error cases before pilot use. No pilot gateway or credential was used.
+**Simulator:** Existing operator iPad Pro simulator remains intact and booted with the current iOS build open. It is ready for browser/local-inspection testing; remote actions remain blocked on the fixture defect.
+**Worktree:** User-owned Xcode project team setting, workspace, and `xcuserdata` remain excluded. No push performed.
+
 ## 2026-11-10 — safari-ai-agent-90e45e (Codex) — approval-flow diagnosis and simulator handoff
 
 **Floor:** `2026-11-09-swift-alternate-01`.

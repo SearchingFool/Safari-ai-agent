@@ -43,7 +43,7 @@ or require model API credentials.
 macOS local inspection has run against the repository's fixture page; it showed the shared engine's
 control snapshot in the app and did not reveal a field value. The iOS simulator completed a
 gateway exchange and remote inspection against the isolated HTTPS fixture. A fill command times out without dispatch while the current simulator automation cannot find the
-approval controls in the app.s accessibility tree. Fill,
+approval controls in the app.s accessibility tree. The fill command is queued but times out at the gateway before the app shows approval; fill,
 click, navigation dispatch, and disconnect/revocation therefore remain unverified. Wrong-token
 handling, gateway 409s, cross-origin redirects, app suspension during a claimed command, physical
 iPad visibility, and authenticated session persistence also remain untested.

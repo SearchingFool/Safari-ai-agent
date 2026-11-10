@@ -19,7 +19,7 @@ as the Userscripts bridge—inspect, verify, fill, click, and same-origin naviga
 policy checks and one-time approvals where policy requires them. The iOS simulator has completed
 a local HTTPS gateway connection, Keychain pairing, page load, and remote inspect/result exchange.
 The approval UI is implemented in the app, but the latest XCUITest run could not observe its
-controls while a command was waiting for a decision. The fixture safely expired the pending fill;
+controls while a command was waiting for a decision. The fixture queued the fill but the app did not expose a processing state or approval panel before gateway timeout;
 fill/click/navigation dispatch and approval decisions are not runtime-verified. Protocol unit tests
 and both platform builds pass. A physical iPad run has not occurred. Passkey login remains
 unavailable in third-party WKWebView (D-053); no decision to migrate has been taken.

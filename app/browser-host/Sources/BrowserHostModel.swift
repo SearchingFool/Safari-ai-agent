@@ -412,7 +412,9 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
                         await performDeferredAction(action)
                     }
                 }
-                bridgeStatus = "Connected to \(origin); browser actions follow the page policy and require local approval when requested."
+                if !bridgeStatus.hasPrefix("APPROVAL_UNAVAILABLE:") {
+                    bridgeStatus = "Connected to \(origin); browser actions follow the page policy and require local approval when requested."
+                }
             } catch is CancellationError {
                 break
             } catch {
@@ -472,7 +474,7 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
                 if decision == "prompt" {
                     let element = try Self.element(prior, ref: ref)
                     let label = element["label"] as? String ?? "Form field"
-                    let approved = await requestApproval(action: "fill field", target: "\(label)\nValue to fill: \(value)",
+                    let approved = try await requestApproval(action: "fill field", target: "\(label)\nValue to fill: \(value)",
                         origin: origin, tier: "elevated", category: "field-fill",
                         reasons: ["This site's policy requires approval before filling a field."], expiresAt: envelope.expiresAtMilliseconds)
                     guard approved else { throw CommandError.approvalDenied }
@@ -497,7 +499,7 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
                     }
                 }
                 if decision == "prompt" {
-                    let approved = await requestApproval(action: "click", target: preview["summary"] as? String ?? "Page control",
+                    let approved = try await requestApproval(action: "click", target: preview["summary"] as? String ?? "Page control",
                         origin: origin, tier: preview["tier"] as? String ?? "elevated",
                         category: preview["category"] as? String ?? "unclassified-action",
                         reasons: preview["reasons"] as? [String] ?? [], expiresAt: envelope.expiresAtMilliseconds)
@@ -527,7 +529,7 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
                     throw CommandError.refused(verdict["reason"] as? String ?? "Navigation is not permitted by site policy.")
                 }
                 if decision == "prompt" {
-                    let approved = await requestApproval(action: "navigate to", target: destination.absoluteString,
+                    let approved = try await requestApproval(action: "navigate to", target: destination.absoluteString,
                         origin: origin, tier: "routine", category: "same-origin-navigation",
                         reasons: ["Same-origin navigation can be reversed with the back button."], expiresAt: envelope.expiresAtMilliseconds)
                     guard approved else { throw CommandError.approvalDenied }
@@ -565,11 +567,26 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
     }
 
     private func requestApproval(action: String, target: String, origin: String, tier: String,
-                                 category: String, reasons: [String], expiresAt: Double) async -> Bool {
-        guard isBridgeVisible, currentOrigin == origin, approvalContinuation == nil else { return false }
+                                 category: String, reasons: [String], expiresAt: Double) async throws -> Bool {
+        guard isBridgeVisible else {
+            bridgeStatus = "APPROVAL_UNAVAILABLE: Keep this app in the foreground with the browser visible, then retry the action."
+            throw CommandError.inactive
+        }
+        guard currentOrigin == origin else {
+            bridgeStatus = "APPROVAL_UNAVAILABLE: The page changed before approval. Request the action again on the current page."
+            throw CommandError.inactive
+        }
+        guard approvalContinuation == nil else {
+            bridgeStatus = "APPROVAL_UNAVAILABLE: Another approval is already pending. Resolve it before retrying."
+            throw CommandError.inactive
+        }
         let id = UUID().uuidString
         let deadline = min(expiresAt - 1_500, Date().timeIntervalSince1970 * 1_000 + 120_000)
-        guard deadline > Date().timeIntervalSince1970 * 1_000 else { return false }
+        guard deadline > Date().timeIntervalSince1970 * 1_000 else {
+            bridgeStatus = "APPROVAL_UNAVAILABLE: The gateway command expired before approval could be shown. Request it again."
+            throw CommandError.inactive
+        }
+        bridgeStatus = "APPROVAL_PENDING: Review the requested page change and allow it once or deny it."
         return await withCheckedContinuation { continuation in
             approvalContinuation = continuation
             pendingApproval = BrowserHostApproval(id: id, action: action, target: target, origin: origin,

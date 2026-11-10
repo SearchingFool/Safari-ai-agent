@@ -98,14 +98,27 @@ release.
 
 1. Clone this repository on a Mac with Xcode and connect the iPhone or iPad.
 2. Open `app/browser-host/SafariAIAgentHost.xcodeproj`.
-3. Choose the `SafariAIAgentHost-iOS` scheme and the connected device as the run destination.
-4. In **Signing & Capabilities**, select a development team and resolve any bundle-identifier
-   signing prompt Xcode presents.
-5. Press **Run** and install from Xcode.
+3. In Xcode, open **Xcode → Settings → Apple Accounts**, add the Apple Account for your Apple
+   Developer Program membership, and confirm its team appears in the account details.
+4. In the project editor, select the **SafariAIAgentHost-iOS** target, then open
+   **Signing & Capabilities**. Turn on **Automatically manage signing** and choose your developer
+   team from **Team**.
+5. The project currently uses bundle ID `com.searchingfool.safari-ai-agent.host`. If Xcode says it
+   is unavailable for your team, replace it in the **Bundle Identifier** field with an identifier
+   unique to your developer account. This is a local Xcode setting unless you choose to commit the
+   project change.
+6. Choose the `SafariAIAgentHost-iOS` scheme and your connected device as the run destination.
+   Unlock the device and tap **Trust** if it asks whether to trust this Mac.
+7. Press **Run**. With automatic signing, Xcode registers the connected device and creates the
+   development provisioning profile. If Xcode presents a **Register** prompt, accept it.
+8. If the device asks for Developer Mode, enable it at **Settings → Privacy & Security → Developer
+   Mode**, restart, confirm the prompt after restart, and enter the device passcode.
 
 The iOS simulator build command above does not install on a physical device. A physical install
 needs Xcode development signing; there is currently no one-tap install link or signed pilot package.
 The app also has not passed a physical iPad gateway-flow check, so treat it as an evaluation build.
+These steps install the development build on your own registered device through Xcode. They do not
+publish the app to TestFlight or install it for another tester.
 
 ### Pair it with the gateway
 

@@ -4,8 +4,8 @@
 **Description:** Two Swift spikes for the in-app path (D-047). `LLMChatSpike` is a chat client for the framing that D-006 priced out — kept for reference, not extended. `WebViewSpike` is the live one: it answered D-052 (the web view's data store survives an app restart) and D-053 (passkeys do not work in a third-party `WKWebView`).
 **Author:** claude-chatspike (Claude Code, Opus 5)
 **Created:** 2026-10-14
-**Last Updated:** 2026-10-25
-**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-053)
+**Last Updated:** 2026-11-09
+**Last Updated By:** Codex (swift-alternate seat)
 
 ---
 
@@ -40,8 +40,14 @@ classification tier here.
 | `WKWebView` data store survives an app restart | **PROVEN on macOS — D-052.** Both halves: cookies before any navigation, zero after Clear data |
 | A **passkey** login works in the web view | **NO — D-053.** `NotAllowedError` in 12 ms, document focused; Chrome on the same Mac reports the authenticator available, so it is the web view, not the hardware |
 | A real **logged-in** session survives a restart | **not run.** Needs a *password* login. The decisive remaining test |
-| `src/core.js` runs in the web view | not attempted |
-| Runs on iPad | not attempted; macOS only so far |
+| `src/core.js` runs in the Swift package spike | not attempted |
+| The separate app bundles `src/core.js` in a named isolated world | bundle proven; execution not verified |
+| Physical iPad use | not attempted; the new iOS target has only launched in simulator |
+
+The separate [`app/browser-host`](../browser-host/README.md) Xcode project now has shared-source
+macOS and iOS app targets. It is a local browser/inspection foundation; gateway pairing and
+polling, physical-device behavior, and actual isolated-world inspection remain unverified. This
+does not change the status of these package spikes or turn the metered chat client into a product.
 
 ## Run it
 

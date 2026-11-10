@@ -1,0 +1,84 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		100000000000000000000001 /* SafariAIHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SafariAIHostApp.swift */; };
+		100000000000000000000002 /* BrowserHostModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* BrowserHostModel.swift */; };
+		100000000000000000000003 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
+		100000000000000000000004 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
+		100000000000000000000005 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
+		100000000000000000000006 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
+		100000000000000000000011 /* SafariAIHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SafariAIHostApp.swift */; };
+		100000000000000000000012 /* BrowserHostModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* BrowserHostModel.swift */; };
+		100000000000000000000013 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
+		100000000000000000000014 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
+		100000000000000000000015 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
+		100000000000000000000016 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		200000000000000000000001 /* SafariAIHostApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SafariAIHostApp.swift; sourceTree = "<group>"; };
+		200000000000000000000002 /* BrowserHostModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHostModel.swift; sourceTree = "<group>"; };
+		200000000000000000000003 /* BrowserHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHostView.swift; sourceTree = "<group>"; };
+		200000000000000000000004 /* core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ../../src/core.js; sourceTree = SOURCE_ROOT; };
+		200000000000000000000005 /* DeviceTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTokenStore.swift; sourceTree = "<group>"; };
+		200000000000000000000006 /* GatewayProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayProtocol.swift; sourceTree = "<group>"; };
+		200000000000000000000010 /* SafariAIAgentHost-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SafariAIAgentHost-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		200000000000000000000011 /* SafariAIAgentHost-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SafariAIAgentHost-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		300000000000000000000001 /* Frameworks macOS */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		300000000000000000000002 /* Frameworks iOS */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		400000000000000000000001 = {isa = PBXGroup; children = (400000000000000000000002 /* Sources */, 400000000000000000000003 /* Products */, 200000000000000000000004 /* core.js */, ); sourceTree = "<group>"; };
+		400000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (200000000000000000000001 /* SafariAIHostApp.swift */, 200000000000000000000002 /* BrowserHostModel.swift */, 200000000000000000000003 /* BrowserHostView.swift */, 200000000000000000000005 /* DeviceTokenStore.swift */, 200000000000000000000006 /* GatewayProtocol.swift */, ); path = Sources; sourceTree = "<group>"; };
+		400000000000000000000003 /* Products */ = {isa = PBXGroup; children = (200000000000000000000010 /* SafariAIAgentHost-macOS.app */, 200000000000000000000011 /* SafariAIAgentHost-iOS.app */, ); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		500000000000000000000001 /* SafariAIAgentHost-macOS */ = {isa = PBXNativeTarget; buildConfigurationList = 700000000000000000000002 /* Build configuration list for macOS target */; buildPhases = (600000000000000000000001 /* Sources macOS */, 300000000000000000000001 /* Frameworks macOS */, 600000000000000000000003 /* Resources macOS */, ); buildRules = (); dependencies = (); name = "SafariAIAgentHost-macOS"; productName = "SafariAIAgentHost-macOS"; productReference = 200000000000000000000010 /* SafariAIAgentHost-macOS.app */; productType = "com.apple.product-type.application"; };
+		500000000000000000000002 /* SafariAIAgentHost-iOS */ = {isa = PBXNativeTarget; buildConfigurationList = 700000000000000000000003 /* Build configuration list for iOS target */; buildPhases = (600000000000000000000002 /* Sources iOS */, 300000000000000000000002 /* Frameworks iOS */, 600000000000000000000004 /* Resources iOS */, ); buildRules = (); dependencies = (); name = "SafariAIAgentHost-iOS"; productName = "SafariAIAgentHost-iOS"; productReference = 200000000000000000000011 /* SafariAIAgentHost-iOS.app */; productType = "com.apple.product-type.application"; };
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		500000000000000000000003 /* Project object */ = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2710; LastUpgradeCheck = 2710; TargetAttributes = {500000000000000000000001 = {CreatedOnToolsVersion = 27.1; }; 500000000000000000000002 = {CreatedOnToolsVersion = 27.1; }; }; }; buildConfigurationList = 700000000000000000000001 /* Project configuration list */; compatibilityVersion = "Xcode 15.0"; developmentRegion = en; hasScannedForEncodings = 0; mainGroup = 400000000000000000000001; productRefGroup = 400000000000000000000003; projectDirPath = ""; projectRoot = ""; targets = (500000000000000000000001 /* SafariAIAgentHost-macOS */, 500000000000000000000002 /* SafariAIAgentHost-iOS */, ); };
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		600000000000000000000003 /* Resources macOS */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000004 /* core.js in Resources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000004 /* Resources iOS */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000014 /* core.js in Resources */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		600000000000000000000001 /* Sources macOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001 /* SafariAIHostApp.swift in Sources */, 100000000000000000000002 /* BrowserHostModel.swift in Sources */, 100000000000000000000003 /* BrowserHostView.swift in Sources */, 100000000000000000000005 /* DeviceTokenStore.swift in Sources */, 100000000000000000000006 /* GatewayProtocol.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000002 /* Sources iOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000011 /* SafariAIHostApp.swift in Sources */, 100000000000000000000012 /* BrowserHostModel.swift in Sources */, 100000000000000000000013 /* BrowserHostView.swift in Sources */, 100000000000000000000015 /* DeviceTokenStore.swift in Sources */, 100000000000000000000016 /* GatewayProtocol.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		800000000000000000000001 /* Project Debug */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SWIFT_VERSION = 6.0; }; name = Debug; };
+		800000000000000000000002 /* Project Release */ = {isa = XCBuildConfiguration; buildSettings = {CLANG_ENABLE_MODULES = YES; SWIFT_VERSION = 6.0; }; name = Release; };
+		800000000000000000000011 /* macOS Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Safari AI Agent"; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.searchingfool.safari-ai-agent.host; PRODUCT_NAME = "Safari AI Agent"; SDKROOT = macosx; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		800000000000000000000012 /* macOS Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Safari AI Agent"; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.searchingfool.safari-ai-agent.host; PRODUCT_NAME = "Safari AI Agent"; SDKROOT = macosx; SWIFT_STRICT_CONCURRENCY = complete; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+		800000000000000000000021 /* iOS Debug */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Safari AI Agent"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.searchingfool.safari-ai-agent.host; PRODUCT_NAME = "Safari AI Agent"; SDKROOT = iphoneos; SWIFT_STRICT_CONCURRENCY = complete; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Debug; };
+		800000000000000000000022 /* iOS Release */ = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGNING_ALLOWED = NO; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = "Safari AI Agent"; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = com.searchingfool.safari-ai-agent.host; PRODUCT_NAME = "Safari AI Agent"; SDKROOT = iphoneos; SWIFT_STRICT_CONCURRENCY = complete; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		700000000000000000000001 /* Project configuration list */ = {isa = XCConfigurationList; buildConfigurations = (800000000000000000000001 /* Project Debug */, 800000000000000000000002 /* Project Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		700000000000000000000002 /* macOS target configuration list */ = {isa = XCConfigurationList; buildConfigurations = (800000000000000000000011 /* macOS Debug */, 800000000000000000000012 /* macOS Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		700000000000000000000003 /* iOS target configuration list */ = {isa = XCConfigurationList; buildConfigurations = (800000000000000000000021 /* iOS Debug */, 800000000000000000000022 /* iOS Release */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+
+/* Begin PBXVariantGroup section */
+/* End PBXVariantGroup section */
+
+	};
+	rootObject = 500000000000000000000003 /* Project object */;
+}

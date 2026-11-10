@@ -9,6 +9,16 @@
 
 > **Ordering: newest first.** Every worker entry must include its occupant and assignment floor.
 
+## 2026-11-10 — safari-ai-agent-90e45e (Codex) — complete local simulator command flow passed
+
+**Floor:** `2026-11-09-swift-alternate-01`.
+**Commit:** `2ecfe1d test: complete Swift simulator approval flow`.
+**Delivered:** Fixed approval panel accessibility IDs so the Allow/Deny buttons retain their own identifiers. Changed fixture UI waits to async polling so XCTest does not block the main actor that sends gateway calls. Increased test command timeout, retained local Xcode result/log artifacts on test runs, added redacted fixture request/poll correlation, and fixed empty-filter argument handling in the shell runner. Reconciled README and design evidence.
+**Verified:** Full iPad Simulator UI suite passed 2/2: disconnected/local read-only inspection; and trusted HTTPS fixture pairing, Keychain token storage, remote inspect, approved fill plus verification, denied click, approved click plus verification, approved same-origin navigation plus verification, and confirmed gateway revocation on disconnect. Swift protocol package tests passed 6/6. iOS Simulator and macOS app builds succeeded. Fixture tokens/page were synthetic and local; no pilot gateway was contacted. The full Node and browser gates had passed earlier in this session; gateway core was not changed.
+**Human acceptance remaining:** Install with the developer signing account on an actual iPad; test the intended private/VPN route with one pilot user and their own gateway settings; exercise wrong token, gateway 409/allowlist refusal, policy change, cancellation, redirect, and app background/resume cases; review signing, provisioning, packaging, and distribution. Do not expose the gateway publicly. Passkey and Split View limits remain D-053 and D-029.
+**Simulator:** Existing operator iPad Pro simulator was preserved and updated with the latest passing build. It is open at the disconnected start screen; load a URL, then choose **Inspect locally** for local testing. No user credentials or pilot page were installed there.
+**Worktree:** User-owned Xcode team setting, workspace, and `xcuserdata` remain excluded from commits. No push performed.
+
 ## 2026-11-10 — safari-ai-agent-90e45e (Codex) — traced the missing approval to an unclaimed fill command
 
 **Floor:** `2026-11-09-swift-alternate-01`.

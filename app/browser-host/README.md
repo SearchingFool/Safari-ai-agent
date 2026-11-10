@@ -77,6 +77,47 @@ xcrun simctl launch 265F98BB-E868-4766-BC06-F4C7BEACD782 \
 The simulator launch proves app startup only. It does not establish remote bridge behavior, gateway
 reachability, approval handling, persistence for authenticated sessions, or physical device use.
 
+## Install from source
+
+This is a developer installation path, not a published app release. It requires a Mac with Xcode.
+The iOS target requires iOS 17 or later; the macOS target requires macOS 14 or later. The project
+does not provide a signed `.ipa`, notarized `.app`, TestFlight build, or App Store listing.
+
+### macOS
+
+1. Clone this repository on the Mac.
+2. Open `app/browser-host/SafariAIAgentHost.xcodeproj` in Xcode.
+3. Choose the `SafariAIAgentHost-macOS` scheme and **My Mac** as the run destination.
+4. Press **Run**. Xcode builds and launches the app from the checkout.
+
+The unsigned command-line build in the preceding section proves compilation only. For normal
+launching, run from Xcode or configure signing in Xcode; do not distribute that unsigned build as a
+release.
+
+### iPhone or iPad
+
+1. Clone this repository on a Mac with Xcode and connect the iPhone or iPad.
+2. Open `app/browser-host/SafariAIAgentHost.xcodeproj`.
+3. Choose the `SafariAIAgentHost-iOS` scheme and the connected device as the run destination.
+4. In **Signing & Capabilities**, select a development team and resolve any bundle-identifier
+   signing prompt Xcode presents.
+5. Press **Run** and install from Xcode.
+
+The iOS simulator build command above does not install on a physical device. A physical install
+needs Xcode development signing; there is currently no one-tap install link or signed pilot package.
+The app also has not passed a physical iPad gateway-flow check, so treat it as an evaluation build.
+
+### Pair it with the gateway
+
+The Swift app still needs the existing Claude custom connector and gateway. Start with the
+[gateway setup guide](../../docs/SETUP-GUIDE.md) to install and configure those components. Then
+open the Swift app, enter the gateway's HTTPS origin and the **device token** (not the separate MCP
+client token), and tap **Connect**. The gateway must be reachable from the device, and the exact
+page origin must be allowed by the gateway policy. The Mac/Tailscale controller remains the tested
+gateway setup; other tunnel configurations require manual setup and are untested. Follow the
+[remaining Swift acceptance steps](../../docs/SWIFT-APP-DESIGN.md#6-work-remaining-in-the-order-that-wastes-least)
+before using page-changing commands.
+
 ## Safety and product gaps
 
 To configure the experimental bridge, enter the gateway's HTTPS origin and the gateway's

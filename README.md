@@ -144,30 +144,38 @@ the supplied Start/Stop controller. Tunnel choice does not change the browser pe
 > alternative is also designed to use the existing gateway, so it does not currently remove this
 > requirement. See [the Swift path status](docs/SWIFT-APP-DESIGN.md).
 
-## Installing it — start here if you are new
+## Choose one browser app
 
-**For the tested path you need:** a **Mac** (macOS 12+, awake and online) · an **iPad** (iPadOS 15.1+) ·
-**[Tailscale](https://tailscale.com)** on the **Mac** (the iPad may use the public HTTPS route without joining the tailnet) ·
-a **Claude account** that supports custom connectors · **Node.js 22+** on the Mac for the documented
-pilot setup and quality-check gate ·
-about **30 minutes**.
+The product has two browser clients that use the same gateway. Choose **one** for a
+pilot session; do not connect both clients to the same gateway at the same time. The gateway
+currently has one active browser owner per site/session.
 
-The Tailscale setup is the only end-to-end documented host-and-tunnel procedure. The gateway
-could be hosted elsewhere, but the owner must provide a public HTTPS MCP endpoint and configure
-the host, credentials, origin policy and lifecycle themselves. VPNs that only connect private
-devices do not make the gateway reachable to Claude. See the setup guide's [untested tunnel
-options](docs/SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested) before choosing a different
-host or tunnel.
+| | Userscripts in Safari — recommended for the first pilot | Swift browser app — experimental |
+|---|---|---|
+| Browser | Your existing Safari tabs and logins | A separate `WKWebView` inside this app |
+| Install | Install Userscripts from the App Store, then install the versioned `.user.js` pilot artifact when published; none is published yet | Build from this repository with Xcode; separate macOS and iOS targets |
+| Requirements | Gateway host reachable by Claude over public HTTPS and by the iPad; Tailscale Funnel is the documented route; Claude custom connector; Node.js 22+ for the documented Mac setup | Same gateway and Claude connector; Xcode on a Mac; iOS 17+ or macOS 14+; Apple signing setup to run on a physical iPad |
+| Evidence | Existing physical iPad and gateway workflow evidence; Tailscale is the tested host route | Both targets compile and protocol tests pass, but gateway command flow and physical iPad use are unverified |
+| Instructions | [Userscripts pilot setup](docs/SETUP-GUIDE.md) | [Swift source build and install](app/browser-host/README.md#install-from-source) |
 
-**Read the risks above first**, then follow **[the setup guide](docs/SETUP-GUIDE.md)** — it is
-written step by step for non-technical users and names which device each step happens on. It
-starts by cloning this repo; you do not need anything from here first.
+**For the first pilot, use the Userscripts route.** The Swift app is available in the repository
+for evaluation, but it is not a validated pilot client and has no signed download or App Store
+release. Its installation requires Xcode and, for a physical iPad, development signing. Do not
+use it for pilot traffic until its gateway flow and physical-device acceptance checks pass.
 
-Roughly: **Mac** (get the code, start the gateway) → **Claude** (add a connector) →
-**iPad** (install the bridge, pair it).
+The tested gateway setup needs a **Mac** (macOS 12+, awake and online), an **iPad** (iPadOS 15.1+
+for Userscripts), [Tailscale](https://tailscale.com) on the **Mac**, a **Claude account** that
+supports custom connectors, and **Node.js 22+** on the Mac for the pilot setup and quality gate.
+The iPad can reach the public HTTPS gateway without joining the tailnet. Tailscale Funnel is the
+only end-to-end tested host-and-tunnel procedure. Other VPN/tunnel notes are explicitly
+[untested](docs/SETUP-GUIDE.md#other-vpn-and-tunnel-options-not-tested); private VPN connectivity
+alone does not make the gateway reachable to Claude.
 
-Once it is running, the gateway serves its own instructions at **`/help`** — open that on the
-iPad and follow along there. No password, and it contains no credentials.
+Read the risks above, then use the instructions for the client you chose. The
+[Userscripts setup guide](docs/SETUP-GUIDE.md) covers the Mac, Claude and iPad step by step. The
+[Swift guide](app/browser-host/README.md#install-from-source) covers Xcode builds and the extra
+signing step for iPad. Once the gateway is running, its `/help` page provides gateway instructions
+without credentials.
 
 ### Two ways to start it, once installed
 

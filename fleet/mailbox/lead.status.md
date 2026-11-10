@@ -14,6 +14,28 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-10 — safari-ai-agent-90e45e — integrated pilot path and both client choices
+
+**OCCUPANCY:** `safari-ai-agent-90e45e`, Codex, continuing the operator-assigned lead work.
+Fleet status showed no live lead or implementation occupant before integration.
+
+**Integrated:** fast-forwarded `docs/releasepath` into `main` at `461e896` and merged
+`feat/swiftalt` at `6672735`. The repo now contains both the Userscripts and Swift clients. Updated
+the root README to present them as user choices, linked a source-build/install guide for Swift,
+and clarified that the first pilot should use Userscripts. The Swift client remains experimental.
+
+**Verification:** `npm run check` passed (85 tests); `npm run test:browser` passed all workflows
+and approval-layout checks; `npm run diagnose` exited 0 and reported 1,020 historical events
+needing attention, chiefly 989 device-token mismatches, plus MCP protocol mismatches and three
+session conflicts. Swift protocol tests passed (6); unsigned macOS and iOS Simulator builds
+passed. These results do not exercise the Swift gateway/action flow or certify physical-device
+acceptance.
+
+**Next:** pilot publication is still pending. Checklist now limits onboarding to one user and one
+iPad, with Userscripts. A human must choose that pilot user, configure/review the gateway endpoint
+and credentials, publish the versioned artifact, and run the real iPad install/use/Stop/removal
+rehearsal. The ten-run reliability and independent security gates remain open.
+
 ## 2026-11-10 — safari-ai-agent-90e45e — Swift alternate advanced; validation boundary recorded
 
 **OCCUPANCY:** `safari-ai-agent-90e45e`, Codex session, continuing the lead assignment from

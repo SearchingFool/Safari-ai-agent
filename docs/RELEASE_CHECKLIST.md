@@ -1,6 +1,6 @@
 # B1–D release acceptance checklist
 
-**Status as of 2026-11-09: pilot release preparation, not product acceptance.** The Tailscale-based
+**Status as of 2026-11-10: one-user pilot preparation, not product acceptance.** The Tailscale-based
 self-hosted procedure is documented, and the latest tracker records real iPad workflow and
 approval evidence from 2026-11-05. The ten-run reliability protocol and independent security
 review remain open. Stop-while-queued and recovery evidence must also be reconciled against the
@@ -50,6 +50,9 @@ full-MVP acceptance gates below.
   can reach the same gateway URL. A private VPN alone does not satisfy the AI caller requirement.
 - [ ] Rehearse the documented install, first read-only use, update, Stop, and removal steps on the
   target iPad. Keep alternate tunnels marked untested until each exact configuration is verified.
+- [ ] Start with **one pilot user and one iPad**, using the Userscripts client and a versioned
+  artifact. Keep the Swift app out of pilot traffic until its gateway bridge and physical-device
+  acceptance steps are complete. Review the pilot evidence before inviting another user.
 - [ ] Give each pilot user unique credentials and an explicit support/contact route. Do not share
   device or MCP credentials between pilots.
 

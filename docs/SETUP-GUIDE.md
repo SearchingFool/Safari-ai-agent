@@ -1,17 +1,19 @@
 # Setup guide — step by step
 
 **File:** `docs/SETUP-GUIDE.md` (repo-relative — this repo is public)
-**Description:** Complete setup walkthrough for connecting Claude to Safari on an iPad, written for someone who does not write code. Covers the Mac side, the Claude side, the iPad side, and how to stop everything.
+**Description:** Complete setup walkthrough for connecting Claude to Safari on an iPad with the Userscripts bridge, written for someone who does not write code. Covers the Mac side, the Claude side, the iPad side, and how to stop everything.
 **Author:** Claude Code (Opus 5)
 **Created:** 2026-10-11
-**Last Updated:** 2026-11-09
-**Last Updated By:** Libor Ballaty, with Codex (implementation seat, `2026-11-09-pilot-release-01`)
+**Last Updated:** 2026-11-10
+**Last Updated By:** Codex (lead session)
 
 ---
 
 > **Not keeping this iPad?** If it is going to someone else, being sold or returned, read **[DEVICE-LIFECYCLE.md](DEVICE-LIFECYCLE.md)** before you start. The device token is a standing grant to drive a browser, it lives in extension storage rather than your Apple account, and **signing out of iCloud does not remove it.**
 >
 > **Read [the risks](../README.md#risks-you-must-understand-before-you-start) first.** This software lets an AI assistant click and type inside your web browser while you are logged in. That is genuinely useful and genuinely risky. Ten minutes of reading now is worth it.
+
+> **This guide installs the Userscripts client in Safari.** If you want the alternative Swift browser app, follow its [Xcode build and install guide](../app/browser-host/README.md#install-from-source) instead. Choose one client for your pilot session; the Swift app is still experimental and is not cleared for pilot use. Both clients use the same gateway.
 
 ## The three procedures in this guide
 

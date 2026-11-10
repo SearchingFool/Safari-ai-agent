@@ -23,7 +23,9 @@ let package = Package(
         .testTarget(
             name: "BrowserHostProtocolTests",
             dependencies: ["BrowserHostProtocol"],
-            path: "Tests"
+            path: "Tests",
+            exclude: ["SafariAIAgentHostUITests.swift", "GatewayHTTPSFixture.mjs", "GatewayHTTPSFixture.html", "run-gateway-bridge-test.sh"],
+            sources: ["GatewayProtocolTests.swift"]
         )
     ]
 )

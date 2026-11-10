@@ -4,10 +4,20 @@
 **Description:** Newest-first reports from the Swift alternate application workstream.
 **Author:** Codex (safari-ai-agent lead session, 2026-11-09)
 **Created:** 2026-11-09
-**Last Updated:** 2026-11-09
+**Last Updated:** 2026-11-10
 **Last Updated By:** Codex (safari-ai-agent lead session)
 
 > **Ordering: newest first.** Every worker entry must include its occupant and assignment floor.
+
+## 2026-11-10 — safari-ai-agent-90e45e (Codex) — autonomous Swift app completion and simulator bridge test
+
+**Floor:** `2026-11-09-swift-alternate-01`.
+**Commits:** `e550939 feat: present Swift approvals as native prompts`; `889ab39 test: add local Swift gateway bridge fixture`; earlier in this work `18d6c66 fix: scope browser host package tests to protocol suite`.
+**Reservations:** implementation/design token `53fa906964b147ce85b662cf1e1558ce` and fixture/README token `eeb88123edbe4c89bf0ed6bb16f48fb6` remain active while this status is finalized; release both after commit.
+**Delivered:** Added a disposable local HTTPS gateway and harmless page fixture that use test-only tokens, trust a temporary certificate only in a temporary simulator, build with simulator signing so Keychain works, and clean up their simulator and fixture process. Added accessibility identifiers and focus dismissal to the browser controls, made approval a native SwiftUI alert (rendered as a sheet by the iPad simulator), and improved status text for approval-pending/unavailable conditions. Updated the README and design record with measured behavior and setup.
+**Verified:** `npm run check` (85/85), `npm run test:browser` (all listed browser/gateway/approval layout checks), `npm run diagnose` (exit 0), Swift package tests (6/6), macOS Debug build, fixture `node --check` and runner `bash -n`. The isolated simulator connected over HTTPS, paired through Keychain, loaded its harmless page, exchanged gateway poll/result messages, and completed remote inspect. The native approval sheet appeared during fill. No test reached the allow/deny control: XCUITest's accessibility query did not reliably target the iPad system sheet and the gateway timed out safely; fill/click dispatch and disconnect are therefore NOT claimed as verified.
+**Still needed:** A stable UI automation path or a human simulator run to select Allow once and Deny, then verify fill, click, and disconnect; incorrect token and allowlist checks; physical iPad install/session lifecycle; signing/distribution and actual pilot route. No pilot endpoint or credential was used. Passkey and Split View limits remain D-053 and D-029.
+**Worktree:** User-owned `project.pbxproj` signing-team edit, Xcode workspace, and `xcuserdata` remain uncommitted and were excluded from these commits. No push performed.
 
 ## 2026-11-09 — safari-ai-agent-90e45e (Codex subagent) — inspect-only bridge attempt complete
 

@@ -434,6 +434,7 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
         }
         let action = envelope.action
         let commandOrigin = envelope.origin
+        bridgeStatus = "PROCESSING: Validating the remote browser command."
         guard isBridgeConnected, isBridgeVisible, currentOrigin == commandOrigin, webView.url != nil else {
             return PreparedGatewayCommand(result: ["success": false, "error": "Host became inactive before the command; no page data was read."], deferredAction: nil)
         }
@@ -465,13 +466,16 @@ final class BrowserHostModel: NSObject, ObservableObject, WKNavigationDelegate {
                 guard let prior = remoteSnapshot, try Self.snapshot(prior, containsRef: ref) else {
                     throw CommandError.inspectRequired
                 }
+                bridgeStatus = "PROCESSING: Refreshing the inspected field before approval."
                 let fresh = try await inspectRemotePage()
+                bridgeStatus = "PROCESSING: Checking the field and current site policy."
                 guard try Self.sameControl(prior, fresh, ref: ref) else { throw CommandError.targetChanged }
                 let verdict = try await coreCall("return JSON.stringify(core.decideFill(policy));", arguments: ["policy": currentPolicy])
                 guard let decision = verdict["decision"] as? String, ["allow", "prompt"].contains(decision) else {
                     throw CommandError.refused(verdict["reason"] as? String ?? "Fill is not permitted by site policy.")
                 }
                 if decision == "prompt" {
+                    bridgeStatus = "PROCESSING: Preparing the one-time field approval prompt."
                     let element = try Self.element(prior, ref: ref)
                     let label = element["label"] as? String ?? "Form field"
                     let approved = try await requestApproval(action: "fill field", target: "\(label)\nValue to fill: \(value)",

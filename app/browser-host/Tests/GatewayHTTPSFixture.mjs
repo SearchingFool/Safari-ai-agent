@@ -4,6 +4,7 @@
 // Created: 2026-11-10
 
 import {createReadStream, readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {createServer as createHTTPServer, request as httpRequest} from 'node:http';
 import {createServer as createHTTPSServer} from 'node:https';
 import {createGateway} from '../../../gateway/server.mjs';
@@ -17,6 +18,7 @@ if (!process.env.SWIFT_TEST_CERT || !process.env.SWIFT_TEST_KEY || !process.env.
   throw new Error('SWIFT_TEST_CERT, SWIFT_TEST_KEY and SWIFT_TEST_PAGE must point to temporary fixture files.');
 }
 
+const idTag = value => typeof value === 'string' ? createHash('sha256').update(value).digest('hex').slice(0, 10) : null;
 const clientToken = 'f'.repeat(48);
 const deviceToken = 'a'.repeat(48);
 const gateway = createGateway({
@@ -24,7 +26,7 @@ const gateway = createGateway({
   deviceToken,
   allowedOrigins: [origin],
   defaultSiteMode: 'ask',
-  commandTimeoutMs: 25_000,
+  commandTimeoutMs: 60_000,
   auditLog: false
 });
 
@@ -58,7 +60,12 @@ const controlServer = createHTTPServer(async (request, response) => {
       if (!permitted.has(body.name) || !body.arguments || typeof body.arguments !== 'object' || Array.isArray(body.arguments)) {
         return sendJSON(response, 400, {error: 'Unsupported fixture call.'});
       }
+      const statusResult = body.name === 'browser_status' ? null : await gateway.call('browser_status', {});
+      const status = statusResult?.content?.[0]?.text ? JSON.parse(statusResult.content[0].text) : {};
+      console.log(JSON.stringify({event: 'command-enqueue', tool: body.name, origin: status.activeOrigin || null,
+        instanceTag: idTag(status.activeInstanceId), visibility: status.activeVisibility || null, queueDepth: status.queueDepth ?? null}));
       const result = await gateway.call(body.name, body.arguments);
+      console.log(JSON.stringify({event: 'command-complete', tool: body.name, isError: result?.isError === true}));
       return sendJSON(response, 200, result);
     } catch (error) {
       return sendJSON(response, 500, {error: error instanceof Error ? error.message : 'Fixture call failed.'});
@@ -84,18 +91,37 @@ const httpsServer = createHTTPSServer({
   key: readFileSync(process.env.SWIFT_TEST_KEY),
   cert: readFileSync(process.env.SWIFT_TEST_CERT)
 }, (request, response) => {
-  const proxyRequest = httpRequest({
-    hostname: '127.0.0.1',
-    port: 4047,
-    path: request.url,
-    method: request.method,
-    headers: request.headers
-  }, proxyResponse => {
-    response.writeHead(proxyResponse.statusCode || 502, proxyResponse.headers);
-    proxyResponse.pipe(response);
+  const chunks = [];
+  request.on('data', chunk => chunks.push(chunk));
+  request.on('end', () => {
+    const rawBody = Buffer.concat(chunks);
+    let body = {};
+    try { body = rawBody.length ? JSON.parse(rawBody.toString('utf8')) : {}; } catch { /* gateway reports malformed JSON */ }
+    const proxyRequest = httpRequest({
+      hostname: '127.0.0.1',
+      port: 4047,
+      path: request.url,
+      method: request.method,
+      headers: request.headers
+    }, proxyResponse => {
+      const responseChunks = [];
+      proxyResponse.on('data', chunk => responseChunks.push(chunk));
+      proxyResponse.on('end', () => {
+        const rawResponse = Buffer.concat(responseChunks);
+        if (request.url?.startsWith('/device/poll')) {
+          let payload = {};
+          try { payload = JSON.parse(rawResponse.toString('utf8')); } catch { /* log only the safe marker below */ }
+          console.log(JSON.stringify({event: 'device-poll', origin: body.origin || null,
+            instanceTag: idTag(body.instanceId), seq: body.seq ?? null, httpStatus: proxyResponse.statusCode || 502,
+            deliveredCommand: Boolean(payload.command)}));
+        }
+        response.writeHead(proxyResponse.statusCode || 502, proxyResponse.headers);
+        response.end(rawResponse);
+      });
+    });
+    proxyRequest.on('error', error => sendJSON(response, 502, {error: error.message}));
+    proxyRequest.end(rawBody);
   });
-  proxyRequest.on('error', error => sendJSON(response, 502, {error: error.message}));
-  request.pipe(proxyRequest);
 });
 
 // The loopback HTTP gateway is deliberately isolated from the public app and

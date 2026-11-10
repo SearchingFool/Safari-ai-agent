@@ -37,11 +37,15 @@ cleanup() {
     xcrun simctl shutdown "$simulator_id" >/dev/null 2>&1 || true
     xcrun simctl delete "$simulator_id" >/dev/null 2>&1 || true
   fi
-  rm -f "$fixture_dir/server.log"
   rm -f "$fixture_dir/root.crt"
   rm -f "$fixture_dir/server.key"
   rm -f "$fixture_dir/device-id"
-  rmdir "$fixture_dir" >/dev/null 2>&1 || true
+  if [[ -d "$fixture_dir/TestResults.xcresult" ]]; then
+    echo "Retained Swift fixture logs and test result: $fixture_dir" >&2
+  else
+    rm -f "$fixture_dir/server.log"
+    rmdir "$fixture_dir" >/dev/null 2>&1 || true
+  fi
 }
 trap cleanup EXIT
 
@@ -77,14 +81,15 @@ curl --silent --fail --insecure "$SWIFT_TEST_GATEWAY_ORIGIN/health" >/dev/null |
 }
 
 cd "$repo_root"
-test_filter=()
-if [[ -n "${SWIFT_TEST_ONLY:-}" ]]; then
-  test_filter=(-only-testing:"$SWIFT_TEST_ONLY")
-fi
-xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj \
-  -scheme SafariAIAgentHost-iOS \
-  -destination "platform=iOS Simulator,id=$simulator_id" \
-  -derivedDataPath "$fixture_dir/DerivedData" \
-  "${test_filter[@]}" \
-  -resultBundlePath "$fixture_dir/TestResults.xcresult" \
+test_args=(
+  -project app/browser-host/SafariAIAgentHost.xcodeproj
+  -scheme SafariAIAgentHost-iOS
+  -destination "platform=iOS Simulator,id=$simulator_id"
+  -derivedDataPath "$fixture_dir/DerivedData"
+  -resultBundlePath "$fixture_dir/TestResults.xcresult"
   CODE_SIGN_IDENTITY=- test
+)
+if [[ -n "${SWIFT_TEST_ONLY:-}" ]]; then
+  test_args+=("-only-testing:$SWIFT_TEST_ONLY")
+fi
+xcodebuild "${test_args[@]}"

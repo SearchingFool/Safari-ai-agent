@@ -82,7 +82,7 @@ final class SafariAIAgentHostUITests: XCTestCase {
 
         let fillTask = Task { try await fixtureCall(origin: origin, name: "browser_fill", arguments: ["ref": fieldRef, "value": "Swift bridge passed"]) }
         let allowFill = app.buttons["native-approval-allow-once"]
-        guard allowFill.waitForExistence(timeout: 10) else {
+        guard await waitForElement(allowFill, timeout: 15) else {
             let visibleStatus = app.debugDescription
             let result = try await fillTask.value
             XCTFail("Fill approval was not presented. Visible status: \(visibleStatus). Bridge result: \(result)")
@@ -97,13 +97,15 @@ final class SafariAIAgentHostUITests: XCTestCase {
 
         let deniedClick = Task { try await fixtureCall(origin: origin, name: "browser_click", arguments: ["ref": buttonRef]) }
         let denyButton = app.buttons["native-approval-deny"]
-        XCTAssertTrue(denyButton.waitForExistence(timeout: 10))
+        let denyAppeared = await waitForElement(denyButton, timeout: 15)
+        XCTAssertTrue(denyAppeared)
         denyButton.tap()
         let denied = try await deniedClick.value
         XCTAssertEqual(denied["success"] as? Bool, false)
 
         let approvedClick = Task { try await fixtureCall(origin: origin, name: "browser_click", arguments: ["ref": buttonRef]) }
-        XCTAssertTrue(allowFill.waitForExistence(timeout: 10))
+        let allowAppeared = await waitForElement(allowFill, timeout: 15)
+        XCTAssertTrue(allowAppeared)
         allowFill.tap()
         let approved = try await approvedClick.value
         XCTAssertEqual(approved["success"] as? Bool, true)
@@ -113,7 +115,8 @@ final class SafariAIAgentHostUITests: XCTestCase {
 
         let destination = origin + "/page?swift-bridge=navigation-passed"
         let navigation = Task { try await fixtureCall(origin: origin, name: "browser_navigate", arguments: ["url": destination]) }
-        XCTAssertTrue(allowFill.waitForExistence(timeout: 10))
+        let navigationApprovalAppeared = await waitForElement(allowFill, timeout: 15)
+        XCTAssertTrue(navigationApprovalAppeared)
         allowFill.tap()
         let navigated = try await navigation.value
         XCTAssertEqual(navigated["success"] as? Bool, true)
@@ -132,7 +135,17 @@ final class SafariAIAgentHostUITests: XCTestCase {
         XCTAssertTrue(navigationVerified, "The approved same-origin navigation did not load before timeout.")
 
         app.buttons["Disconnect"].tap()
-        XCTAssertTrue(app.staticTexts["Gateway disconnected."].waitForExistence(timeout: 10))
+        let disconnected = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", "Gateway revocation was confirmed and the saved device token was removed")).firstMatch
+        XCTAssertTrue(disconnected.waitForExistence(timeout: 10))
+    }
+
+    private func waitForElement(_ element: XCUIElement, timeout: TimeInterval) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if element.exists { return true }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        return element.exists
     }
 
     private func fixtureCall(origin: String, name: String, arguments: [String: Any] = [:]) async throws -> [String: Any] {

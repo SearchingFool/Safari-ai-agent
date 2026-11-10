@@ -17,7 +17,6 @@ struct BrowserHostView: View {
             gatewayBar
             if let approval = browser.pendingApproval {
                 approvalPrompt(approval)
-                    .accessibilityIdentifier("native-approval-prompt")
             }
             browserBar
             HStack(spacing: 8) {
@@ -65,6 +64,7 @@ struct BrowserHostView: View {
         VStack(alignment: .leading, spacing: 14) {
             Label("Review page change", systemImage: "hand.raised.fill")
                 .font(.headline)
+                .accessibilityIdentifier("native-approval-prompt")
             Text("Approve \(approval.action)?")
                 .font(.title3.weight(.semibold))
             VStack(alignment: .leading, spacing: 6) {

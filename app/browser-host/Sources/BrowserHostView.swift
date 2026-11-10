@@ -10,12 +10,15 @@ struct BrowserHostView: View {
     @ObservedObject var browser: BrowserHostModel
     @State private var showInspector = false
     @State private var confirmClearData = false
-    @State private var showApprovalAlert = false
     @FocusState private var focusedInput: BrowserHostInputField?
 
     var body: some View {
         VStack(spacing: 0) {
             gatewayBar
+            if let approval = browser.pendingApproval {
+                approvalPrompt(approval)
+                    .accessibilityIdentifier("native-approval-prompt")
+            }
             browserBar
             HStack(spacing: 8) {
                 Button("Inspect locally") {
@@ -39,16 +42,6 @@ struct BrowserHostView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(isPresented: $showInspector) { inspector }
-        .alert(approvalTitle, isPresented: $showApprovalAlert) {
-            Button("Deny", role: .cancel) { browser.resolveApproval(false) }
-                .accessibilityIdentifier("native-approval-deny")
-            Button("Allow once") { browser.resolveApproval(true) }
-                .accessibilityIdentifier("native-approval-allow-once")
-        } message: {
-            if let approval = browser.pendingApproval {
-                Text("\(approval.target)\n\(approval.origin) · \(approval.tier.uppercased()) · \(approval.category)\n\(approval.reasons.joined(separator: " "))\nThis approval applies once and expires automatically.")
-            }
-        }
         .confirmationDialog("Clear stored data for this website?", isPresented: $confirmClearData) {
             Button("Clear site data", role: .destructive) { browser.clearCurrentSiteData() }
             Button("Cancel", role: .cancel) {}
@@ -57,7 +50,6 @@ struct BrowserHostView: View {
         }
         .onChange(of: showInspector) { _, _ in syncOverlayState() }
         .onChange(of: confirmClearData) { _, _ in syncOverlayState() }
-        .onChange(of: browser.pendingApproval?.id) { _, id in showApprovalAlert = id != nil }
         .background {
             BrowserWindowVisibilityProbe { browser.setWindowVisible($0) }
                 .frame(width: 0, height: 0)
@@ -69,8 +61,37 @@ struct BrowserHostView: View {
         browser.setContentObscured(showInspector || confirmClearData)
     }
 
-    private var approvalTitle: String {
-        browser.pendingApproval.map { "Approve \($0.action)?" } ?? "Approval required"
+    private func approvalPrompt(_ approval: BrowserHostApproval) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label("Review page change", systemImage: "hand.raised.fill")
+                .font(.headline)
+            Text("Approve \(approval.action)?")
+                .font(.title3.weight(.semibold))
+            VStack(alignment: .leading, spacing: 6) {
+                Text(approval.target).font(.body.weight(.medium))
+                Text("\(approval.origin) · \(approval.tier.uppercased()) · \(approval.category)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(approval.reasons.joined(separator: " "))
+                    .font(.callout)
+                Text("This approval applies once and expires automatically.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                Button("Deny", role: .cancel) { browser.resolveApproval(false) }
+                    .accessibilityIdentifier("native-approval-deny")
+                Spacer()
+                Button("Allow once") { browser.resolveApproval(true) }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("native-approval-allow-once")
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: 560, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
     }
 
     private var gatewayBar: some View {

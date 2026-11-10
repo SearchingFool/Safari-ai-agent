@@ -54,7 +54,7 @@ const controlServer = createHTTPServer(async (request, response) => {
   if (url.pathname === '/__fixture/call' && request.method === 'POST') {
     try {
       const body = await readJSON(request);
-      const permitted = new Set(['browser_inspect', 'browser_verify', 'browser_fill', 'browser_click']);
+      const permitted = new Set(['browser_inspect', 'browser_verify', 'browser_fill', 'browser_click', 'browser_navigate']);
       if (!permitted.has(body.name) || !body.arguments || typeof body.arguments !== 'object' || Array.isArray(body.arguments)) {
         return sendJSON(response, 400, {error: 'Unsupported fixture call.'});
       }

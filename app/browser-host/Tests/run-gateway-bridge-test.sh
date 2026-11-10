@@ -81,9 +81,10 @@ test_filter=()
 if [[ -n "${SWIFT_TEST_ONLY:-}" ]]; then
   test_filter=(-only-testing:"$SWIFT_TEST_ONLY")
 fi
-xcodebuild -quiet -project app/browser-host/SafariAIAgentHost.xcodeproj \
+xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj \
   -scheme SafariAIAgentHost-iOS \
   -destination "platform=iOS Simulator,id=$simulator_id" \
   -derivedDataPath "$fixture_dir/DerivedData" \
   "${test_filter[@]}" \
+  -resultBundlePath "$fixture_dir/TestResults.xcresult" \
   CODE_SIGN_IDENTITY=- test

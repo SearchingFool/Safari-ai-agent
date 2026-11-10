@@ -70,7 +70,7 @@ final class SafariAIAgentHostUITests: XCTestCase {
         app.buttons["Connect"].tap()
         let connected = app.staticTexts.containing(NSPredicate(format: "label CONTAINS[c] %@", "Connected to https://127.0.0.1:")).firstMatch
         guard connected.waitForExistence(timeout: 15) else {
-            let visibleStatus = app.staticTexts.allElementsBoundByIndex.compactMap { $0.label.isEmpty ? nil : $0.label }
+            let visibleStatus = app.debugDescription
             XCTFail("Swift app did not connect to the local gateway. Visible status: \(visibleStatus)")
             return
         }
@@ -81,14 +81,13 @@ final class SafariAIAgentHostUITests: XCTestCase {
         let buttonRef = try XCTUnwrap(elements.first(where: { $0["label"] as? String == "Mark complete" })?["ref"] as? String)
 
         let fillTask = Task { try await fixtureCall(origin: origin, name: "browser_fill", arguments: ["ref": fieldRef, "value": "Swift bridge passed"]) }
-        let fillPrompt = app.alerts["Approve fill field?"]
-        guard fillPrompt.waitForExistence(timeout: 10) else {
+        let allowFill = app.buttons["native-approval-allow-once"]
+        guard allowFill.waitForExistence(timeout: 10) else {
+            let visibleStatus = app.debugDescription
             let result = try await fillTask.value
-            XCTFail("Fill approval was not presented. Bridge result: \(result)")
+            XCTFail("Fill approval was not presented. Visible status: \(visibleStatus). Bridge result: \(result)")
             return
         }
-        let allowFill = fillPrompt.buttons.matching(identifier: "native-approval-allow-once").firstMatch
-        XCTAssertTrue(allowFill.waitForExistence(timeout: 5))
         allowFill.tap()
         let fill = try await fillTask.value
         XCTAssertEqual(fill["success"] as? Bool, true)
@@ -97,25 +96,40 @@ final class SafariAIAgentHostUITests: XCTestCase {
         XCTAssertEqual(filled["success"] as? Bool, true)
 
         let deniedClick = Task { try await fixtureCall(origin: origin, name: "browser_click", arguments: ["ref": buttonRef]) }
-        let denyPrompt = app.alerts["Approve click?"]
-        XCTAssertTrue(denyPrompt.waitForExistence(timeout: 10))
-        let denyClick = denyPrompt.buttons.matching(identifier: "native-approval-deny").firstMatch
-        XCTAssertTrue(denyClick.waitForExistence(timeout: 10))
-        denyClick.tap()
+        let denyButton = app.buttons["native-approval-deny"]
+        XCTAssertTrue(denyButton.waitForExistence(timeout: 10))
+        denyButton.tap()
         let denied = try await deniedClick.value
         XCTAssertEqual(denied["success"] as? Bool, false)
 
         let approvedClick = Task { try await fixtureCall(origin: origin, name: "browser_click", arguments: ["ref": buttonRef]) }
-        let allowPrompt = app.alerts["Approve click?"]
-        XCTAssertTrue(allowPrompt.waitForExistence(timeout: 10))
-        let allowClick = allowPrompt.buttons.matching(identifier: "native-approval-allow-once").firstMatch
-        XCTAssertTrue(allowClick.waitForExistence(timeout: 10))
-        allowClick.tap()
+        XCTAssertTrue(allowFill.waitForExistence(timeout: 10))
+        allowFill.tap()
         let approved = try await approvedClick.value
         XCTAssertEqual(approved["success"] as? Bool, true)
 
         let clicked = try await fixtureCall(origin: origin, name: "browser_verify", arguments: ["textIncludes": "Status: CLICKED"])
         XCTAssertEqual(clicked["success"] as? Bool, true)
+
+        let destination = origin + "/page?swift-bridge=navigation-passed"
+        let navigation = Task { try await fixtureCall(origin: origin, name: "browser_navigate", arguments: ["url": destination]) }
+        XCTAssertTrue(allowFill.waitForExistence(timeout: 10))
+        allowFill.tap()
+        let navigated = try await navigation.value
+        XCTAssertEqual(navigated["success"] as? Bool, true)
+        XCTAssertEqual(navigated["dispatched"] as? Bool, true)
+
+        let verificationDeadline = Date().addingTimeInterval(15)
+        var navigationVerified = false
+        while Date() < verificationDeadline {
+            let result = try await fixtureCall(origin: origin, name: "browser_verify", arguments: ["urlIncludes": "swift-bridge=navigation-passed"])
+            if result["success"] as? Bool == true {
+                navigationVerified = true
+                break
+            }
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        XCTAssertTrue(navigationVerified, "The approved same-origin navigation did not load before timeout.")
 
         app.buttons["Disconnect"].tap()
         XCTAssertTrue(app.staticTexts["Gateway disconnected."].waitForExistence(timeout: 10))

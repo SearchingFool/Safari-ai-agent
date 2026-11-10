@@ -14,6 +14,24 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-10 — safari-ai-agent-90e45e — Swift alternate advanced; validation boundary recorded
+
+**OCCUPANCY:** `safari-ai-agent-90e45e`, Codex session, continuing the lead assignment from
+2026-11-09. **Floor:** the assignment entry immediately below. Fleet status showed no live
+implementation or lead peer before work resumed.
+
+**In-flight:** the Swift app now handles the five shared page commands, applies per-origin policy,
+uses a native one-time approval overlay, and checks arguments/expiry/origin locally. macOS fixture
+inspection has runtime evidence; current macOS and iOS Simulator builds pass; six Swift protocol
+tests, `npm run check` (85 tests), `npm run test:browser`, and `npm run diagnose` pass. The current
+simulator build was installed and launched. The Swift gateway exchange, remote approvals/actions,
+physical iPad, signing, and pilot acceptance remain unverified. Changes are uncommitted in the
+`feat/swiftalt` worktree per the Swift seat assignment; do not treat these as ready for pilot use.
+
+**Operator decisions still open:** weigh the same-process gate in the app, passkey incompatibility
+(D-053), and whether the Swift host complements or replaces Userscripts. Ten-run physical iPad
+reliability remains open. No gateway exposure or credentials were changed.
+
 ## 2026-11-09 — safari-ai-agent-90e45e — release and Swift workstreams assigned
 
 **OCCUPANCY:** `safari-ai-agent-90e45e`, Codex session, assigned the `lead` seat by the

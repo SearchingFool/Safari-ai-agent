@@ -16,12 +16,13 @@ pivot (D-047). A separate shared-source Xcode app project builds for macOS and i
 has loaded the local fixture and run the shared engine in its named isolated world; the iPad
 simulator app has been installed and launched. The app now implements the same five page commands
 as the Userscripts bridge—inspect, verify, fill, click, and same-origin navigate—with shared core
-policy checks and native one-time approvals where policy requires them. The iOS simulator has
-completed a local HTTPS gateway connection, Keychain pairing, page load, and remote inspect/result
-exchange. The native approval prompt appears, but XCUITest has not reliably selected the iPad's
-system-presented sheet buttons, so fill/click approval and dispatch are not yet runtime-verified.
-Protocol unit tests and both platform builds pass. A physical iPad run has not occurred. Passkey
-login remains unavailable in third-party WKWebView (D-053); no decision to migrate has been taken.
+policy checks and one-time approvals where policy requires them. The iOS simulator has completed
+a local HTTPS gateway connection, Keychain pairing, page load, and remote inspect/result exchange.
+The approval UI is implemented in the app, but the latest XCUITest run could not observe its
+controls while a command was waiting for a decision. The fixture safely expired the pending fill;
+fill/click/navigation dispatch and approval decisions are not runtime-verified. Protocol unit tests
+and both platform builds pass. A physical iPad run has not occurred. Passkey login remains
+unavailable in third-party WKWebView (D-053); no decision to migrate has been taken.
 
 ## 2. The two framings, and why only one is viable
 
@@ -112,8 +113,8 @@ now the deciding factor if the sites that matter use passkeys.
 | `src/core.js` is bundled unchanged | **proven 2026-11-10** — SHA-256 matches in both current app bundles |
 | Pairing UI, Keychain token storage, HTTPS poll/result transport | **runtime-verified in iOS Simulator against an isolated local HTTPS fixture** — fixture-only token and page |
 | Remote inspect and result exchange | **runtime-verified in iOS Simulator** — snapshot returned for the fixture page |
-| Native approval prompt | **runtime-verified as presented** — XCUITest sees the native iPad sheet, but cannot reliably target its controls yet |
-| Fill/click/navigation dispatch, approval allow/deny and expiry | **not runtime-verified** — automated approval action times out |
+| Native approval UI | **implemented but not runtime-verified** — XCUITest cannot observe the app's approval controls while a command is waiting |
+| Fill/click/navigation dispatch, approval allow/deny and expiry | **not runtime-verified** — the fixture fill safely expires without a decision |
 | Inspect, verify, fill, click, same-origin navigate use the shared engine and command policies | **implemented and code-reviewed** — no bridge runtime test |
 | A local macOS fixture page runs core inspection in the named world | **runtime-verified** — snapshot shown in the app; no field value exposed |
 | Per-command argument validation and expiry/origin checks | **proven by six Swift protocol unit tests** — does not verify model dispatch |
@@ -126,26 +127,26 @@ now the deciding factor if the sites that matter use passkeys.
 The new app lives in `app/browser-host/`. The engine is registered in a named `WKContentWorld`,
 never in the page's JavaScript world. Local Inspect keeps its snapshot in the app. Gateway setup
 stores its device token in Keychain and polls only while the app and browser window are visible.
-Remote actions are constrained by the shared core and the gateway's per-origin policy; required
-approvals appear in a native SwiftUI alert (presented as a sheet on the tested iPad simulator) and
-expire before the command deadline. The prompt appeared in the fixture run, but automation did not
-choose either response, so action dispatch remains unproven. Click and
+Remote actions are constrained by the shared core and the gateway's per-origin policy. The app
+contains an inline SwiftUI approval panel, but the current iPad simulator test does not observe its
+controls while a command waits for a decision; the fixture therefore expires the fill without
+dispatch. Approval allow/deny and all page-changing action dispatch remain unverified. Click and
 navigation are submitted to `/device/result` before dispatch and are reported as dispatched, not
 verified. Fill follows the existing Userscripts contract and updates the page before result
 submission. The app does not implement `browser_status` as a device command: that tool is fulfilled
-inside the gateway. Gateway auth, reachability, delivery, result binding, approval, lifecycle,
-cancellation, and redirection remain untested. A gateway inspection sends page-derived text to the
-model caller, so it is not private local-only inspection.
+inside the gateway. Local-fixture pairing, TLS, polling, result binding, and remote inspect passed;
+pilot routing, approval, lifecycle, cancellation, and redirection remain untested. A gateway
+inspection sends page-derived text to the model caller, so it is not private local-only inspection.
 
 ### Current comparison with the Userscripts path
 
 | Area | Userscripts-based product | Swift browser host | Evidence difference |
 |---|---|---|---|
 | Browser surface | Runs in Safari through Userscripts | Hosts its own `WKWebView`; it does not control Safari tabs | Swift UI/build verified; cross-app integration is not intended |
-| Page engine | Shared `src/core.js` | Same shared engine, bundled unchanged in a named isolated world | macOS fixture inspection runtime-verified; iOS injection not run |
+| Page engine | Shared `src/core.js` | Same shared engine, bundled unchanged in a named isolated world | macOS and iOS fixture inspection runtime-verified |
 | Page commands | Inspect, verify, fill, click, same-origin navigation | Same five commands now implemented | Userscripts gateway/browser path has integration evidence; Swift handlers have only compile and protocol-test evidence |
-| Permission policy | Gateway origin policy plus the shared core and Userscripts approval UI | Gateway origin policy plus the shared core and a native one-time approval overlay | Swift approval and dispatch have not been exercised against a gateway |
-| Model and control plane | Existing MCP gateway connects to the client | Same MCP gateway; Claude remains the model client | Swift URLSession transport is compile-only so far |
+| Permission policy | Gateway origin policy plus the shared core and Userscripts approval UI | Gateway origin policy plus the shared core and an app-owned one-time approval panel | Swift approval and dispatch have not passed the fixture test |
+| Model and control plane | Existing MCP gateway connects to the client | Same MCP gateway; Claude remains the model client | Local fixture pairing, polling, result exchange, and remote inspect passed; pilot route remains untested |
 | Authentication | Safari's browser authentication capabilities | Third-party `WKWebView` cannot perform the measured passkey ceremony (D-053) | Swift path is limited to sites with another login route or an existing session |
 | iPad lifecycle | Safari tab must remain visible; Split View is an accepted limit (D-029) | Host app must remain visible; Split View and suspension limits remain | No physical iPad acceptance for Swift |
 | Distribution | Userscripts setup plus gateway reachability instructions | Signed/installable macOS and iOS app still needs packaging, provisioning, and user setup | Swift targets currently have unsigned simulator/macOS Debug build evidence only |

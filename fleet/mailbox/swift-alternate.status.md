@@ -9,6 +9,17 @@
 
 > **Ordering: newest first.** Every worker entry must include its occupant and assignment floor.
 
+## 2026-11-10 — safari-ai-agent-90e45e (Codex) — approval-flow diagnosis and simulator handoff
+
+**Floor:** `2026-11-09-swift-alternate-01`.
+**Reservations:** approval-flow token `48095d6af3de4b67beb264469f669eae`; test-runner diagnostics token `28f5fca7218c48c38eb24cc4e5113084`. Release both after commits.
+**Commit:** `0726276 test: expose Swift approval bridge diagnostics`.
+**Changed:** Simplified the approval panel to render directly from the model's published pending-approval state; made the gateway UI test print full accessibility hierarchy on failure and made the runner emit Xcode test diagnostics with an `.xcresult` bundle. Reconciled the README and design record with what the fixture measured.
+**Measured:** `swift test --package-path app/browser-host` passed 6/6 protocol tests. macOS Debug build succeeded using `/tmp/SafariAIAgent-macOS-final`. Three iPad simulator fixture attempts passed HTTPS pairing, Keychain token storage, page load, gateway polling/result, and remote inspection. The latest failure hierarchy shows the app connected on the fixture page but with no approval controls in its accessibility tree. The queued fill timed out at the gateway; no fill/click/navigation was dispatched. The attempt did not reach those follow-up checks. Existing full Node and browser suites passed earlier in this session (85/85 and all browser tests); no gateway core changes were made.
+**Still needed:** Fix why `pendingApproval` does not render during the pending fill and get the fixture test to pass allow/deny, fill/click/navigation, and disconnect. Then run actual iPad acceptance, wrong-token/allowlist and lifecycle cases, pilot route, signing, and distribution. Do not use the Swift path for pilot actions until the fixture approval path passes. No pilot endpoint or credential was used.
+**Simulator:** The operator's existing iPad Pro 13-inch M5 simulator was not deleted or reset. It remains booted; install/launch the latest build before handoff and leave it on the browser page.
+**Worktree:** User-owned Xcode project team setting, workspace, and `xcuserdata` remain excluded from commits. No push performed.
+
 ## 2026-11-10 — safari-ai-agent-90e45e (Codex) — autonomous Swift app completion and simulator bridge test
 
 **Floor:** `2026-11-09-swift-alternate-01`.

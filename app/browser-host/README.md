@@ -1,8 +1,10 @@
 # Safari AI Agent browser host
 
-**Status:** buildable shared-source macOS and iOS browser host with an unverified gateway bridge.
-The shared engine, native one-time approvals, and the five page command handlers are implemented;
-the bridge has not been exercised end to end, so this is not yet a validated alternate product.
+**Status:** buildable shared-source macOS and iOS browser host with partial local-fixture bridge
+verification. Simulator tests have verified HTTPS pairing, Keychain token storage, page load,
+poll/result exchange, and remote inspection. The five page command handlers are implemented, but
+approval UI and page-changing actions have not passed end-to-end verification. This is not ready
+for pilot use.
 
 The Claude app remains the model client, the existing gateway remains the control plane, and this
 app hosts the `WKWebView`. It can be configured with an HTTPS gateway origin and device token,
@@ -38,12 +40,13 @@ or require model API credentials.
 - App and window visibility state pauses polling, sends a best-effort hidden-state update, and
   resumes polling when visible again.
 
-This remains an unvalidated alternate path. macOS local inspection has run against the repository's
-fixture page; it showed the shared engine's control snapshot in the app and did not reveal a field
-value. The simulator app was installed and launched. Neither platform has completed a gateway
-exchange or remote approval/action run. Wrong tokens, gateway 409s, accepted or rejected results,
-cross-origin redirects, app suspension during a claimed command, and physical iPad visibility
-remain untested.
+macOS local inspection has run against the repository's fixture page; it showed the shared engine's
+control snapshot in the app and did not reveal a field value. The iOS simulator completed a
+gateway exchange and remote inspection against the isolated HTTPS fixture. A fill command times out without dispatch while the current simulator automation cannot find the
+approval controls in the app.s accessibility tree. Fill,
+click, navigation dispatch, and disconnect/revocation therefore remain unverified. Wrong-token
+handling, gateway 409s, cross-origin redirects, app suspension during a claimed command, physical
+iPad visibility, and authenticated session persistence also remain untested.
 
 ## Build for both targets
 
@@ -73,9 +76,11 @@ xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
-The UI test checks the disconnected gateway state, disabled pairing and inspection controls before
-navigation, then loads the sample page and verifies the local-only inspector shows its title and
-privacy note. It does not pair with a gateway or exercise remote actions.
+The UI suite checks the disconnected state and local-only inspection. Its gateway fixture test also
+loads a harmless local page, pairs using a synthetic token, verifies remote inspection, and attempts
+approved fill, denied click, approved click, same-origin navigation, and disconnect. In the current
+run the approval controls are not exposed to XCUITest, so the pending fill safely expires and later
+actions do not run. The test never uses pilot credentials or page content.
 
 To launch in the iPad simulator (replace the destination UUID if needed):
 
@@ -101,15 +106,17 @@ certificate afterward. The test uses fixture tokens and a harmless local page; i
 the pilot gateway or use its credentials. Build products and the `.xcresult` stay in the generated
 temporary directory under `/tmp` for inspection.
 
-The current simulator run verifies TLS trust, Keychain pairing, page load, HTTPS gateway
-authentication, poll/result exchange, and remote inspect against the harmless local fixture. It
-also presents the native approval sheet. **The run currently exits with a UI-test failure because
-XCUITest does not reliably target the sheet's allow/deny controls; fill/click results and
-disconnect/revocation have not passed this fixture test yet.** This does not contact the pilot
-gateway or use its credentials. Manual confirmation of allow and deny remains part of the test.
-It does not cover a physical iPad, passkeys, real VPN reachability, long suspension, or production
-signing. Set `SWIFT_TEST_RUNTIME_ID` and `SWIFT_TEST_DEVICE_TYPE` if your installed iOS simulator
-runtime or iPad type differs from this Mac's defaults. Set `SWIFT_TEST_ONLY=SafariAIAgentHostUITests/SafariAIAgentHostUITests/testGatewayInspectionFillAndNativeApproval`
+The latest simulator run verifies TLS trust, Keychain pairing, page load, HTTPS gateway
+authentication, poll/result exchange, and remote inspection against the harmless local fixture.
+It then queues a fill that requires local approval. **XCUITest does not observe the app's approval
+controls before the command expires**, and the gateway returns a safe denial/expiry result; fill,
+click, navigation, and disconnect/revocation are not yet passed end to end. This does not contact
+the pilot gateway or use its credentials. The source test is the next repeatable acceptance attempt
+after the approval UI issue is fixed; a manual simulator session can separately confirm the prompt.
+The fixture does not cover a physical iPad, passkeys, real VPN reachability, long suspension, or
+production signing. Set `SWIFT_TEST_RUNTIME_ID` and `SWIFT_TEST_DEVICE_TYPE` if your installed iOS
+simulator runtime or iPad type differs from this Mac's defaults. Set
+`SWIFT_TEST_ONLY=SafariAIAgentHostUITests/SafariAIAgentHostUITests/testGatewayInspectionFillAndNativeApproval`
 to rerun only the remote bridge flow while iterating; omit it to run the complete UI suite.
 
 ## Install from source
@@ -187,9 +194,10 @@ current device session and removes the saved token.
   and app-suspension races need a gateway fixture before the bridge can be called validated.
 - `browser_status` is fulfilled at the gateway/MCP layer and is not sent to the device. The app
   shows its own pairing, connection, active/paused, and error state.
-- Current bridge evidence is protocol unit tests plus successful builds. These do not exercise
-  URLSession, Keychain, WKContentWorld dispatch, native approval decisions, gateway result binding,
-  or lifecycle races. Those need a local HTTPS gateway fixture and then a physical iPad run before
+- Current bridge evidence includes simulator URLSession/TLS authentication, Keychain pairing,
+  WKContentWorld remote inspection, and gateway result binding against a local fixture. Approval
+  decisions, page-changing dispatch, cancellation, and lifecycle races are not yet verified. Repeat
+  the fixture test after the approval UI issue is fixed, then run physical iPad acceptance before
   calling the alternate path validated.
 - Do not expose the gateway publicly to make the app connect. Its address may be private and
   reachable through a VPN or tunnel; the app needs operator instructions for gateway reachability.

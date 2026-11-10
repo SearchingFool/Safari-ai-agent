@@ -1,11 +1,12 @@
 # Safari AI Agent browser host
 
-**Status:** buildable shared-source macOS and iOS app foundation with an unverified, inspect-only
-gateway bridge. This is not yet a validated alternate product.
+**Status:** buildable shared-source macOS and iOS browser host with an unverified gateway bridge.
+The shared engine, native one-time approvals, and the five page command handlers are implemented;
+the bridge has not been exercised end to end, so this is not yet a validated alternate product.
 
 The Claude app remains the model client, the existing gateway remains the control plane, and this
 app hosts the `WKWebView`. It can be configured with an HTTPS gateway origin and device token,
-which it stores in Keychain. While the app scene is active and a page is loaded, it polls the
+which it stores in Keychain. While the app scene and browser window are visible and a page is loaded, it polls the
 existing `/device/poll` endpoint and returns results to `/device/result`. It does not call a model
 or require model API credentials.
 
@@ -19,23 +20,30 @@ or require model API credentials.
   app UI.
 - Gateway pairing with an HTTPS-origin field and a 24+ character device token stored in Keychain.
 - Active-scene polling with a persisted per-install instance ID and monotonic sequence counter.
-  The poll response's policy cannot widen the app's forced read-only/no-field-values inspection.
+  Every poll refreshes the gateway's per-origin policy and malformed policy falls back to read-only.
 - Polling also pauses and reports hidden while an app inspector sheet or clear-data confirmation
   covers the web view; it resumes after the overlay closes.
-- Hard dispatch allowlist for `browser_inspect`; every other delivered action receives an
-  explicit unsupported-action failure without touching the page. `browser_status` is a gateway
-  MCP-side status tool, not an action delivered through the device poll endpoint.
+- Dispatch allowlist for `browser_inspect`, `browser_verify`, `browser_fill`, `browser_click`, and
+  same-origin `browser_navigate`. These use the shared core's inspect, fill, classification, and
+  policy methods. Consequential actions use a native one-time approval; hard-ceiling controls and
+  cross-origin destinations remain refused. `browser_status` is a gateway MCP-side status tool,
+  not an action delivered through the device poll endpoint.
+- Local per-action argument validation, inspected-reference checks, refreshed control snapshots,
+  command expiry checks, post-ack click/navigation revalidation, and a short-lived same-origin
+  guard around remote page changes. Fill approval displays the value being entered; that value is
+  not written to the app's status or diagnostics.
 - Best-effort hidden notification on scene deactivation, explicit disconnect revocation, and
   same-origin-only HTTPS redirect handling for authenticated gateway requests.
 - Site-data clearing scoped to the current host's matching WebKit data records.
-- App lifecycle state pauses polling, sends a best-effort hidden-state update, and resumes polling
-  when active again.
+- App and window visibility state pauses polling, sends a best-effort hidden-state update, and
+  resumes polling when visible again.
 
-This remains unvalidated architecture groundwork. The bridge has compiled but has not been run
-against a gateway. Its behavior has not been tested for wrong tokens, gateway 409s, accepted or
-rejected results, cross-origin redirects, app suspension during a claimed command, or physical
-device visibility. The engine injection has not yet been exercised against a loaded page in either
-platform.
+This remains an unvalidated alternate path. macOS local inspection has run against the repository's
+fixture page; it showed the shared engine's control snapshot in the app and did not reveal a field
+value. The simulator app was installed and launched. Neither platform has completed a gateway
+exchange or remote approval/action run. Wrong tokens, gateway 409s, accepted or rejected results,
+cross-origin redirects, app suspension during a claimed command, and physical iPad visibility
+remain untested.
 
 ## Build for both targets
 
@@ -66,8 +74,8 @@ xcrun simctl launch 265F98BB-E868-4766-BC06-F4C7BEACD782 \
   com.searchingfool.safari-ai-agent.host
 ```
 
-The checked simulator launch opened the app but did not load a page. It therefore proves app
-startup only, not WebKit navigation, core injection, inspect output, persistence, or device use.
+The simulator launch proves app startup only. It does not establish remote bridge behavior, gateway
+reachability, approval handling, persistence for authenticated sessions, or physical device use.
 
 ## Safety and product gaps
 
@@ -86,13 +94,14 @@ current device session and removes the saved token.
   therefore makes it available to the model caller. Treat page content as untrusted. The local
   Inspect button still keeps its snapshot in app UI only.
 - The gateway's `/device/poll` claims queued commands; it is not a harmless status query. The app
-  dispatches only `browser_inspect`; it reports an explicit error for every other action and does
-  not have code paths for fill, click, submit, or remote navigation.
+  handles only the five listed page actions. It does not implement `browser_cancel`; cancellation
+  and app-suspension races need a gateway fixture before the bridge can be called validated.
 - `browser_status` is fulfilled at the gateway/MCP layer and is not sent to the device. The app
   shows its own pairing, connection, active/paused, and error state.
-- The bridge has only compile evidence so far. A protocol test must cover auth failure, allowlist
-  rejection, poll claim/result binding, unsupported actions, stale sequence behavior, redirects,
-  and lifecycle races before calling it validated.
+- Current bridge evidence is protocol unit tests plus successful builds. These do not exercise
+  URLSession, Keychain, WKContentWorld dispatch, native approval decisions, gateway result binding,
+  or lifecycle races. Those need a local HTTPS gateway fixture and then a physical iPad run before
+  calling the alternate path validated.
 - Do not expose the gateway publicly to make the app connect. Its address may be private and
   reachable through a VPN or tunnel; the app needs operator instructions for gateway reachability.
 - Third-party `WKWebView` passkey authentication is measured unavailable (D-053). The design is
@@ -101,7 +110,8 @@ current device session and removes the saved token.
 - iOS may suspend a backgrounded app. iPad Split View remains the operating limit (D-029); app
   lifecycle reporting is not a way around it.
 - No physical iPad run or signing/provisioning was attempted. Simulator success is not device
-  acceptance. Do not use the bridge until a gateway protocol test and device acceptance run pass.
+  acceptance. Do not use the bridge for pilot traffic until a gateway protocol test and device
+  acceptance run pass.
 
 See [`docs/SWIFT-APP-DESIGN.md`](../../docs/SWIFT-APP-DESIGN.md) for the product framing, decision
 questions, existing evidence, and ordered acceptance work.

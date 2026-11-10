@@ -11,11 +11,13 @@
 		100000000000000000000003 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
 		100000000000000000000004 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
 		100000000000000000000005 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
+		100000000000000000000006 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
 		100000000000000000000011 /* SafariAIHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SafariAIHostApp.swift */; };
 		100000000000000000000012 /* BrowserHostModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* BrowserHostModel.swift */; };
 		100000000000000000000013 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
 		100000000000000000000014 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
 		100000000000000000000015 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
+		100000000000000000000016 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -24,6 +26,7 @@
 		200000000000000000000003 /* BrowserHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHostView.swift; sourceTree = "<group>"; };
 		200000000000000000000004 /* core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ../../src/core.js; sourceTree = SOURCE_ROOT; };
 		200000000000000000000005 /* DeviceTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTokenStore.swift; sourceTree = "<group>"; };
+		200000000000000000000006 /* GatewayProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayProtocol.swift; sourceTree = "<group>"; };
 		200000000000000000000010 /* SafariAIAgentHost-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SafariAIAgentHost-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000011 /* SafariAIAgentHost-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "SafariAIAgentHost-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -35,7 +38,7 @@
 
 /* Begin PBXGroup section */
 		400000000000000000000001 = {isa = PBXGroup; children = (400000000000000000000002 /* Sources */, 400000000000000000000003 /* Products */, 200000000000000000000004 /* core.js */, ); sourceTree = "<group>"; };
-		400000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (200000000000000000000001 /* SafariAIHostApp.swift */, 200000000000000000000002 /* BrowserHostModel.swift */, 200000000000000000000003 /* BrowserHostView.swift */, 200000000000000000000005 /* DeviceTokenStore.swift */, ); path = Sources; sourceTree = "<group>"; };
+		400000000000000000000002 /* Sources */ = {isa = PBXGroup; children = (200000000000000000000001 /* SafariAIHostApp.swift */, 200000000000000000000002 /* BrowserHostModel.swift */, 200000000000000000000003 /* BrowserHostView.swift */, 200000000000000000000005 /* DeviceTokenStore.swift */, 200000000000000000000006 /* GatewayProtocol.swift */, ); path = Sources; sourceTree = "<group>"; };
 		400000000000000000000003 /* Products */ = {isa = PBXGroup; children = (200000000000000000000010 /* SafariAIAgentHost-macOS.app */, 200000000000000000000011 /* SafariAIAgentHost-iOS.app */, ); name = Products; sourceTree = "<group>"; };
 /* End PBXGroup section */
 
@@ -54,8 +57,8 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		600000000000000000000001 /* Sources macOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001 /* SafariAIHostApp.swift in Sources */, 100000000000000000000002 /* BrowserHostModel.swift in Sources */, 100000000000000000000003 /* BrowserHostView.swift in Sources */, 100000000000000000000005 /* DeviceTokenStore.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
-		600000000000000000000002 /* Sources iOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000011 /* SafariAIHostApp.swift in Sources */, 100000000000000000000012 /* BrowserHostModel.swift in Sources */, 100000000000000000000013 /* BrowserHostView.swift in Sources */, 100000000000000000000015 /* DeviceTokenStore.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000001 /* Sources macOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000001 /* SafariAIHostApp.swift in Sources */, 100000000000000000000002 /* BrowserHostModel.swift in Sources */, 100000000000000000000003 /* BrowserHostView.swift in Sources */, 100000000000000000000005 /* DeviceTokenStore.swift in Sources */, 100000000000000000000006 /* GatewayProtocol.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
+		600000000000000000000002 /* Sources iOS */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (100000000000000000000011 /* SafariAIHostApp.swift in Sources */, 100000000000000000000012 /* BrowserHostModel.swift in Sources */, 100000000000000000000013 /* BrowserHostView.swift in Sources */, 100000000000000000000015 /* DeviceTokenStore.swift in Sources */, 100000000000000000000016 /* GatewayProtocol.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */

@@ -4,20 +4,22 @@
 **Description:** What the Swift app is for, which of its two possible framings is the viable one and why, what has been proven versus assumed, the three hard constraints that bound it, and the work remaining in the order that wastes least. Written so the next person does not have to re-derive any of it from decision records.
 **Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047/D-052/D-053)
 **Created:** 2026-10-25
-**Last Updated:** 2026-11-09
-**Last Updated By:** Codex (swift-alternate seat)
+**Last Updated:** 2026-11-10
+**Last Updated By:** Codex (safari-ai-agent lead session)
 
 ---
 
 ## 1. Status in one paragraph
 
 An **alternative** to the gateway + Userscripts path, not a replacement for it and not a decided
-pivot (D-047). A separate shared-source Xcode app project builds for macOS and iOS and has launched
-in an iPad simulator. It provides ordinary HTTP(S) browsing, named isolated-world engine
-injection, local inspection, and an unverified gateway bridge limited to read-only
-`browser_inspect`. The simulator launch did not load a page or contact a gateway, so neither
-inspection nor bridge behavior is runtime-verified. No physical iPad run has occurred. Passkey
-login remains unavailable in third-party WKWebView (D-053); no decision to migrate has been taken.
+pivot (D-047). A separate shared-source Xcode app project builds for macOS and iOS. The macOS app
+has loaded the local fixture and run the shared engine in its named isolated world; the iPad
+simulator app has been installed and launched. The app now implements the same five page commands
+as the Userscripts bridge—inspect, verify, fill, click, and same-origin navigate—with shared core
+policy checks and native one-time approvals where policy requires them. Protocol unit tests and
+both platform builds pass. No end-to-end gateway exchange, remote action/approval runtime, or
+physical iPad run has occurred. Passkey login remains unavailable in third-party WKWebView (D-053);
+no decision to migrate has been taken.
 
 ## 2. The two framings, and why only one is viable
 
@@ -103,26 +105,47 @@ now the deciding factor if the sites that matter use passkeys.
 | It can call the model | **never run.** Blocked by D-006 billing |
 | `WKWebView` keeps a session across an app restart | **proven on macOS** (D-052), both halves: cookies survived a relaunch, and stopped surviving after Clear data |
 | A **logged-in** session survives | **not run.** D-052 used ordinary browsing cookies, not an authenticated session |
-| Xcode app targets build for macOS and iOS Simulator | **proven 2026-11-09** — unsigned Debug builds |
-| iOS app opens | **proven in iPad simulator 2026-11-09** — app launched; no page loaded |
-| `src/core.js` is bundled unchanged | **proven 2026-11-09** — SHA-256 matches in both app bundles |
-| Pairing UI, Keychain token storage, HTTPS poll/result transport and inspect-only dispatch compile | **proven by Xcode build** — no gateway exchange exercised |
-| Non-`browser_inspect` device actions are refused without page dispatch | **code-reviewed; no bridge runtime test** |
+| Xcode app targets build for macOS and iOS Simulator | **proven 2026-11-10** — unsigned Debug builds |
+| iOS app opens | **proven in iPad simulator 2026-11-10** — current build installed and launched; no page loaded |
+| `src/core.js` is bundled unchanged | **proven 2026-11-10** — SHA-256 matches in both current app bundles |
+| Pairing UI, Keychain token storage, HTTPS poll/result transport and five command handlers compile | **proven by Xcode builds** — no gateway exchange exercised |
+| Inspect, verify, fill, click, same-origin navigate use the shared engine and command policies | **implemented and code-reviewed** — no bridge runtime test |
+| A local macOS fixture page runs core inspection in the named world | **runtime-verified** — snapshot shown in the app; no field value exposed |
+| Per-command argument validation and expiry/origin checks | **proven by six Swift protocol unit tests** — does not verify model dispatch |
+| Native approval, refusal, timeout, and post-ack action dispatch | **implemented; no runtime verification** |
 | An in-app web view can authenticate to a **passkey** site | **NO — measured on macOS** (D-053), with Chrome on the same Mac as the control |
 | An in-app web view can authenticate to a **password** site | **not run.** Nothing measured blocks it; that is not the same as proven |
-| Inspect call runs the engine in the named isolated content world | **not runtime-verified** |
-| Gateway token, poll, command result, active/hidden lifecycle | **not runtime-verified** |
+| Gateway token, poll, command result, remote approval/action, active/hidden lifecycle | **not runtime-verified** |
 | Physical iPad install/use | **not attempted** |
 
 The new app lives in `app/browser-host/`. The engine is registered in a named `WKContentWorld`,
 never in the page's JavaScript world. Local Inspect keeps its snapshot in the app. Gateway setup
-stores its device token in Keychain and polls only while the app scene is active. Remote dispatch
-is allowlisted to `browser_inspect` with read-only/no-field-values policy; other delivered actions
-get an explicit failure result. The app does not implement `browser_status` as a device command:
-that tool is fulfilled inside the gateway. Gateway poll/result behavior has only compile evidence;
-no auth, reachability, delivery, result, lifecycle, or redirection exchange has been tested. A
-gateway inspection sends page-derived text to the model caller, so it is not private local-only
-inspection. The app still lacks fill/click/submit/navigation paths and on-device approval.
+stores its device token in Keychain and polls only while the app and browser window are visible.
+Remote actions are constrained by the shared core and the gateway's per-origin policy; required
+approvals appear in a native app overlay and expire before the command deadline. Click and
+navigation are submitted to `/device/result` before dispatch and are reported as dispatched, not
+verified. Fill follows the existing Userscripts contract and updates the page before result
+submission. The app does not implement `browser_status` as a device command: that tool is fulfilled
+inside the gateway. Gateway auth, reachability, delivery, result binding, approval, lifecycle,
+cancellation, and redirection remain untested. A gateway inspection sends page-derived text to the
+model caller, so it is not private local-only inspection.
+
+### Current comparison with the Userscripts path
+
+| Area | Userscripts-based product | Swift browser host | Evidence difference |
+|---|---|---|---|
+| Browser surface | Runs in Safari through Userscripts | Hosts its own `WKWebView`; it does not control Safari tabs | Swift UI/build verified; cross-app integration is not intended |
+| Page engine | Shared `src/core.js` | Same shared engine, bundled unchanged in a named isolated world | macOS fixture inspection runtime-verified; iOS injection not run |
+| Page commands | Inspect, verify, fill, click, same-origin navigation | Same five commands now implemented | Userscripts gateway/browser path has integration evidence; Swift handlers have only compile and protocol-test evidence |
+| Permission policy | Gateway origin policy plus the shared core and Userscripts approval UI | Gateway origin policy plus the shared core and a native one-time approval overlay | Swift approval and dispatch have not been exercised against a gateway |
+| Model and control plane | Existing MCP gateway connects to the client | Same MCP gateway; Claude remains the model client | Swift URLSession transport is compile-only so far |
+| Authentication | Safari's browser authentication capabilities | Third-party `WKWebView` cannot perform the measured passkey ceremony (D-053) | Swift path is limited to sites with another login route or an existing session |
+| iPad lifecycle | Safari tab must remain visible; Split View is an accepted limit (D-029) | Host app must remain visible; Split View and suspension limits remain | No physical iPad acceptance for Swift |
+| Distribution | Userscripts setup plus gateway reachability instructions | Signed/installable macOS and iOS app still needs packaging, provisioning, and user setup | Swift targets currently have unsigned simulator/macOS Debug build evidence only |
+
+This is capability parity at the command surface, not verification parity. Do not substitute the
+Swift implementation for the Userscripts pilot path until the local HTTPS gateway fixture and
+physical iPad acceptance steps below pass.
 
 ## 6. Work remaining, in the order that wastes least
 
@@ -135,23 +158,17 @@ Ordered so that each step can kill the path before the next one costs anything.
    decisive one rather than a formality.
 2. **Stage B — a real logged-in session across a restart.** Free. Needs a *password* login. D-052
    proved the store persists; this proves a *session* does, which is not the same claim.
-3. **Exercise `src/core.js` in the host.** The code now bundles the engine unchanged in a named
-   isolated content world, and adds local read-only Inspect. Load public and local fixture pages
-   on both platforms; prove snapshot results, navigation transitions, and errors. Current
-   evidence is build plus app launch only.
-4. **Run on an actual iPad.** Check browsing, password-authenticated session persistence across
-   restart, clearing site data, lifecycle pause/resume, and Split View behavior. A simulator build
-   is not device acceptance; provisioning and installation were not attempted.
-5. **Validate the read-only device bridge** against a local gateway fixture and both app targets:
-   correct/incorrect token, origin allowlist rejection, `/device/poll` claims, exact
-   `{origin,instanceId}` result binding, stale monotonic sequence, result rejection, unsupported
-   actions, same-origin redirect behavior, and background/resume races. Do not widen gateway
-   exposure. `browser_status` remains a gateway/MCP status operation; the app displays its own
-   paired, connected, paused, and error state.
-6. **Run bridge and core acceptance on a physical iPad** over the intended private/VPN route.
-   Verify Split View and suspension, which remain operating limits (D-029).
-7. **Resolve the independent-gate and consent boundary** (§3) before implementing or shipping
-   page-changing actions. None are implemented in the current app.
+3. **Run the host-side command path against a local HTTPS gateway fixture.** Cover correct and
+   incorrect tokens, allowlist refusal, poll/result binding, policy changes, native approval,
+   approval expiry/denial, fill/click/navigation dispatch, cancellation, redirects, and app
+   backgrounding. The protocol package tests argument validation only; they do not exercise the
+   app model or transport.
+4. **Run the current app on an actual iPad.** Check browsing, password-authenticated session
+   persistence across restart, clearing site data, lifecycle pause/resume, and Split View behavior.
+   A simulator build is not device acceptance; provisioning and installation were not attempted.
+5. **Decide the independent-gate and consent boundary** (§3) before using page-changing actions
+   with a pilot or shipping the alternate path. The native app has a one-time approval UI, but it
+   places the gate in the same process as the browser and has no separate gateway confirmation.
 
 **Do not** buy API credits for any of this. Framing B never calls the model.
 
@@ -174,9 +191,9 @@ Ordered so that each step can kill the path before the next one costs anything.
   unattended and prints the result to stderr instead of opening an idle window — so the finding
   is a command anyone can re-run, not a report of what somebody saw on screen.
 - `app/browser-host/SafariAIAgentHost.xcodeproj` — shared-source macOS and iOS app targets. See
-  [`app/browser-host/README.md`](../app/browser-host/README.md) for build and simulator commands,
-  the inspect-only bridge, and exact evidence limits. It does not change the Swift package or
-  gateway exposure.
+  [`app/browser-host/README.md`](../app/browser-host/README.md) for the implemented command path,
+  setup boundary, current evidence, and remaining acceptance work. It does not change gateway
+  exposure.
 - Build artefacts live in gitignored `.build/`, including two generated `.app` bundles.
 
 **Related:** D-006, D-014, D-029, D-041, D-042, D-047, D-052, D-053 in `docs/DECISIONS.md`;

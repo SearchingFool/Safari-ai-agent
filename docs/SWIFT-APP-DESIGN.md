@@ -66,7 +66,10 @@ inference guide](https://developers.openai.com/siwc/token-sharing-open-source/mo
 - First registration sends `dynamic_agent_client` and saves the returned issued `client_id`; later
   sign-ins reuse it. The app does not contain a hard-coded client ID or client secret.
 - Each attempt uses PKCE S256, a fresh state and nonce, and a stable installation host ID. It
-  starts an HTTP loopback listener bound to 127.0.0.1 and uses the exact `/auth/callback` redirect.
+  starts an HTTP listener on the loopback interface with local-only access, installs the connection
+  handler before starting the listener, and uses the exact `http://127.0.0.1:<port>/auth/callback`
+  redirect. Incoming peers must be loopback addresses, and the request's Host header must match
+  the issued IPv4 callback port.
 - The callback state is checked. The app exchanges the code with the token endpoint, checks the
   granted identity and plan scopes, and validates the ID-token signature, issuer, audience,
   authorized party when present, expiry, nonce, and subject using the discovery JWKS.
@@ -80,8 +83,10 @@ inference guide](https://developers.openai.com/siwc/token-sharing-open-source/mo
   sets `store:false` and `stream:true`; the app waits for `response.completed` and fails closed on
   `response.failed`, `response.incomplete`, malformed function calls, or an incomplete stream.
 
-The external system browser is used for OAuth. The callback listener code is implemented and
-typechecked, but the iOS behavior when Safari opens and backgrounds the host app has **not** been
+The external system browser is used for OAuth. Swift package tests verify that the listener reaches
+ready state and issues a loopback callback URL, and that the peer policy rejects non-loopback hosts.
+These tests run on macOS; the iOS UI suite does not tap the sign-in button. The full iOS external-
+browser callback, including returning to the app while Safari is foregrounded, has **not** been
 runtime-validated. No custom redirect URI has been substituted for the documented loopback URI.
 Real-account authorization, refresh rotation, revocation, and Responses inference also remain
 unverified.

@@ -14,6 +14,19 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-11 — safari-ai-agent-90e45e — ChatGPT loopback listener failure diagnosed and fixed
+
+The simulator's Network.framework log showed the listener was started before its new-connection
+handler was installed, so listener creation failed with `NWError 22` before the system sign-in
+page could open. Moved handler installation before `start()`, kept the listener local-only on the
+loopback interface, and retained the loopback-peer/Host checks. Added a real listener-startup test
+and endpoint-policy tests; all four Swift package tests pass.
+
+**Verification:** macOS target build passes; iOS simulator UI tests pass 2/2; repo `npm run check`
+passes (85 tests); `npm run test:browser` passes; `npm run diagnose` exits 0. The full iOS
+external-browser OAuth and callback still need a simulator tap and a human ChatGPT sign-in. No
+credentials or verification code has been entered. No push.
+
 ## 2026-11-11 — safari-ai-agent-90e45e — fresh simulator install and UI run
 
 Rebuilt the integrated iOS target from `main`, installed it on the booted iPad Pro 13-inch (M5)

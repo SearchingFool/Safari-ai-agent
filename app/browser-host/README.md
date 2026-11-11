@@ -15,11 +15,13 @@ separate gateway. Sign in uses the documented Sign in with ChatGPT flow; inferen
 selected account's visible model list and the public Responses API with `store:false` and
 `stream:true`.
 
-The current branch has compile and local test evidence, but it is **not a pilot or release build**.
-The ChatGPT OAuth loopback callback has not been exercised through the full external-browser flow
-on iOS Simulator or a real account. Responses inference and native approvals have not been tested
-with an authenticated ChatGPT account. Signing, distribution, and physical-device acceptance are
-also outstanding. Codex app-server is not bundled or available in this build; see below.
+The current branch has compile and local test evidence, including a test that starts the real
+loopback listener and checks the callback address and peer-address policy. Those listener tests run
+on macOS. The iOS simulator UI suite does not tap the sign-in button, so the full external-browser
+OAuth flow remains unverified on iOS Simulator and with a real account. Responses inference and
+native approvals have not been tested with an authenticated ChatGPT account. Signing,
+distribution, and physical-device acceptance are also outstanding. Codex app-server is not bundled
+or available in this build; see below.
 
 ## What is implemented
 
@@ -73,9 +75,10 @@ xcodebuild -project app/browser-host/SafariAIAgentHost.xcodeproj -scheme SafariA
 swift test --package-path app/browser-host --scratch-path /tmp/safari-ai-agent-swift-tests
 ```
 
-These commands build unsigned simulator/macOS products and run local SIWC client-registration
-tests. They do not use ChatGPT credentials or establish successful OAuth, inference, signing, or
-device installation.
+These commands build unsigned simulator/macOS products and run local SIWC client-registration,
+loopback-listener-startup, and non-loopback-peer rejection tests. They do not use ChatGPT
+credentials or establish successful external-browser OAuth, inference, signing, or physical-device
+installation.
 
 The UI test target currently checks app startup, local browser navigation, local inspection, and
 that no remote-gateway pairing controls appear. It does not log into ChatGPT or call Responses.

@@ -1,207 +1,161 @@
-# Swift app — design, constraints and what remains
+# Swift app — self-contained browser agent
 
 **File:** `docs/SWIFT-APP-DESIGN.md` (repo-relative — this repo is public)
-**Description:** What the Swift app is for, which of its two possible framings is the viable one and why, what has been proven versus assumed, the three hard constraints that bound it, and the work remaining in the order that wastes least. Written so the next person does not have to re-derive any of it from decision records.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047/D-052/D-053)
-**Created:** 2026-10-25
-**Last Updated:** 2026-11-10
-**Last Updated By:** Codex (safari-ai-agent lead session)
+**Description:** Current Swift product contract, implementation evidence, safety boundaries, and the remaining acceptance work.
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-90e45e, 2026-11-11)
+**Created:** 2026-11-11
+**Last Updated:** 2026-11-11
+**Last Updated By:** Codex (safari-ai-agent-90e45e)
 
----
+## Current product direction
 
-## 1. Status in one paragraph
+The Swift app is being developed as a **self-contained browser agent for macOS and iOS**. It owns
+the browser session, in-process browser tool router, native action approvals, ChatGPT sign-in, and
+model requests. The ChatGPT plan is the inference client. The product does not depend on the Claude
+app, a separate Mac gateway, VPN endpoint, or API billing key. Claude API billing remains deferred.
 
-An **alternative** to the gateway + Userscripts path, not a replacement for it and not a decided
-pivot (D-047). A separate shared-source Xcode app project builds for macOS and iOS. The macOS app
-has loaded the local fixture and run the shared engine in its named isolated world; the iPad
-simulator app has been installed and launched. The app now implements the same five page commands
-as the Userscripts bridge—inspect, verify, fill, click, and same-origin navigate—with shared core
-policy checks and one-time approvals where policy requires them. The full iOS simulator fixture now
-passes local HTTPS pairing, Keychain storage, page load, remote inspection, approval allow/deny,
-fill, click, same-origin navigation, and confirmed disconnect/revocation. The UI test needed async
-polling so its fixture calls could run concurrently, and the approval panel had to keep button IDs
-separate from its heading ID. Protocol unit tests and both platform builds pass. A physical iPad run
-has not occurred. Passkey login remains unavailable in third-party WKWebView (D-053); no decision
-to migrate has been taken.
+This direction supersedes the previous Claude-app-plus-gateway browser-host design. The earlier
+gateway bridge and its remote polling protocol were removed from the active app and the native app
+test fixtures. The existing repository gateway still serves the Userscripts product; it is not in
+the Swift app's request path.
 
-## 2. The two framings, and why only one is viable
+The app has macOS and iOS Xcode targets. Both targets now compile against the shared browser and
+ChatGPT code. The work remains an evaluation implementation: OAuth has not been completed with a
+real account, direct Responses inference has not been exercised, and no physical-device or signed
+release acceptance has occurred.
 
-This is the single most important thing on the page, because the project spent a day describing
-the wrong one.
+## Architecture and data flow
 
-| | **A — the app holds the conversation** | **B — the app is a browser host** |
-|---|---|---|
-| Who calls the model | our Swift code | **the Claude app** |
-| Who pays | **metered API credits** | **the subscription** |
-| What it replaces | Claude app + gateway + Safari | **Safari + Userscripts only** |
-| Status | **not viable as a default** | **the design** |
-
-**Framing A is priced out by D-006**, which was settled empirically, not argued: with a valid
-OAuth token, `GET /v1/models` returned 200 while `POST /v1/messages` returned 400 *"credit balance
-too low"*. **Authentication works; inference is unfunded.** A Claude subscription does not pay for
-direct Messages API calls, under any auth method.
-
-**The rule that generalises** — and the reason B works: *the subscription pays when **their** app
-is the client calling **your** server; **your** code calling **their** model is metered.*
-
-So the app should be a **browser host**:
-
-```
-Claude app (subscription) → Anthropic → Mac gateway → the Swift app's WKWebView
+```text
+SwiftUI app (macOS or iOS)
+  ├─ WKWebView + named isolated WKContentWorld
+  ├─ local tool router + per-action native approval
+  ├─ SIWC credentials in Keychain
+  └─ ChatGPT plan OAuth access token
+       ├─ GET /v1/models (visible model catalog)
+       └─ POST /v1/responses (store:false, stream:true)
 ```
 
-## 3. What this buys — and what it does not
+The router implements `browser_inspect`, `browser_verify`, `browser_fill`, `browser_click`, and
+same-origin `browser_navigate` as in-process Responses function tools. It validates each call's
+argument shape, requires explicit page-access consent for every page tool, rejects cross-origin
+navigation, and uses `src/core.js`'s action classifier and hard ceiling. Every fill, click, or
+navigation prompts for a fresh one-time native approval. Control identity and current page origin
+are checked before and after approval; approvals are cancelled when the app is hidden or covered by
+a sheet/dialog.
 
-**Buys: it retires D-014.** The iPad path currently depends entirely on Userscripts — App
-Store-only, effectively single-maintainer, in beta since 2026-01, with no fallback transport. That
-is the project's recorded single point of failure. A native web view removes it. `src/core.js` is
-already host-agnostic by design, which is precisely why D-014 was an acceptable risk in the first
-place; the engine ports.
+The app sends inspected page text only after the user enables the page-access toggle for that
+request. Page content is untrusted and is not treated as instructions. Field values are excluded
+from inspection. The Responses client includes full request context each time, does not use
+`previous_response_id`, and sends tool outputs back in the next request. The current UI transcript
+is in-memory and is not persisted as a conversation history between app launches.
 
-Also gained: real control over the web view's lifecycle and cookie store, the possibility of
-screenshots, and no Safari extension permission model in the way.
+The app pauses agent work when inactive or when an overlay obscures the web view. This is an
+in-process lifecycle guard; it does not change iOS suspension rules. A backgrounded app may be
+suspended, so the browser agent requires the app to remain foregrounded.
 
-**Does NOT buy a Split View fix.** D-047 originally claimed it would. That is wrong: **iOS suspends
-a backgrounded *app* as readily as a backgrounded *tab*.** The Claude app and the host app would
-still both need to be on screen. The only gain is that one sub-case disappears — "Safari is
-foreground but the wrong tab is showing" — because the host app has a single view.
+## ChatGPT sign-in and plan inference contract
 
-**Does NOT remove the Mac.** Anthropic must reach a public HTTPS endpoint, and an iPad cannot host
-one. The gateway stays where it is.
+Implementation follows the current [Sign in with ChatGPT registration and sign-in
+guide](https://developers.openai.com/siwc/token-sharing-open-source/sign-in) and [models and
+inference guide](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference):
 
-**Does NOT improve safety on its own.** The classification tiers (D-019, D-042), approval model
-(D-021, D-043) and injection analysis (D-041) are **policy, not transport**. Path B inherits them
-or it is a regression. One thing is genuinely *lost*: today the gateway is an independent check
-**outside** the browser; in a host app, app and gate are the same process, so compromising the app
-compromises the gate. That is a real cost and should be weighed deliberately rather than
-discovered.
+- First registration sends `dynamic_agent_client` and saves the returned issued `client_id`; later
+  sign-ins reuse it. The app does not contain a hard-coded client ID or client secret.
+- Each attempt uses PKCE S256, a fresh state and nonce, and a stable installation host ID. It
+  starts an HTTP loopback listener bound to 127.0.0.1 and uses the exact `/auth/callback` redirect.
+- The callback state is checked. The app exchanges the code with the token endpoint, checks the
+  granted identity and plan scopes, and validates the ID-token signature, issuer, audience,
+  authorized party when present, expiry, nonce, and subject using the discovery JWKS.
+- Tokens and issued-client metadata are stored in Keychain. Access-token refresh checks the
+  granted scopes and persists the rotated refresh token. Sign-out attempts revocation before
+  deleting the local credential and reports when revocation could not be confirmed.
+- On sign-in or app launch with a saved valid grant, the app requests `/v1/models` using that
+  account's access token. It shows models with `visibility == "list"`, displays `display_name`,
+  preserves server ordering, and submits the selected `slug`.
+- Inference goes only to the public `https://api.openai.com/v1/responses` endpoint. Each request
+  sets `store:false` and `stream:true`; the app waits for `response.completed` and fails closed on
+  `response.failed`, `response.incomplete`, malformed function calls, or an incomplete stream.
 
-## 4. The three hard constraints
+The external system browser is used for OAuth. The callback listener code is implemented and
+typechecked, but the iOS behavior when Safari opens and backgrounds the host app has **not** been
+runtime-validated. No custom redirect URI has been substituted for the documented loopback URI.
+Real-account authorization, refresh rotation, revocation, and Responses inference also remain
+unverified.
 
-**Billing (D-006).** Settled. Any design where our code calls the model is metered. This is why
-framing B exists.
+## Codex boundary
 
-**Passkeys — MEASURED 2026-10-25, and they do not work (D-053).** It holds. In the spike's
-`WKWebView` against `webauthn.io`, `isUserVerifyingPlatformAuthenticatorAvailable()` is **false**
-and `navigator.credentials.get()` is rejected in **12 ms with `NotAllowedError` and no prompt**,
-with the document focused. **Chrome on the same Mac, same site, reports `true`** — so the refusal
-belongs to the web view, not the hardware. The cause is structural: WebAuthn in a third-party
-`WKWebView` requires Associated Domains, which requires an `apple-app-site-association` file
-served by a domain **you own**, and the operator owns none of the sites in question.
+Codex app-server is not enabled in the current app build. Official SIWC documentation configures it
+as a local stdio/NDJSON child process using the ChatGPT access token and Responses provider. OpenAI
+also documents host-provided browser tools over app-server's dynamic tool-call flow, but upstream
+labels `dynamicTools` and `item/tool/call` experimental.
 
-**So framing B is bounded, not dead: it works for password-authenticated sites only.** D-052
-already showed the store persists, so a password session should survive a restart; and an
-existing session cookie arriving by other means is unaffected, because what is blocked is
-performing the ceremony, not being logged in.
+A bounded packaging and isolation feasibility check used the official stable 0.167.1 release. Its
+macOS app-server archives are separately published for arm64 and x86_64; the arm64 archive is about
+82.8 MB compressed and contains a roughly 198 MB executable. The archive checksum is available in
+the release metadata, and the extracted helper is Developer ID signed by OpenAI. The helper still
+needs the App Sandbox inheritance entitlement to run inside a sandboxed host. A temporary, locally
+signed host/child fixture confirmed macOS denied an inherited child process's write outside the app
+container. That fixture did not launch Codex or verify the app-server Responses tool inventory.
 
-**Path A is immune**, because Safari *is* the browser and passkeys work natively. That is an
-advantage of the current architecture that appeared on no scorecard until 2026-10-25, and it is
-now the deciding factor if the sites that matter use passkeys.
+The current Xcode project does not enable App Sandbox or package a helper. Signing the official
+helper with the inheritance entitlement replaces the upstream code signature, so a release needs
+a deliberate nested-code signing and notarization pipeline. The latest Codex config docs list
+stable controls for `features.shell_tool=false`, `features.apps=false`, and
+`features.multi_agent=false`, with top-level `web_search="disabled"`. These controls are promising
+but the docs explicitly say the feature table is not exhaustive, and we have not captured and
+asserted the actual model-visible tool inventory from a sandboxed helper. Do not expose a Codex
+mode until a pinned universal or architecture-specific helper, signing pipeline, sandboxed fake
+Responses test, and exact-tool-inventory assertion pass together. The host must set an app-private
+`CODEX_HOME` before process launch; it must never inherit or fall back to `~/.codex`. No verified
+official iOS app-server runtime is implemented or claimed. Direct ChatGPT Responses remains a
+separate mode and must not be labeled Codex.
 
-**Split View (D-029).** Accepted as a documented operating limit. Framing B does not lift it.
+## Platform constraints inherited by this app
 
-## 5. What has actually been proven
+- Third-party `WKWebView` passkey authentication was measured unavailable in the earlier spike
+  (D-053). This app does not change that platform boundary.
+- iOS may suspend a backgrounded app. The local router does not provide background execution.
+- The app has not been tested with a real ChatGPT account or pilot user's site data.
+- No production signing, TestFlight, App Store, notarized macOS package, or public distribution is
+  present.
 
-| Claim | Status |
-|---|---|
-| A chat client can be built with no dependencies | **proven** — builds, 15/15 tests, Swift 6.4 |
-| It can call the model | **never run.** Blocked by D-006 billing |
-| `WKWebView` keeps a session across an app restart | **proven on macOS** (D-052), both halves: cookies survived a relaunch, and stopped surviving after Clear data |
-| A **logged-in** session survives | **not run.** D-052 used ordinary browsing cookies, not an authenticated session |
-| Xcode app targets build for macOS and iOS Simulator | **proven 2026-11-10** — unsigned Debug builds |
-| iOS app opens | **proven in iPad simulator 2026-11-10** — current build installed and launched; no page loaded |
-| `src/core.js` is bundled unchanged | **proven 2026-11-10** — SHA-256 matches in both current app bundles |
-| Pairing UI, Keychain token storage, HTTPS poll/result transport | **runtime-verified in iOS Simulator against an isolated local HTTPS fixture** — fixture-only token and page |
-| Remote inspect and result exchange | **runtime-verified in iOS Simulator** — snapshot returned for the fixture page |
-| Native approval UI | **runtime-verified in iPad Simulator** — fixture UI test selects Allow once and Deny |
-| Fill/click/navigation dispatch and approval allow/deny | **runtime-verified against the local HTTPS fixture** — fill, click, and same-origin navigation outcomes verified |
-| Inspect, verify, fill, click, same-origin navigate use the shared engine and command policies | **runtime-verified in the iOS simulator fixture** — inspect, verify, fill, click, and navigation completed |
-| A local macOS fixture page runs core inspection in the named world | **runtime-verified** — snapshot shown in the app; no field value exposed |
-| Per-command argument validation and expiry/origin checks | **proven by six Swift protocol unit tests** — does not verify model dispatch |
-| An in-app web view can authenticate to a **passkey** site | **NO — measured on macOS** (D-053), with Chrome on the same Mac as the control |
-| An in-app web view can authenticate to a **password** site | **not run.** Nothing measured blocks it; that is not the same as proven |
-| Gateway token, poll, command result, remote inspect | **runtime-verified against the local fixture in iOS Simulator** |
-| Approval allow/deny and remote page-changing action | **runtime-verified in the fixture** — active/hidden lifecycle remains unverified |
-| Physical iPad install/use | **not attempted** |
+## Verification and acceptance still needed
 
-The new app lives in `app/browser-host/`. The engine is registered in a named `WKContentWorld`,
-never in the page's JavaScript world. Local Inspect keeps its snapshot in the app. Gateway setup
-stores its device token in Keychain and polls only while the app and browser window are visible.
-Remote actions are constrained by the shared core and the gateway's per-origin policy. The app
-contains an inline SwiftUI approval panel. The iPad fixture test selected both Allow once and Deny,
-verified fill/click/same-origin navigation effects, and confirmed gateway revocation on disconnect.
-Click and navigation are submitted to `/device/result` before dispatch and are reported as
-dispatched, not as verified completion; the fixture independently inspected the page afterward.
-Fill follows the existing Userscripts contract and updates the page before result submission. The
-app does not implement `browser_status` as a device command: that tool is fulfilled inside the
-gateway. Pilot routing, wrong-token behavior, lifecycle, cancellation, and redirection remain
-untested. A gateway
-inspection sends page-derived text to the model caller, so it is not private local-only inspection.
+Measured for this checkpoint:
 
-### Current comparison with the Userscripts path
+- Swift 6 typechecking and Xcode builds for macOS and iOS Simulator targets.
+- Local unit tests for first-time versus returning SIWC callback client-ID handling.
+- UI smoke checks for the signed-out state, no remote gateway controls, local browsing, and local
+  inspection.
 
-| Area | Userscripts-based product | Swift browser host | Evidence difference |
-|---|---|---|---|
-| Browser surface | Runs in Safari through Userscripts | Hosts its own `WKWebView`; it does not control Safari tabs | Swift UI/build verified; cross-app integration is not intended |
-| Page engine | Shared `src/core.js` | Same shared engine, bundled unchanged in a named isolated world | macOS and iOS fixture inspection runtime-verified |
-| Page commands | Inspect, verify, fill, click, same-origin navigation | Same five commands now implemented | Userscripts path has broader pilot evidence; Swift handlers passed the local fixture command flow but not pilot acceptance |
-| Permission policy | Gateway origin policy plus the shared core and Userscripts approval UI | Gateway origin policy plus the shared core and an app-owned one-time approval panel | Fixture verified allow/deny and approved fill/click/navigation; pilot route remains untested |
-| Model and control plane | Existing MCP gateway connects to the client | Same MCP gateway; Claude remains the model client | Local fixture pairing, polling, result exchange, remote inspect, and disconnect passed |
-| Authentication | Safari's browser authentication capabilities | Third-party `WKWebView` cannot perform the measured passkey ceremony (D-053) | Swift path is limited to sites with another login route or an existing session |
-| iPad lifecycle | Safari tab must remain visible; Split View is an accepted limit (D-029) | Host app must remain visible; Split View and suspension limits remain | No physical iPad acceptance for Swift |
-| Distribution | Userscripts setup plus gateway reachability instructions | Signed/installable macOS and iOS app still needs packaging, provisioning, and user setup | Swift targets currently have unsigned simulator/macOS Debug build evidence only |
+Still required before a pilot:
 
-This is capability parity at the command surface, not verification parity. Do not substitute the
-Swift implementation for the Userscripts pilot path until the local HTTPS gateway fixture and
-physical iPad acceptance steps below pass.
+1. Exercise full SIWC on iOS Simulator and macOS with a test account, including external-browser
+   return over the documented 127.0.0.1 callback. Confirm the listener survives iOS app
+   deactivation or fail visibly without silently losing the callback.
+2. Test model catalog parsing and selection against authenticated account responses, including an
+   account with no visible supported models and account switching after sign-out.
+3. Test streamed Responses completion, API usage-limit failures, missing scopes, refresh rotation,
+   and local sign-out when server revocation fails.
+4. Exercise all five browser tools against controlled pages: page-consent off/on, prompt
+   injection text, field-value exclusion, changed/replaced controls, blocked action categories,
+   same-origin and cross-origin destinations, approval deny/timeout, app backgrounding, and an
+   obscuring sheet while approval is pending.
+5. Run on a physical iPad and Mac with an authenticated site session. Recheck passkey limitations,
+   cookie persistence, browser focus/visibility, app suspension, and approval behavior.
+6. Decide whether to fund the macOS Codex packaging, sandbox, and integration work. Do not market
+   Codex support until the official helper is bundled and its host-tool process is verified.
+7. Define signing, privacy disclosures, update/rollback path, release package, and pilot support
+   instructions before distribution.
 
-## 6. Work remaining, in the order that wastes least
+## Official protocol references
 
-Ordered so that each step can kill the path before the next one costs anything.
-
-1. ~~**Passkey authentication in `WKWebView`.**~~ **DONE 2026-10-25 — it cannot (D-053).** Run it
-   again with `SPIKE_PASSKEY_PROBE=1 swift run WebViewSpike` (optionally
-   `SPIKE_PASSKEY_URL=<site>`); the two in-app buttons do the same thing by hand. It did not kill
-   framing B, but it **bounds it to password-authenticated sites**, which makes step 2 the
-   decisive one rather than a formality.
-2. **Stage B — a real logged-in session across a restart.** Free. Needs a *password* login. D-052
-   proved the store persists; this proves a *session* does, which is not the same claim.
-3. **Expand host-side command acceptance against a local HTTPS gateway fixture.** Correct-token
-   pairing, TLS trust, poll/result exchange, remote inspection, approval allow/deny, fill, click,
-   same-origin navigation, and disconnect/revocation are verified. Still cover incorrect tokens,
-   allowlist refusal, policy changes, approval expiry, cancellation, redirects, and app backgrounding.
-4. **Run the current app on an actual iPad.** Check browsing, password-authenticated session
-   persistence across restart, clearing site data, lifecycle pause/resume, and Split View behavior.
-   A simulator build is not device acceptance; provisioning and installation were not attempted.
-5. **Decide the independent-gate and consent boundary** (§3) before using page-changing actions
-   with a pilot or shipping the alternate path. The native app has a one-time approval UI, but it
-   places the gate in the same process as the browser and has no separate gateway confirmation.
-
-**Do not** buy API credits for any of this. Framing B never calls the model.
-
-## 7. Open questions needing a decision, not more code
-
-- **Is the loss of an out-of-process gate acceptable?** (§3)
-- **Passkeys DO fail in `WKWebView` (D-053) — is framing B acceptable for password-only sites?**
-  This is now the question that decides the path, and it is the operator's: it turns on which
-  sites they actually want the agent to work on and how those sites authenticate. If the answer
-  is "they use passkeys", Path A is not the incumbent, it is the only option.
-- **Does the app replace Userscripts, or ship alongside it** while D-014's risk is live?
-
-## 8. Where the spikes are
-
-- `app/llm-chat-spike/Sources/LLMChatCore` — transport, wire types, structured errors. UI-free and
-  testable without a network or a key. **Belongs to framing A; keep for reference, do not extend.**
-- `app/llm-chat-spike/Sources/WebViewSpike` — the persistence spike behind D-052 and the passkey
-  probe behind D-053. `swift run WebViewSpike` self-bundles and opens a window;
-  `run-webview-spike.sh` does the same explicitly. `SPIKE_PASSKEY_PROBE=1` runs the passkey test
-  unattended and prints the result to stderr instead of opening an idle window — so the finding
-  is a command anyone can re-run, not a report of what somebody saw on screen.
-- `app/browser-host/SafariAIAgentHost.xcodeproj` — shared-source macOS and iOS app targets. See
-  [`app/browser-host/README.md`](../app/browser-host/README.md) for the implemented command path,
-  setup boundary, current evidence, and remaining acceptance work. It does not change gateway
-  exposure.
-- Build artefacts live in gitignored `.build/`, including two generated `.app` bundles.
-
-**Related:** D-006, D-014, D-029, D-041, D-042, D-047, D-052, D-053 in `docs/DECISIONS.md`;
-`docs/TARGET-ARCHITECTURE.md` §"Two transports, one engine".
+- [Sign in with ChatGPT: registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)
+- [Sign in with ChatGPT: accounts and sessions](https://developers.openai.com/siwc/token-sharing-open-source/profiles-and-sessions)
+- [Sign in with ChatGPT: models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)
+- [Sign in with ChatGPT: Codex app-server](https://developers.openai.com/siwc/token-sharing-open-source/codex-app-server)
+- [Codex configuration basics](https://developers.openai.com/codex/config-basic)
+- [Codex app-server protocol and source](https://github.com/openai/codex/tree/main/codex-rs/app-server)
+- [Codex release artifacts](https://github.com/openai/codex/releases)
+- [OpenAI Codex repository license](https://github.com/openai/codex/blob/main/LICENSE)

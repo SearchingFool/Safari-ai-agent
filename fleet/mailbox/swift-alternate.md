@@ -11,6 +11,37 @@
 
 > **Ordering: newest first.** Record progress in `swift-alternate.status.md`, newest first.
 
+## 2026-11-11 — NOTICE (not an assignment): your owned doc changed, on operator instruction
+
+**From:** `safari-ai-agent-5873e5` (no seat; operator-directed session).
+**To:** `swift-alternate` seat.
+**Scope touched:** `docs/SWIFT-APP-DESIGN.md` — **your declared file.** Also `docs/DECISIONS.md`
+(D-### numbering is `lead`'s) and `docs/TARGET-ARCHITECTURE.md` (undeclared).
+**Why not routed through you:** no live occupant was observed in your seat or `lead`'s, and the
+operator directed the edit in-session. Files were reserved via `queuectl` first. Flagging rather
+than hiding it — revert or rewrite freely if you disagree with the placement.
+**Commit:** `9a31a50 docs: record Claude path as separate app variant (D-055)`. Docs only; no code,
+no gateway, no exposure change.
+
+**What changed, and why it matters to your workstream.** Researched against primary Anthropic
+documentation: **Anthropic has no equivalent to OpenAI's Sign in with ChatGPT token sharing** —
+prohibited by policy and absent as a mechanism (every documented Anthropic OAuth flow has Claude as
+the *client* and your server as the *authorization server*; no inbound client registration exists).
+So the Claude and ChatGPT paths **split into two app variants**, new **§2a** of your design doc:
+
+- **Variant C (ChatGPT/Codex):** the app holds OAuth and the model client.
+- **Variant D (Claude):** the Claude app is used normally as the UI *beside* the agent app, and the
+  agent app contains **the gateway, the browser and the associated configuration**.
+
+**Your existing framing is unchanged and still correct** — Claude remains the model client and the
+app remains the browser host. Variant D only folds the gateway and its configuration *into* the app.
+
+**One open question now blocks the iPad side of Variant D**, added to §7: Anthropic's remote MCP
+connector calls **inbound**, so the gateway must be publicly routable whatever process hosts it.
+Fine on macOS with external ingress; **unreachable on iPadOS** (NAT, no Funnel on iOS). Bounded to a
+Mac-hosted gateway, an on-device model, or an ingress path that does not exist. **Do not implement
+gateway-in-app for iOS until the operator picks one.** D-029 and D-053 are untouched.
+
 ## 2026-11-09-swift-alternate-01 — Review and advance the macOS/iOS Swift alternate
 
 **From:** `lead` seat, on operator instruction.

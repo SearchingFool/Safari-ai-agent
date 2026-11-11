@@ -14,10 +14,13 @@ the browser session, in-process browser tool router, native action approvals, Ch
 model requests. The ChatGPT plan is the inference client. The product does not depend on the Claude
 app, a separate Mac gateway, VPN endpoint, or API billing key. Claude API billing remains deferred.
 
-This direction supersedes the previous Claude-app-plus-gateway browser-host design. The earlier
-gateway bridge and its remote polling protocol were removed from the active app and the native app
-test fixtures. The existing repository gateway still serves the Userscripts product; it is not in
-the Swift app's request path.
+This is the selected ChatGPT/Codex variant (Variant C in D-055). It supersedes the previous
+Claude-app-plus-gateway browser-host design for this app path. The earlier gateway bridge and its
+remote polling protocol were removed from the active app and native app test fixtures. The Swift
+app handles browser tools through its in-process router; it has no separate gateway process or
+remote gateway endpoint in its request path. The existing repository gateway still serves the
+Userscripts product. The Claude variant remains deferred and separate; its inbound remote MCP
+reachability requirement is not solved by this local router.
 
 The app has macOS and iOS Xcode targets. Both targets now compile against the shared browser and
 ChatGPT code. The work remains an evaluation implementation: OAuth has not been completed with a
@@ -115,7 +118,11 @@ separate mode and must not be labeled Codex.
 
 - Third-party `WKWebView` passkey authentication was measured unavailable in the earlier spike
   (D-053). This app does not change that platform boundary.
-- iOS may suspend a backgrounded app. The local router does not provide background execution.
+- iOS may suspend a backgrounded app. Keeping the browser router and model client in one app
+  removes a gateway-app handoff, but it does not provide background execution or prevent OS
+  suspension. The browser agent requires the app to remain foregrounded.
+- The in-process router serves model tool calls from this app. It is not a publicly reachable
+  inbound MCP gateway for the deferred Claude variant (D-055).
 - The app has not been tested with a real ChatGPT account or pilot user's site data.
 - No production signing, TestFlight, App Store, notarized macOS package, or public distribution is
   present.

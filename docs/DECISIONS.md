@@ -9,7 +9,7 @@ Updated: 2026-10-24. Last updated by Libor Ballaty <liborballaty@gmail.com>, wit
 | D-003 | Agreed | Do not require an on-iPad model or a dedicated native browser | Model hosted by eligible provider/other approved runtime |
 | D-004 | Agreed | Keep browser engine/model interface provider-agnostic | Common versioned browser capability contract |
 | D-005 | Proposed, needs technical validation | Expose browser tools through MCP where supported | First validate a real iPad client using existing subscriptions; gateway may be required |
-| D-006 | **RESOLVED for Claude 2026-10-25 — a subscription does NOT fund direct API calls** | Reuse ChatGPT/Claude/Gemini subscriptions without extra API charges | **Tested empirically, not inferred.** With a valid OAuth token from `ant auth login` (scopes `user:developer user:inference user:profile`): `GET /v1/models` returned **200**, and `POST /v1/messages` returned **400 "Your credit balance is too low"** — twice, with the **same token**, seconds apart. Auth succeeds; inference is refused for want of API credit. The subscription authenticates you to the API but carries no inference entitlement. **The general rule this establishes: the subscription pays when THEIR app is the client calling your server; your code calling their model is metered.** That is why the existing connector path (B1-02) is free and why any design where our own code holds the conversation is not. ChatGPT and Gemini remain unverified. |
+| D-006 | **RESOLVED for this Claude API test only, 2026-10-25** | Does the tested Claude OAuth credential fund direct Messages API inference? | **Tested empirically, not inferred.** With a valid OAuth token from `ant auth login` (scopes `user:developer user:inference user:profile`): `GET /v1/models` returned **200**, and `POST /v1/messages` returned **400 "Your credit balance is too low"** — twice, with the same token, seconds apart. This establishes only that the tested Claude Messages API request lacked credits. It does **not** establish a general rule for other providers, other OAuth grants, or other supported inference routes. ChatGPT and Gemini require separate evidence; see D-051. |
 | D-007 | Agreed | Mac-hosted controller is optional, not mandatory | Remote or supported direct integration preferred |
 | D-008 | Agreed | Full configurable governance harness follows, not included in, initial MVP | Basic secure execution boundaries still required before remote AI actions |
 | D-009 | **Closed 2026-10-11** | Which client/provider is the first supported end-to-end tool caller? | **Claude, via a custom remote MCP connector with a static `Authorization: Bearer` header.** Verified live: full `initialize` / `tools/list` / `tools/call` handshake and a complete multi-page browser workflow. Remaining providers are optional adapters (F-01). |
@@ -641,16 +641,17 @@ an app restart? It costs nothing, needs no credits and no token, and can still k
 
 ### D-051 — a second provider PoC exists, is uncommitted-no-longer, and is untested
 
-**Status: recorded 2026-10-25. Not endorsed, not scheduled.**
+**Status: recorded 2026-10-25; corrected 2026-11-11. ChatGPT OAuth implementation directed by the operator.**
 
 Another agent built `poc-chatgpt/` — an OAuth PKCE spike, a `/v1/responses` streaming spike, a
 standalone DOM engine and a Safari MV3 extension scaffold. It was **untracked** and one `git clean`
 from being lost; committed as-is in `9c4d5b1` with its caveats attached.
 
-**Its central claim is untested.** Its own tracker puts Gate 1 at *"Ready for User Auth"* — the
-interactive login has never been run — so whether scope `chatgpt.tokens.use.direct` lets a
-ChatGPT subscription fund direct calls is **unknown**. Given D-006's result for Claude, assume
-nothing by analogy.
+**The old uncertainty is superseded by current official documentation.** OpenAI's Sign in with
+ChatGPT docs support an open-source app requesting `chatgpt.tokens.use.direct` and using the
+resulting OAuth access token for eligible `POST /v1/responses` requests on the user's ChatGPT
+plan. D-006's Claude API credit result does not generalize to this route. This repository's
+interactive OAuth and inference are still unverified.
 
 **Two caveats recorded with it, neither fixed:**
 
@@ -661,12 +662,19 @@ nothing by analogy.
 2. `REDIRECT_PORT` is **8787 — the gateway's port.** It collides with a running gateway, and the
    redirect URI must match whatever that client actually registered.
 
-**The sanctioned ChatGPT path is the same shape as the working Claude one:** add the existing
-gateway as a **custom MCP connector** in ChatGPT, so their app is the client and the subscription
-pays. That reuses everything already built and hardened, needs no new code and no credits, and
-directly serves D-004 (provider independence). **Untested at handoff** — the open question is
-whether ChatGPT offers a static-header auth option or requires OAuth, which the gateway does not
-implement.
+**2026-11-11 operator direction:** implement the ChatGPT OAuth/model client and Codex integration
+in the Swift application, with its browser control/gateway path inside the app. The previous
+custom-MCP-connector suggestion is not the selected Swift design. Use OpenAI's documented dynamic
+client registration, PKCE, loopback callback, granted-scope validation, secure token storage and
+refresh flow; do not reuse the PoC's hardcoded client ID. Responses requests must follow the
+documented `store: false` and `stream: true` requirements. Codex app-server and iOS OAuth/runtime
+compatibility still need implementation evidence. The in-process control path removes the separate
+Mac gateway dependency while the app is active; it does not override iOS background suspension.
+
+Sources: OpenAI Sign in with ChatGPT [overview](https://developers.openai.com/siwc/token-sharing-open-source),
+[registration and sign-in](https://developers.openai.com/siwc/token-sharing-open-source/sign-in),
+and [models and inference](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference);
+Apple [background execution](https://developer.apple.com/documentation/Xcode/configuring-background-execution-modes?changes=__8).
 
 ---
 
@@ -774,6 +782,86 @@ During paired hardware testing on iPad with operator Libor Ballaty, consequentia
 4. Pinned by unit test in `tests/control.test.mjs`; all 84 Node tests pass.
 
 ---
+
+### D-055 — Claude has NO OAuth equivalent to ChatGPT token sharing, so the Claude path becomes a separate APP VARIANT
+
+**Researched 2026-11-11 against Anthropic's own documentation, on operator instruction not to rely on
+memory.** Numbering taken while the `lead` seat showed no live occupant; `lead` owns D-### numbering.
+
+**The finding: there is no Anthropic counterpart to OpenAI's Sign in with ChatGPT token sharing,
+and the gap is both policy and mechanism.**
+
+- **Policy.** The Agent SDK overview states it verbatim: *"Unless previously approved, Anthropic does
+  not allow third party developers to offer claude.ai login or rate limits for their products,
+  including agents built on the Claude Agent SDK. Use the API key authentication methods described in
+  the Quickstart instead."* The support article adds that the preferred path for third-party software
+  *"including open-source projects"* is API key authentication through Claude Console or a supported
+  cloud provider, and prohibits applications that *"misrepresent their identity to Anthropic's
+  servers, attempt to route third-party traffic against subscription limits"*.
+- **Mechanism — the part that makes this a hard blocker rather than a risk to weigh.** Every OAuth
+  flow Anthropic documents runs the *other* way: **Claude is the client and your server is the
+  authorization server** (DCR, CIMD, or Anthropic-held credentials; PKCE S256 mandatory; callback
+  `https://claude.ai/api/mcp/auth_callback`). There is no DCR endpoint, no CIMD, and no public client
+  registration for an external app to sign a user into their Claude account. "Sign in with Claude
+  Console" is a feature *of Claude Desktop* under third-party/MDM deployment, not an SDK surface. The
+  Claude API accepts `Authorization: Bearer <api-key>` or a short-lived Workload Identity Federation
+  token from `POST /v1/oauth/token` — both billed to a Console organization, neither an end-user
+  sign-in. The only way to attempt it is to borrow a first-party client ID, which is exactly the
+  "misrepresent their identity" prohibition, and exactly what this repo already declined to do with
+  the hardcoded `CLIENT_ID app_EMoamEEZ73f0CkXaXp7hrann`. **That earlier judgment holds up.**
+
+**This CONFIRMS D-006 rather than reopening it.** D-006 measured `200` on `GET /v1/models` and
+`400 "credit balance too low"` on `POST /v1/messages` with a valid OAuth token. The documentation now
+explains *why*: subscription credentials are scoped to Anthropic's own surfaces by design and by
+policy, not by a funding misconfiguration. The rule generalised in
+[SWIFT-APP-DESIGN.md](SWIFT-APP-DESIGN.md) §2 — *the subscription pays when their app is the client
+calling your server; your code calling their model is metered* — holds, and is now backed by stated
+policy rather than a single measurement.
+
+**The consequence: the providers are not symmetric, so "add Claude OAuth alongside ChatGPT OAuth" is
+NOT parallel work and must not be planned as such. The paths split into two app variants.**
+
+| | **Variant C — ChatGPT / Codex** | **Variant D — Claude** |
+|---|---|---|
+| Model UI | inside the agent app | **the Claude app, used normally, alongside the agent app** |
+| Who calls the model | the app, via OAuth token sharing | the Claude app |
+| Who pays | ChatGPT subscription | Claude subscription |
+| OAuth in the app | yes — dynamic client registration, PKCE, loopback | **none** |
+| What the agent app contains | OAuth, model client, browser, control path, config | **gateway, browser and the associated configuration — everything except the model UI** |
+
+**Variant D is the operator's 2026-11-11 direction for Claude:** the Claude UI is used exactly as it
+is today, and the agent app absorbs *everything else* — the gateway, the `WKWebView` browser, and the
+associated configuration — so there is one artefact to install and configure instead of a Node
+gateway plus a browser bridge plus separate setup.
+
+**One constraint this does NOT lift, recorded so it is not discovered during implementation.**
+Anthropic's remote MCP connector calls **inbound** from Anthropic's own infrastructure (published
+egress `160.79.104.0/21`), so the gateway must be publicly routable *whatever process hosts it*.
+Bundling the gateway into the app changes **who hosts it, not whether it must be reachable.**
+
+- **On macOS**, Variant D works as described: the app can host the gateway in-process, but public
+  ingress (Tailscale Funnel or equivalent) stays **outside** the app and stays **required**.
+- **On iPadOS, gateway-in-app is unreachable** — NAT plus no Tailscale Funnel on iOS (D-030).
+  Variant D on iPad is bounded to one of: **(a)** the Mac continues to host the gateway and the app
+  contains browser + configuration only; **(b)** an **on-device model**, the one configuration that
+  removes the Mac entirely (D-030(b)) and leaves no public exposure at all; or **(c)** an iOS ingress
+  path that does not exist today.
+- **D-029** (Split View) and **D-053** (no passkey ceremony in a third-party `WKWebView`) are
+  untouched by this split. Variant D still requires both apps on screen.
+
+**Status.** The variant split is accepted as direction. **Which of (a)/(b)/(c) Variant D takes on
+iPad is unresolved and blocks any iPad implementation of it.** Subscription-funded Claude inference
+inside the app would require Anthropic approval ("unless previously approved") — that is a
+partnership request, not an engineering task, and must not be attempted by borrowing a client ID.
+
+Sources, all primary: Agent SDK overview (the prohibition)
+<https://code.claude.com/docs/en/agent-sdk>; third-party tools policy
+<https://support.claude.com/en/articles/13189465-log-in-to-your-claude-account>; connector OAuth
+direction, DCR/CIMD/PKCE and callback URLs
+<https://claude.com/docs/connectors/building/authentication>; API auth headers, WIF and egress range
+<https://platform.claude.com/docs/en/api/overview>; "Sign in with Claude Console" as a Claude Desktop
+deployment feature <https://claude.com/docs/third-party/claude-desktop/claude-api>; the contrasting
+OpenAI path <https://developers.openai.com/siwc/token-sharing-open-source>.
 
 ### Verified external sources (2026-10-11)
 

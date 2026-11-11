@@ -88,6 +88,17 @@ private final class ContinuationGate: @unchecked Sendable {
     }
 }
 
+enum LoopbackEndpointPolicy {
+    static func accepts(_ endpoint: NWEndpoint) -> Bool {
+        guard case .hostPort(let host, _) = endpoint else { return false }
+        switch host {
+        case .ipv4(let address): return address == .loopback
+        case .ipv6(let address): return address == .loopback
+        default: return false
+        }
+    }
+}
+
 private enum LoopbackHTTP {
     static let queue = DispatchQueue(label: "com.searchingfool.safari-ai-agent.oauth-loopback")
 
@@ -260,20 +271,21 @@ final class ChatGPTSIWC: ObservableObject {
         return config
     }
 
-    private func startLoopbackCallback() async throws -> URL {
+    func startLoopbackCallback() async throws -> URL {
         let parameters = NWParameters.tcp
-        parameters.requiredLocalEndpoint = .hostPort(host: .ipv4(.loopback), port: .any)
-        let server = try NWListener(using: parameters)
+        parameters.requiredInterfaceType = .loopback
+        parameters.acceptLocalOnly = true
+        let server = try NWListener(using: parameters, on: .any)
         listener = server
+        startReceivingCallbacks(from: server)
         return try await withCheckedThrowingContinuation { continuation in
             let gate = ContinuationGate()
-            server.stateUpdateHandler = { [weak self] state in
+            server.stateUpdateHandler = { [weak server] state in
                 switch state {
                 case .ready:
-                    guard gate.claim(), let port = server.port, let self else { return }
+                    guard gate.claim(), let server, let port = server.port else { return }
                     Task { @MainActor in
                         let callback = URL(string: "http://127.0.0.1:\(port.rawValue)/auth/callback")!
-                        self.startReceivingCallbacks(from: server)
                         continuation.resume(returning: callback)
                     }
                 case .failed(let error):
@@ -288,6 +300,10 @@ final class ChatGPTSIWC: ObservableObject {
 
     private func startReceivingCallbacks(from server: NWListener) {
         server.newConnectionHandler = { [weak self] connection in
+            guard LoopbackEndpointPolicy.accepts(connection.endpoint) else {
+                connection.cancel()
+                return
+            }
             let owner = self
             connection.start(queue: LoopbackHTTP.queue)
             LoopbackHTTP.readRequest(connection) { requestLine in

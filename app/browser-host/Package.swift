@@ -1,7 +1,7 @@
 // File: app/browser-host/Package.swift
-// Description: Testable Swift package for browser-host gateway protocol validation.
-// Author: Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent lead session, 2026-11-10)
-// Created: 2026-11-10
+// Description: Testable SIWC and direct Responses clients used by the shared browser-host app.
+// Author: Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-90e45e, 2026-11-11)
+// Created: 2026-11-11
 
 // swift-tools-version: 6.0
 
@@ -17,15 +17,15 @@ let package = Package(
         .target(
             name: "BrowserHostProtocol",
             path: "Sources",
-            exclude: ["BrowserHostModel.swift", "BrowserHostView.swift", "DeviceTokenStore.swift", "SafariAIHostApp.swift"],
-            sources: ["GatewayProtocol.swift"]
+            exclude: ["BrowserHostModel.swift", "BrowserHostView.swift", "SafariAIHostApp.swift"],
+            sources: ["ChatGPTSIWC.swift", "ChatGPTResponses.swift"]
         ),
         .testTarget(
             name: "BrowserHostProtocolTests",
             dependencies: ["BrowserHostProtocol"],
             path: "Tests",
-            exclude: ["SafariAIAgentHostUITests.swift", "GatewayHTTPSFixture.mjs", "GatewayHTTPSFixture.html", "run-gateway-bridge-test.sh"],
-            sources: ["GatewayProtocolTests.swift"]
+            exclude: ["SafariAIAgentHostUITests.swift"],
+            sources: ["ChatGPTSIWCTests.swift"]
         )
     ]
 )

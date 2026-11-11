@@ -14,7 +14,7 @@ struct BrowserHostView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            gatewayBar
+            agentBar
             if let approval = browser.pendingApproval {
                 approvalPrompt(approval)
             }
@@ -94,57 +94,79 @@ struct BrowserHostView: View {
         .padding(.vertical, 8)
     }
 
-    private var gatewayBar: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 6) {
-                TextField("HTTPS gateway origin", text: $browser.gatewayAddress)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("gateway-origin-field")
-                    .focused($focusedInput, equals: .gatewayOrigin)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                SecureField("Device token", text: $browser.deviceTokenDraft)
-                    .textFieldStyle(.roundedBorder)
-                    .autocorrectionDisabled()
-                    .accessibilityIdentifier("device-token-field")
-                    .focused($focusedInput, equals: .deviceToken)
-                    #if os(iOS)
-                    .textInputAutocapitalization(.never)
-                    #endif
-                Button("Connect") {
-                    focusedInput = nil
-                    browser.connectGateway()
-                }
-                    .disabled(!browser.canConnectGateway || browser.isBridgeConnected || browser.isDisconnecting || browser.isDisconnectPending)
-                if browser.isBridgeConnected {
-                    Button(browser.isDisconnecting ? "Disconnecting…" : "Disconnect") { browser.disconnectGateway() }
-                        .disabled(browser.isDisconnecting)
-                } else if browser.canRetryDisconnect {
-                    Button("Retry disconnect") { browser.disconnectGateway() }
-                        .disabled(browser.isDisconnecting)
+    private var agentBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("ChatGPT plan", systemImage: "sparkles")
+                    .font(.headline)
+                Spacer()
+                if browser.isChatGPTSignedIn {
+                    Text(browser.chatGPTAccountLabel ?? "Signed in")
+                        .font(.caption)
+                        .lineLimit(1)
+                    Button("Sign out") { browser.signOutOfChatGPT() }
+                } else {
+                    Button(browser.isChatGPTSigningIn ? "Signing in…" : "Continue with ChatGPT") { browser.signInToChatGPT() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(browser.isChatGPTSigningIn)
                 }
             }
-            Text(browser.bridgeStatus)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            Text("Page content sent through the gateway can be seen by the connected AI. Page changes follow site policy and request native approval when required.")
+            if browser.isChatGPTSignedIn {
+                HStack {
+                    Picker("Model", selection: $browser.selectedModel) {
+                        ForEach(browser.availableModels) { model in Text(model.displayName).tag(model.slug) }
+                    }
+                    .labelsHidden()
+                    .disabled(browser.availableModels.isEmpty || browser.isAgentRunning)
+                    Button("Refresh models") {
+                        Task { await browser.refreshChatGPTModels() }
+                    }
+                    .disabled(browser.isAgentRunning)
+                }
+            }
+            #if os(macOS)
+            Text("Codex app-server is not bundled in this build. ChatGPT Responses mode is not Codex.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
-            if browser.isDisconnectPending {
-                HStack {
-                    Text("The gateway may retain the session until its lease expires.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Button("Forget token locally") { browser.forgetDeviceToken() }
-                        .font(.caption2)
+            #else
+            Text("Codex app-server is unavailable on iOS in this build. ChatGPT Responses mode is not Codex.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            #endif
+            if !browser.agentTranscript.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(Array(browser.agentTranscript.suffix(6).enumerated()), id: \.offset) { _, line in
+                            Text(line).font(.caption).frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
                 }
+                .frame(maxHeight: 100)
             }
+            HStack(alignment: .bottom, spacing: 6) {
+                TextField("Ask the browser agent", text: $browser.agentPrompt, axis: .vertical)
+                    .textFieldStyle(.roundedBorder)
+                    .lineLimit(1...3)
+                    .disabled(!browser.isChatGPTSignedIn || browser.isAgentRunning)
+                    .accessibilityIdentifier("agent-prompt-field")
+                Button(browser.isAgentRunning ? "Working…" : "Ask") {
+                    browser.sendAgentPrompt()
+                }
+                .disabled(!browser.isChatGPTSignedIn || browser.availableModels.isEmpty || browser.agentPrompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || browser.isAgentRunning)
+            }
+            Toggle("Allow this request to inspect and send page content to OpenAI", isOn: $browser.allowPageAccessForCurrentTurn)
+                .disabled(browser.isAgentRunning || browser.webView.url == nil)
+            Text("Prompts are sent directly to OpenAI using ChatGPT plan access. Responses use store:false. Page access is opt-in for each request; page content is untrusted. Every fill, click, or same-origin navigation requires your one-time approval.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Text(browser.status)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
+        .onChange(of: browser.selectedModel) { _, model in browser.selectChatGPTModel(model) }
     }
 
     private var browserBar: some View {
@@ -205,7 +227,7 @@ struct BrowserHostView: View {
                             Section { Text("Snapshot reached the engine's control limit.").foregroundStyle(.secondary) }
                         }
                         Section {
-                            Text("This is a local read-only proof. No page content is sent to the gateway or an AI provider.")
+                            Text("This inspection is local until you ask the agent to use it. Agent inspections are sent to OpenAI Responses API.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .accessibilityIdentifier("local-inspection-privacy-note")
@@ -231,8 +253,6 @@ struct BrowserHostView: View {
 }
 
 private enum BrowserHostInputField: Hashable {
-    case gatewayOrigin
-    case deviceToken
     case browserAddress
 }
 

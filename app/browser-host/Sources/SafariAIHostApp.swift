@@ -16,6 +16,7 @@ struct SafariAIHostApp: App {
                 .preferredColorScheme(.light)
                 .task {
                     browser.setSceneActive(scenePhase == .active)
+                    if browser.isChatGPTSignedIn { await browser.refreshChatGPTModels() }
                 }
                 .onChange(of: scenePhase) { _, phase in
                     browser.setSceneActive(phase == .active)

@@ -11,14 +11,14 @@
 		100000000000000000000002 /* BrowserHostModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* BrowserHostModel.swift */; };
 		100000000000000000000003 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
 		100000000000000000000004 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
-		100000000000000000000005 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
-		100000000000000000000006 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
+		100000000000000000000007 /* ChatGPTSIWC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* ChatGPTSIWC.swift */; };
+		100000000000000000000008 /* ChatGPTResponses.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* ChatGPTResponses.swift */; };
 		100000000000000000000011 /* SafariAIHostApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000001 /* SafariAIHostApp.swift */; };
 		100000000000000000000012 /* BrowserHostModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000002 /* BrowserHostModel.swift */; };
 		100000000000000000000013 /* BrowserHostView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000003 /* BrowserHostView.swift */; };
 		100000000000000000000014 /* core.js in Resources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000004 /* core.js */; };
-		100000000000000000000015 /* DeviceTokenStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000005 /* DeviceTokenStore.swift */; };
-		100000000000000000000016 /* GatewayProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000006 /* GatewayProtocol.swift */; };
+		100000000000000000000017 /* ChatGPTSIWC.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000007 /* ChatGPTSIWC.swift */; };
+		100000000000000000000018 /* ChatGPTResponses.swift in Sources */ = {isa = PBXBuildFile; fileRef = 200000000000000000000008 /* ChatGPTResponses.swift */; };
 		200FA0FD62E69296F3566DE7 /* SafariAIAgentHostUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00A83D205B4B093D20867D4A /* SafariAIAgentHostUITests.swift */; };
 		F729673D07BCE12FCB3B6D1A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A6EB0EEDB7E54501AA76BE7D /* Foundation.framework */; };
 /* End PBXBuildFile section */
@@ -39,8 +39,8 @@
 		200000000000000000000002 /* BrowserHostModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHostModel.swift; sourceTree = "<group>"; };
 		200000000000000000000003 /* BrowserHostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowserHostView.swift; sourceTree = "<group>"; };
 		200000000000000000000004 /* core.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = ../../src/core.js; sourceTree = SOURCE_ROOT; };
-		200000000000000000000005 /* DeviceTokenStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTokenStore.swift; sourceTree = "<group>"; };
-		200000000000000000000006 /* GatewayProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayProtocol.swift; sourceTree = "<group>"; };
+		200000000000000000000007 /* ChatGPTSIWC.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTSIWC.swift; sourceTree = "<group>"; };
+		200000000000000000000008 /* ChatGPTResponses.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatGPTResponses.swift; sourceTree = "<group>"; };
 		200000000000000000000010 /* SafariAIAgentHost-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "SafariAIAgentHost-macOS.app"; path = "Safari AI Agent.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		200000000000000000000011 /* Safari AI Agent.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Safari AI Agent.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		47880D1AB0008F47DA41C3E4 /* SafariAIAgentHostUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = SafariAIAgentHostUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -99,8 +99,8 @@
 				200000000000000000000001 /* SafariAIHostApp.swift */,
 				200000000000000000000002 /* BrowserHostModel.swift */,
 				200000000000000000000003 /* BrowserHostView.swift */,
-				200000000000000000000005 /* DeviceTokenStore.swift */,
-				200000000000000000000006 /* GatewayProtocol.swift */,
+				200000000000000000000007 /* ChatGPTSIWC.swift */,
+				200000000000000000000008 /* ChatGPTResponses.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -258,8 +258,8 @@
 				100000000000000000000001 /* SafariAIHostApp.swift in Sources */,
 				100000000000000000000002 /* BrowserHostModel.swift in Sources */,
 				100000000000000000000003 /* BrowserHostView.swift in Sources */,
-				100000000000000000000005 /* DeviceTokenStore.swift in Sources */,
-				100000000000000000000006 /* GatewayProtocol.swift in Sources */,
+				100000000000000000000007 /* ChatGPTSIWC.swift in Sources */,
+				100000000000000000000008 /* ChatGPTResponses.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,8 +270,8 @@
 				100000000000000000000011 /* SafariAIHostApp.swift in Sources */,
 				100000000000000000000012 /* BrowserHostModel.swift in Sources */,
 				100000000000000000000013 /* BrowserHostView.swift in Sources */,
-				100000000000000000000015 /* DeviceTokenStore.swift in Sources */,
-				100000000000000000000016 /* GatewayProtocol.swift in Sources */,
+				100000000000000000000017 /* ChatGPTSIWC.swift in Sources */,
+				100000000000000000000018 /* ChatGPTResponses.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

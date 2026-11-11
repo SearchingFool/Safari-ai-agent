@@ -25,7 +25,7 @@ struct ChatGPTCredential: Codable, Equatable {
     var accessExpiresAt: Date
 }
 
-enum ChatGPTAuthError: LocalizedError {
+enum ChatGPTAuthError: LocalizedError, Equatable {
     case discovery, callback, state, denied(String), clientRegistration
     case tokenExchange, invalidToken, missingPlanScope, accountChanged
     case keychain(OSStatus), http(Int, String)
@@ -175,12 +175,11 @@ final class ChatGPTSIWC: ObservableObject {
         let callbackValues = Dictionary(values.compactMap { item in item.value.map { (item.name, $0) } }, uniquingKeysWith: { _, last in last })
         guard callbackValues["state"] == attempt.state else { throw ChatGPTAuthError.state }
         if let error = callbackValues["error"] { throw ChatGPTAuthError.denied(callbackValues["error_description"] ?? error) }
-        guard let code = callbackValues["code"], !code.isEmpty,
-              let issuedClientID = callbackValues["client_id"],
-              !issuedClientID.isEmpty,
-              (registeredClient == "dynamic_agent_client" ? issuedClientID != registeredClient : issuedClientID == registeredClient) else {
+        guard let code = callbackValues["code"], !code.isEmpty else {
             throw ChatGPTAuthError.clientRegistration
         }
+        let issuedClientID = try Self.resolveIssuedClientID(callbackClientID: callbackValues["client_id"],
+                                                            registeredClientID: registeredClient)
 
         let token = try await exchangeCode(code, clientID: issuedClientID, redirectURI: callback.absoluteString,
                                            verifier: attempt.verifier, resource: "https://api.openai.com/v1",
@@ -293,14 +292,20 @@ final class ChatGPTSIWC: ObservableObject {
             connection.start(queue: LoopbackHTTP.queue)
             LoopbackHTTP.readRequest(connection) { requestLine in
                 guard let requestLine,
-                      let firstLine = String(data: requestLine, encoding: .utf8)?.components(separatedBy: "\r\n").first,
+                      let requestText = String(data: requestLine, encoding: .utf8),
+                      let firstLine = requestText.components(separatedBy: "\r\n").first,
+                      firstLine.hasPrefix("GET "),
                       let rawTarget = firstLine.split(separator: " ").dropFirst().first,
-                      let callbackURL = URL(string: "http://127.0.0.1" + rawTarget) else {
+                      let callbackURL = URL(string: "http://127.0.0.1" + rawTarget),
+                      let hostLine = requestText.components(separatedBy: "\r\n")
+                        .first(where: { $0.lowercased().hasPrefix("host:") }),
+                      hostLine.dropFirst(5).trimmingCharacters(in: .whitespaces) == "127.0.0.1:\(server.port?.rawValue ?? 0)" else {
                     LoopbackHTTP.reply(connection, status: "400 Bad Request", body: "Invalid sign-in response.")
                     return
                 }
                 Task { @MainActor in
-                    guard let owner, callbackURL.path == "/auth/callback" else {
+                    guard let owner, callbackURL.path == "/auth/callback",
+                          owner.callbackContinuation != nil else {
                         LoopbackHTTP.reply(connection, status: "404 Not Found", body: "Unknown callback path.")
                         return
                     }
@@ -375,7 +380,7 @@ final class ChatGPTSIWC: ObservableObject {
               let keyID = header["kid"] as? String,
               let payload = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
               (payload["iss"] as? String) == "https://auth.openai.com",
-              Self.audience(payload["aud"], contains: expectedClientID),
+              Self.validAudience(payload, expectedClientID: expectedClientID),
               let expiry = payload["exp"] as? Double, expiry > Date().timeIntervalSince1970,
               let tokenNonce = payload["nonce"] as? String, tokenNonce == nonce,
               let subject = payload["sub"] as? String, !subject.isEmpty else {
@@ -384,7 +389,9 @@ final class ChatGPTSIWC: ObservableObject {
         let (jwksData, response) = try await session.data(from: jwksURL)
         guard (response as? HTTPURLResponse)?.statusCode == 200,
               let jwks = try? JSONDecoder().decode(JWKSet.self, from: jwksData),
-              let key = jwks.keys.first(where: { $0.kid == keyID && $0.kty == "RSA" && ($0.alg == nil || $0.alg == "RS256") }),
+              let key = jwks.keys.first(where: {
+                  $0.kid == keyID && $0.kty == "RSA" && ($0.alg == nil || $0.alg == "RS256") && ($0.use == nil || $0.use == "sig")
+              }),
               let modulus = key.n.flatMap(Self.base64URLDecode), let exponent = key.e.flatMap(Self.base64URLDecode) else {
             throw ChatGPTAuthError.invalidToken
         }
@@ -406,6 +413,30 @@ final class ChatGPTSIWC: ObservableObject {
         if let string = value as? String { return string == expected }
         if let strings = value as? [String] { return strings.contains(expected) }
         return false
+    }
+
+    private static func validAudience(_ payload: [String: Any], expectedClientID: String) -> Bool {
+        guard audience(payload["aud"], contains: expectedClientID) else { return false }
+        if let audiences = payload["aud"] as? [String], audiences.count > 1 {
+            return payload["azp"] as? String == expectedClientID
+        }
+        if let authorizedParty = payload["azp"] as? String {
+            return authorizedParty == expectedClientID
+        }
+        return true
+    }
+
+    nonisolated static func resolveIssuedClientID(callbackClientID: String?, registeredClientID: String) throws -> String {
+        if registeredClientID == "dynamic_agent_client" {
+            guard let callbackClientID, !callbackClientID.isEmpty, callbackClientID != "dynamic_agent_client" else {
+                throw ChatGPTAuthError.clientRegistration
+            }
+            return callbackClientID
+        }
+        if let callbackClientID, !callbackClientID.isEmpty, callbackClientID != registeredClientID {
+            throw ChatGPTAuthError.clientRegistration
+        }
+        return registeredClientID
     }
 
     private static func stableHostID() -> String {

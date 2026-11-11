@@ -14,6 +14,19 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-11 — safari-ai-agent-90e45e — fresh simulator install and UI run
+
+Rebuilt the integrated iOS target from `main`, installed it on the booted iPad Pro 13-inch (M5)
+simulator, and launched the signed-out ChatGPT plan screen. `xcodebuild test` passed both UI
+cases: local browser navigation/inspection and absence of the old remote-gateway controls.
+Screenshot confirms the visible “Continue with ChatGPT” entry point and in-app browser.
+
+**Still needed:** use a real ChatGPT account to complete OAuth, confirm the loopback callback
+returns from the system browser, select a listed model, and run an opt-in read-only page request.
+The app is installed in the simulator runtime, but this selected Xcode installation has no
+discoverable Simulator GUI app for manual interaction. Physical iPad acceptance and Codex remain
+open.
+
 ## 2026-11-11 — safari-ai-agent-90e45e — integrated self-contained ChatGPT Swift path
 
 **OCCUPANCY:** `safari-ai-agent-90e45e`, Codex, continuing the operator-assigned lead work.

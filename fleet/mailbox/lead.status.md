@@ -14,6 +14,29 @@
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
 
+## 2026-11-11 — safari-ai-agent-90e45e — integrated self-contained ChatGPT Swift path
+
+**OCCUPANCY:** `safari-ai-agent-90e45e`, Codex, continuing the operator-assigned lead work.
+**In-flight:** ChatGPT Swift app integrated; Codex app-server still unavailable and needs a
+sandboxed, isolated-home proof before implementation can be exposed.
+
+Fast-forwarded `feat/siwchost` to `main` at `2e68ec7`. The app embeds its browser tool router in
+the process, removes the external gateway pairing/poll flow from the Swift target, and contains
+the ChatGPT SIWC and Responses client for macOS and iOS. The design record states that this
+removes the separate gateway handoff while iOS still suspends backgrounded apps. The separate
+Userscripts gateway and the deferred Claude inbound-MCP variant remain distinct. Preserved the
+operator's uncommitted Xcode signing-team setting and workspace/user data.
+
+**Evidence from the Swift seat:** Swift callback unit tests (2/2), macOS universal build, iOS
+Simulator build, and iPad Pro simulator UI smoke tests (2/2) passed. Repo gates `npm run check`
+and `npm run test:browser` passed. Real ChatGPT sign-in/inference, physical device acceptance,
+and Codex remain unverified. Do not push.
+
+**Next:** safely validate the official Codex app-server with an app-private `CODEX_HOME`, then
+implement a macOS-only Codex mode if the host-tool inventory can be constrained and tested; keep
+ChatGPT Responses available for both platforms. A human still needs to exercise OAuth with an
+account, run the physical iPad/Mac acceptance, and handle signing/distribution.
+
 ## 2026-11-10 — safari-ai-agent-90e45e — integrated pilot path and both client choices
 
 **OCCUPANCY:** `safari-ai-agent-90e45e`, Codex, continuing the operator-assigned lead work.

@@ -4,8 +4,8 @@
 **Description:** Where this project is going and why — the stated goal (Claude-in-Chrome-equivalent capability on Safari, extended to Codex, Antigravity and local models), what Safari actually permits, the gap against the reference implementation, and the phasing to close it.
 **Author:** Claude Code (Opus 5), acting as fleet lead
 **Created:** 2026-10-11
-**Last Updated:** 2026-10-24
-**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047)
+**Last Updated:** 2026-11-11
+**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, D-055)
 
 ---
 
@@ -191,6 +191,68 @@ independent check that sits outside the browser. In Path B, app and enforcement 
 process, so a compromise of the app is a compromise of the gate. That is a real loss and it should
 be weighed deliberately rather than discovered later.
 
+## Two app variants, split by provider (2026-11-11)
+
+> **Decision and the evidence behind it: [D-055](DECISIONS.md).** Researched against Anthropic's own
+> documentation on operator instruction, not from memory.
+
+The provider plan above assumed the differences between clients were **transport and auth**. For
+Claude versus ChatGPT that is not true, and the difference forces **two app variants rather than one
+app with two adapters.**
+
+**The asymmetry.** OpenAI documents *Sign in with ChatGPT* token sharing — dynamic client
+registration, PKCE, loopback callback — which lets a third-party app call inference against the
+user's **ChatGPT subscription**. **Anthropic has no counterpart.** Its Agent SDK docs state that
+"unless previously approved, Anthropic does not allow third party developers to offer claude.ai login
+or rate limits for their products", and mechanically there is **no inbound client registration at
+all**: every OAuth flow Anthropic documents has **Claude as the client and your server as the
+authorization server**. So "add Claude OAuth alongside ChatGPT OAuth" is not parallel work, and
+planning it that way would waste the effort.
+
+| | **Variant C — ChatGPT / Codex** | **Variant D — Claude** |
+|---|---|---|
+| Model UI | inside the agent app | **the Claude app, used normally, beside the agent app** |
+| Who calls the model | the app | the Claude app |
+| Who pays | ChatGPT subscription | Claude subscription |
+| OAuth in the app | yes | **none** |
+| Agent app contains | OAuth, model client, browser, control path, config | **gateway, browser, associated configuration** |
+| Relationship to this document | a third shape, beyond Paths A and B | **Path B's browser host, plus the gateway and its configuration folded in** |
+
+**Variant D is the Claude direction.** The Claude app stays exactly as it is — the operator queries
+it normally, and the subscription pays because *their* app is the client calling *our* server. The
+agent app absorbs **everything else**: the gateway, the `WKWebView` that holds the page, and the
+associated configuration. One artefact to install and configure, instead of a Node gateway plus a
+Userscripts bridge plus separate setup. It retires **D-014** for the same reason Path B does, and it
+additionally retires the separate gateway install.
+
+### What folding the gateway into the app does NOT change
+
+**Reachability.** Anthropic's remote MCP connector calls **inbound** from Anthropic's own
+infrastructure (published egress `160.79.104.0/21`). The gateway must be publicly routable *whatever
+process hosts it* — bundling it into the app changes **who hosts it, not whether it must be
+reachable.** This is the same correction D-030 already made to this document, applied to a new shape.
+
+- **macOS:** Variant D works as described. The app can host the gateway in-process, but **public
+  ingress (Funnel or equivalent) stays outside the app and stays required**, and D-045's
+  rig-recovery problem and D-046's exposure surface stay with it.
+- **iPadOS:** **gateway-in-app is unreachable** — NAT, and no Tailscale Funnel on iOS. Variant D on
+  iPad is bounded to one of: **(a)** the Mac keeps hosting the gateway and the app contains browser +
+  configuration only; **(b)** an **on-device model**, the one configuration that removes the Mac
+  entirely and leaves no public exposure — which is why the local-model row in the provider plan
+  above deserves first-class treatment rather than being an afterthought; or **(c)** an iOS ingress
+  path that does not exist today. **This is unresolved and blocks any iPad implementation of
+  Variant D.**
+
+**The operating limits.** **D-029** (both apps on screen; Split View) and **D-053** (no passkey
+ceremony in a third-party `WKWebView`, bounding the app to password-authenticated sites) are
+untouched. Variant D inherits both.
+
+**The safety model.** As with Path B, the classification tiers, approval model and injection analysis
+are **policy, not transport**. Folding the gateway into the app makes the independent out-of-process
+check disappear — app, browser and gate become one process — which is the loss recorded in
+"What transfers, and what does not" above, now applying to the gateway itself rather than only to the
+page engine. **Weigh it deliberately; do not discover it.**
+
 ## Explicitly rejected
 
 **Chasing Chrome parity on Userscripts.** The effort would not buy tabs, background or screenshots. Userscripts is the proving ground — it has been an excellent one — not the destination.
@@ -210,3 +272,7 @@ be weighed deliberately rather than discovered later.
 2. **Product framing** — draft-and-review, read-only research, trusted-site completion, or plan-level approval? The gate design is downstream of this.
 3. **D-015** — Claude requested MCP protocol `2026-07-28`; the gateway advertises `2025-11-25`.
 4. **D-016** — approval latency measured 3.2–14.9 s against a 25 s timeout; unmeasured on iPad.
+5. **D-055 — how does Variant D reach the gateway on iPad?** (a) Mac keeps hosting it, (b) on-device
+   model and no public endpoint at all, or (c) an iOS ingress path that does not exist today.
+   Blocks any iPad implementation of the Claude variant. Note (b) also answers question 2's framing,
+   because a local model makes page text never leave the device.

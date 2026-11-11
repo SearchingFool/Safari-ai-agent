@@ -4,8 +4,8 @@
 **Description:** What the Swift app is for, which of its two possible framings is the viable one and why, what has been proven versus assumed, the three hard constraints that bound it, and the work remaining in the order that wastes least. Written so the next person does not have to re-derive any of it from decision records.
 **Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047/D-052/D-053)
 **Created:** 2026-10-25
-**Last Updated:** 2026-11-10
-**Last Updated By:** Codex (safari-ai-agent lead session)
+**Last Updated:** 2026-11-11
+**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, D-055)
 
 ---
 
@@ -49,6 +49,66 @@ So the app should be a **browser host**:
 ```
 Claude app (subscription) → Anthropic → Mac gateway → the Swift app's WKWebView
 ```
+
+## 2a. Two app variants, split by provider (2026-11-11)
+
+> **Decision and primary sources: [D-055](DECISIONS.md).**
+
+§2 settles *who calls the model* for Claude. It turns out the answer **differs by provider**, and the
+difference is large enough that there is **one app in two variants, not one app with two provider
+adapters.**
+
+**Why.** OpenAI documents *Sign in with ChatGPT* token sharing, so a third-party app can call
+inference against the user's **ChatGPT subscription** — that is the 2026-11-11 direction for the
+ChatGPT path, and it makes framing A *viable for ChatGPT specifically*. **Anthropic has no
+counterpart**, by policy ("unless previously approved, Anthropic does not allow third party
+developers to offer claude.ai login or rate limits for their products") and by mechanism — there is
+no inbound client registration at all, because every OAuth flow Anthropic documents has **Claude as
+the client and your server as the authorization server**. Borrowing a first-party client ID is the
+prohibited path and is already recorded as declined.
+
+| | **Variant C — ChatGPT / Codex** | **Variant D — Claude** |
+|---|---|---|
+| Framing | A — the app holds the conversation | **B — the app is a browser host** |
+| Model UI | inside the agent app | **the Claude app, used normally, beside the agent app** |
+| Who pays | ChatGPT subscription | **Claude subscription** |
+| OAuth in the app | yes — DCR, PKCE, loopback, Keychain, refresh | **none** |
+| Agent app contains | OAuth, model client, browser, control path, config | **gateway, browser, associated configuration** |
+
+**Variant D is the Claude design.** The Claude app is used exactly as today; the agent app absorbs
+**everything else** — the gateway, the `WKWebView`, and the associated configuration. Compared with
+the §2 diagram, the gateway moves *inside* the app rather than sitting beside it:
+
+```
+Claude app (subscription) → Anthropic → [ agent app: gateway → WKWebView ]
+```
+
+**What this adds on top of §3's list:** it retires the **separate gateway install and its
+configuration** as well as D-014, so setup becomes one artefact instead of a Node gateway plus a
+Userscripts bridge plus separate pairing.
+
+**What it does NOT change — and this is the part to not discover later.** Anthropic's remote MCP
+connector calls **inbound** from Anthropic's own infrastructure (published egress
+`160.79.104.0/21`), so the gateway must be publicly routable **whatever process hosts it.** Folding
+it into the app changes *who hosts it, not whether it must be reachable.*
+
+- **macOS:** works as described, but **public ingress stays outside the app and stays required.**
+- **iPadOS:** **gateway-in-app is unreachable** — NAT, no Tailscale Funnel on iOS (D-030). Bounded to
+  **(a)** the Mac keeps hosting the gateway and the app ships browser + configuration only;
+  **(b)** an **on-device model**, the only configuration that removes the Mac and leaves no public
+  exposure; or **(c)** an iOS ingress path that does not exist today. **Unresolved — this blocks any
+  iPad implementation of Variant D.**
+- **§4's three hard constraints all survive.** Billing (D-006) is *why* Variant D exists; passkeys
+  (D-053) still bound it to password-authenticated sites; Split View (D-029) still requires both apps
+  on screen.
+- **The out-of-process gate is lost more completely than in plain framing B.** §3 already notes that
+  app and gate become one process. Folding the gateway in removes the *last* independent check, so
+  §7's open question "is the loss of an out-of-process gate acceptable?" is **sharpened by Variant D,
+  not answered by it.**
+
+**Do not read Variant C as validating framing A for Claude.** It is viable for ChatGPT because
+OpenAI funds that route. Under D-006 and D-055, the same shape against Claude is metered and, for a
+shipped product, disallowed.
 
 ## 3. What this buys — and what it does not
 
@@ -187,6 +247,9 @@ Ordered so that each step can kill the path before the next one costs anything.
   sites they actually want the agent to work on and how those sites authenticate. If the answer
   is "they use passkeys", Path A is not the incumbent, it is the only option.
 - **Does the app replace Userscripts, or ship alongside it** while D-014's risk is live?
+- **How does Variant D reach the gateway on iPad?** (§2a) — Mac-hosted, on-device model, or an iOS
+  ingress path that does not exist. **Blocks iPad implementation of the Claude variant** and is the
+  one question Variant D adds rather than inherits.
 
 ## 8. Where the spikes are
 

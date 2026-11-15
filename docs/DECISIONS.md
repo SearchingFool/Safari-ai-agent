@@ -1,6 +1,6 @@
 # Safari AI Agent — Decision log
 
-Updated: 2026-10-24. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-04, D-047). Each entry is a project decision or an explicitly unresolved design question. A recommendation is not an already-verified implementation.
+Updated: 2026-11-15. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, D-055 + addendum). Each entry is a project decision or an explicitly unresolved design question. A recommendation is not an already-verified implementation.
 
 | ID | Status | Decision / question | Basis and next action |
 |---|---|---|---|
@@ -836,23 +836,23 @@ gateway plus a browser bridge plus separate setup.
 
 **One constraint this does NOT lift, recorded so it is not discovered during implementation.**
 Anthropic's remote MCP connector calls **inbound** from Anthropic's own infrastructure (published
-egress `160.79.104.0/21`), so the gateway must be publicly routable *whatever process hosts it*.
-Bundling the gateway into the app changes **who hosts it, not whether it must be reachable.**
+egress `160.79.104.0/21` and `153.61.208.0/20`, IPv4 only), so **something** in the path must be
+publicly routable. Bundling the gateway into the app changes **who hosts it, not whether it must be
+reachable.**
 
-- **On macOS**, Variant D works as described: the app can host the gateway in-process, but public
-  ingress (Tailscale Funnel or equivalent) stays **outside** the app and stays **required**.
-- **On iPadOS, gateway-in-app is unreachable** — NAT plus no Tailscale Funnel on iOS (D-030).
-  Variant D on iPad is bounded to one of: **(a)** the Mac continues to host the gateway and the app
-  contains browser + configuration only; **(b)** an **on-device model**, the one configuration that
-  removes the Mac entirely (D-030(b)) and leaves no public exposure at all; or **(c)** an iOS ingress
-  path that does not exist today.
 - **D-029** (Split View) and **D-053** (no passkey ceremony in a third-party `WKWebView`) are
   untouched by this split. Variant D still requires both apps on screen.
 
-**Status.** The variant split is accepted as direction. **Which of (a)/(b)/(c) Variant D takes on
-iPad is unresolved and blocks any iPad implementation of it.** Subscription-funded Claude inference
-inside the app would require Anthropic approval ("unless previously approved") — that is a
-partnership request, not an engineering task, and must not be attempted by borrowing a client ID.
+> **⚠ CORRECTED 2026-11-15 — this entry originally overstated the constraint in two ways, and the
+> wrong version is noted rather than silently removed.** It said (i) public ingress "stays required"
+> on macOS, and (ii) the iPad was bounded to a Mac-hosted gateway, an on-device model, or "an iOS
+> ingress path that does not exist today." **Both are wrong.** On macOS, a **local stdio** MCP server
+> needs no address at all. On iPad, an **outbound-dialled relay** is a real and available path. See
+> the addendum below for the corrected analysis and the full option set.
+
+**Status.** The variant split is accepted as direction. Subscription-funded Claude inference inside
+the app would require Anthropic approval ("unless previously approved") — that is a partnership
+request, not an engineering task, and must not be attempted by borrowing a client ID.
 
 Sources, all primary: Agent SDK overview (the prohibition)
 <https://code.claude.com/docs/en/agent-sdk>; third-party tools policy
@@ -862,6 +862,115 @@ direction, DCR/CIMD/PKCE and callback URLs
 <https://platform.claude.com/docs/en/api/overview>; "Sign in with Claude Console" as a Claude Desktop
 deployment feature <https://claude.com/docs/third-party/claude-desktop/claude-api>; the contrasting
 OpenAI path <https://developers.openai.com/siwc/token-sharing-open-source>.
+
+### D-055 addendum — the reachability constraint is narrower than D-055 stated. Five options, all DEFERRED behind Variant C
+
+**Corrected 2026-11-15.** Derived by working the problem from first principles with the operator and
+verified against primary MCP and Anthropic documentation. **Operator direction 2026-11-15: focus on
+the Codex/ChatGPT version (Variant C) because its OAuth makes it fundable; everything below is
+tracked, not actioned.**
+
+**The principle D-055 missed: it is not about where the MODEL runs, it is about where the MCP CLIENT
+runs.** The MCP specification defines exactly two transports, and **in both the client initiates** —
+stdio (the client launches the server as a subprocess) and Streamable HTTP (the client POSTs to the
+server's endpoint). There is **no transport in which the server dials out to the client.** Custom
+transports are permitted by the spec, but Anthropic's connector speaks only the standard two.
+
+So the gateway is not an architectural choice. **It is a rendezvous point, and its only irreducible
+job is to hold a publicly routable address.** The queue, the session ownership and the policy are
+code that could live anywhere; they live in the gateway because that is where the address already
+was. Conflating *rendezvous point* with *policy enforcement point* is why losing the gateway feels
+like losing safety — **they are separable**, and the Supabase option below separates them.
+
+**The contract Anthropic's client actually imposes.** Their side is deliberately plain. It does four
+things and nothing else: (1) resolve a hostname via **public** DNS, (2) open TCP, (3) complete TLS
+against a **publicly trusted** CA, (4) HTTP POST. It will not do STUN, will not participate in hole
+punching, and will not hold a connection the app dialled out to establish. **This rules out the whole
+family of clever NAT-traversal tricks**, all of which need the far end to cooperate — which is why
+FaceTime can hole-punch (Apple owns both ends) and this cannot.
+
+**Three things an "internal IP" fails, not one.** A private address is not globally unique, so the
+backbone has no route and the SYN never leaves Anthropic's datacenter; an internal name does not
+resolve in public DNS; and no public CA will issue for it. Also: **a public IP identifies the ROUTER,
+not the device** — unsolicited inbound hits a NAT table with no entry and is dropped, which is
+exactly what a port-forward rule fixes. And **a proprietary header cannot carry the address**,
+because a header is payload inside a connection that must already have been established; a header
+says *who*, never *where*. (A header is, however, the right mechanism for last-hop device selection
+*behind* a relay.)
+
+**Why mobile is the hard case, stated precisely.** Everything that reaches an iPad arrives down a
+connection **the iPad opened** — APNs is one long-lived outbound socket with keepalives holding the
+NAT mapping open. Anthropic's connector is the one party in this design that insists on dialling
+**in**. A relay is therefore not a workaround: **it is APNs for your MCP server**, and it is the only
+pattern mobile platforms actually support.
+
+| # | Option | Browser | Model UI | Public address held by | Passkeys (D-053) | Always-on box |
+|---|---|---|---|---|---|---|
+| 1 | **Today's rig** | real Safari | Claude app | Tailscale (Funnel) | **yes** | yes — the Mac |
+| 2 | **Userscripts + relay** | real Safari | Claude app | the relay | **yes** | **no** |
+| 3 | **Self-hosted on any PC** | real Safari | Claude app | Tailscale/Cloudflare/router | **yes** | yes — the PC |
+| 4 | **Variant D (Swift)** | app `WKWebView` | Claude app | relay or Mac | no | depends |
+| 5 | **stdio, macOS only** | app `WKWebView` | Claude Desktop | **nobody — no address exists** | no | n/a (is the Mac) |
+| 6 | **On-device model** | app `WKWebView` | in the app | **nobody — loopback only** | no | no |
+
+**Corrections to prior entries that this supersedes:**
+
+- **Port-forwarding is roam-compatible when the forwarded box is STATIONARY.** Forwarding to the
+  *iPad* breaks the moment it leaves the house; forwarding to a PC that stays home does not, because
+  **the iPad dials out to it** — which is precisely how today's Mac gateway already works.
+- **Option 2 is the cheapest experiment and may beat both Swift variants on the deciding criterion.**
+  The userscript already polls a gateway over outbound HTTPS; pointing it at a relay instead of the
+  Mac is the same protocol with a different URL. It removes the Mac **and keeps real Safari, so
+  passkeys keep working** — a combination no Swift variant can offer, against the risk D-053 names as
+  decisive. *Unverified:* `GM_xmlhttpRequest` polling against an Edge Function, and device-token auth.
+- **Android does not escape this.** Carrier NAT is identical; the Claude mobile app is remote-connector
+  only on both platforms. Android is materially better at two *practical* things — a foreground
+  service can hold the socket alive, and Termux can plausibly run a real tunnel daemon on-device,
+  which iOS cannot. Same architecture, fewer obstacles. *Termux specifics unverified.*
+
+**If a relay is chosen, the shape — recorded now so it is not re-derived.** Supabase fits because the
+device side is only "hold a WebSocket," which iOS permits natively with no daemon (unlike
+`cloudflared`/`tailscaled`). Make it **thick**: the Edge Function enforces policy, Postgres holds
+config, audit and session. Thick **restores the independent out-of-process gate** that
+`SWIFT-APP-DESIGN.md` §7 flags as an open question — a stronger position than today, because the
+enforcement point is not the machine the operator also browses on. The D-017/D-023/D-048 bug class is
+**attenuated rather than re-created**, because those bugs came from *N uncoordinated Safari tabs*
+racing an origin-keyed session, not from the two-party split itself; one app holding one socket does
+not have that shape.
+
+Three rules for it: **(1)** `src/core.js` stays the only classifier — the server **refuses
+categories**, it never re-derives tiers, or the safety logic drifts across two languages (see D-031,
+D-042); the honest split is *context-free policy server-side* (origin allowlist, per-origin tool
+exposure, **D-020's read-only vs interactive tiers**, rate limits, kill switch, audit) and
+*DOM-dependent classification app-side*, because the server has never seen the page. **(2)** The app
+never holds a `service_role` key; it speaks to Realtime only, and the Edge Function does privileged
+DB work server-side. **(3)** RLS on every policy and audit table — policy-as-data means **DB write
+access is policy-change access.**
+
+**Unavoidable cost of any relay: it terminates TLS, so page text and commands are visible to a third
+party.** This project's own notes already flag that each added origin sends rendered text to the
+model provider; a relay adds a **second** party that sees it. A self-hosted box (option 3) is the
+privacy-preserving choice. That makes options 2/3 a deliberate **privacy-vs-convenience** axis, not a
+primary with a fallback.
+
+**If both hosts are ever supported, keep ingress pluggable and policy single-sourced.** Keep HTTP
+polling for v1 — an Edge Function serves a poll endpoint as well as the Node gateway does, so one
+device implementation covers both hosts and the device never knows which it is talking to; add
+Realtime later only as a latency/battery optimisation. Extract a runtime-agnostic `gateway/core`
+(no `node:` imports) with thin Node and Deno adapters behind three interfaces — **session store,
+config store, audit sink** — mirroring the host-agnostic pattern that already makes `src/core.js`
+portable. **Pin the invariant with a test: identical input must yield an identical allow/deny
+decision from both hosts**, or "optional" quietly becomes two products with two safety behaviours.
+
+**Verification gates before building any relay:** Edge Function wall-clock limit against the measured
+**14.9 s** worst-case approval latency (D-016); added round-trip against the 25 s `commandTimeoutMs`;
+whether SSE streaming works from an Edge Function (MCP permits streaming the JSON-RPC response);
+unauthenticated invocation with our own static-header auth, since Anthropic sends *our* header and
+not a Supabase JWT.
+
+Sources: MCP transports <https://modelcontextprotocol.io/specification/2025-11-25/basic/transports>;
+Anthropic egress and inbound ranges <https://platform.claude.com/docs/en/api/ip-addresses>;
+connector auth and static headers <https://claude.com/docs/connectors/building/authentication>.
 
 ### Verified external sources (2026-10-11)
 

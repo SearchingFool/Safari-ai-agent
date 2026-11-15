@@ -1,6 +1,36 @@
 # Safari AI Agent — Delivery tracker
 
-Updated: 2026-11-05 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Antigravity (`implementation` seat, physical iPad hardware test session).
+Updated: 2026-11-15 | This tracker tracks implementation evidence, not ideas. Last updated by Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, G-02 deferred + D-055 addendum).
+
+## 2026-11-15 — Claude path has no OAuth equivalent; reachability analysed; Variant C confirmed as the focus
+
+**Operator direction:** continue with the **Codex/ChatGPT version (Variant C)** because its OAuth
+makes subscription-funded inference possible. The Claude path is **tracked, not actioned** — new
+**G-02** above.
+
+**Settled (research only, no code):**
+
+1. **Anthropic has no equivalent to OpenAI's Sign in with ChatGPT token sharing** — prohibited by
+   policy *and* absent as a mechanism. Every documented Anthropic OAuth flow has **Claude as the
+   client and your server as the authorization server**; there is no inbound client registration. See
+   [D-055](DECISIONS.md). This confirms D-006 rather than reopening it.
+2. **Why the Claude path needs a gateway at all, stated from first principles.** MCP has two
+   transports and **the client initiates in both**; for a remote connector the client is **Anthropic's
+   cloud**, not the Claude app on the device. So the gateway is a **rendezvous point whose only
+   irreducible job is holding a public address** — the queue, session and policy are separable from it.
+3. **Two overstatements in D-055 corrected.** macOS **stdio needs no address at all**, and an
+   outbound-dialled **relay is a real iPad path** — D-055 had claimed no iOS ingress existed. Also
+   corrected: **port-forwarding is roam-compatible when the forwarded box is stationary**, which is
+   how today's Mac rig already works.
+4. **Six options recorded with trade-offs** in the D-055 addendum, including the relay design (thick
+   Supabase, which *restores* the independent out-of-process gate), the three safety rules for it, the
+   pluggable-ingress/single-sourced-policy pattern, and four verification gates.
+5. **Android does not escape the constraint** — identical carrier NAT, remote-connector-only Claude
+   app on both platforms; better background and tunnel-daemon support, same architecture.
+
+**Flagged for whoever revives G-02:** the deciding question remains the operator's, and is unchanged
+by any of this — **do the sites that matter use passkeys?** If they do, only the real-Safari options
+work at all (D-053), and option 2 is then the most valuable experiment in the set.
 
 ## 2026-11-05 — Live iPad hardware testing on Go Madeira and Approval Timeout extension
 
@@ -294,6 +324,7 @@ Follow-up: owner tested a second website, Google, and reported that the connecto
 | C4-01 | **Minimum MVP safety gate**, not full harness | Partially closed | C1-01, C3-01 | Origin allowlist and approval prompts verified live. Submission block and Stop revocation **not yet exercised against the live rig** |
 | D1-01 | Model-driven observe/act/verify and navigation recovery | **CLOSED ON DEVICE 2026-10-11** | C2, C3, C4 | 17 tool calls from Claude on iPad: search → navigate → fill text/time/select → preview → verify, no copy/paste, not submitted. Approval latency 3.6/5.5/6.8 s against the 25 s timeout — *faster* than macOS |
 | D2-01 | Device acceptance, regression, documented limits | **Partially closed 2026-10-11** | D1-01 | **Done on device:** operator denial refuses the action (twice, incl. a submit); disallowed external navigation refused by the gateway in 0 ms; stale reference refused; session survives refusals; Split View constraint characterised (D-029). **Outstanding:** network loss mid-command, Stop while queued, same-origin recovery, ten-run reliability, security review |
+| **G-02** | **Claude-path reachability — relay/self-host options** | **DEFERRED 2026-11-15 by operator direction** (focus is Variant C) | None technically; competes for attention with G-01 | Nothing built. Six options analysed and recorded in the [D-055 addendum](DECISIONS.md). Cheapest next step if revived: **option 2** — point the existing userscript's outbound poll at a relay instead of the Mac, which removes the Mac *and* keeps real Safari so passkeys still work (the risk D-053 calls decisive). Unverified: `GM_xmlhttpRequest` against an Edge Function, device-token auth, Edge Function wall-clock vs the 14.9 s approval latency (D-016) |
 | E-01 | **Separate post-MVP governance harness** | Deferred | MVP acceptance | Independently specified policy and capability-lease milestone |
 | F-01 | Additional provider adapters and native packaging | Future | MVP acceptance | Independently verified adapters and Safari packaging |
 | **G-01** | **Swift in-app path (ALTERNATIVE to the gateway, not a replacement)** | **Evaluation implementation; acceptance open** | None; runs in parallel with A–D | Shared macOS/iOS SwiftUI app includes `WKWebView`, in-process browser tools and approvals, ChatGPT SIWC, and Responses client. Swift package tests (4), macOS build, iOS simulator UI tests (2), `npm run check` (85 tests), and `npm run test:browser` pass. Loopback-listener startup and peer policy are unit-tested on macOS. **Not verified:** full iOS external-browser sign-in/callback, real-account model request or inference, native approvals with an authenticated account, physical-device acceptance, signing/distribution, and Codex app-server. See [D-047](DECISIONS.md) and [the Swift app design](SWIFT-APP-DESIGN.md) |

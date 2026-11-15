@@ -4,8 +4,8 @@
 **Description:** Where this project is going and why — the stated goal (Claude-in-Chrome-equivalent capability on Safari, extended to Codex, Antigravity and local models), what Safari actually permits, the gap against the reference implementation, and the phasing to close it.
 **Author:** Claude Code (Opus 5), acting as fleet lead
 **Created:** 2026-10-11
-**Last Updated:** 2026-11-11
-**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, D-055)
+**Last Updated:** 2026-11-15
+**Last Updated By:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (safari-ai-agent-5873e5, D-055 addendum)
 
 ---
 
@@ -232,16 +232,24 @@ infrastructure (published egress `160.79.104.0/21`). The gateway must be publicl
 process hosts it* — bundling it into the app changes **who hosts it, not whether it must be
 reachable.** This is the same correction D-030 already made to this document, applied to a new shape.
 
-- **macOS:** Variant D works as described. The app can host the gateway in-process, but **public
-  ingress (Funnel or equivalent) stays outside the app and stays required**, and D-045's
-  rig-recovery problem and D-046's exposure surface stay with it.
-- **iPadOS:** **gateway-in-app is unreachable** — NAT, and no Tailscale Funnel on iOS. Variant D on
-  iPad is bounded to one of: **(a)** the Mac keeps hosting the gateway and the app contains browser +
-  configuration only; **(b)** an **on-device model**, the one configuration that removes the Mac
-  entirely and leaves no public exposure — which is why the local-model row in the provider plan
-  above deserves first-class treatment rather than being an afterthought; or **(c)** an iOS ingress
-  path that does not exist today. **This is unresolved and blocks any iPad implementation of
-  Variant D.**
+> **⚠ CORRECTED 2026-11-15.** This section first said public ingress "stays required" on macOS and
+> that the iPad had no ingress path. **Both were wrong** — macOS **stdio** needs no address at all,
+> and an outbound-dialled **relay** is a real iPad path. Full corrected analysis, the six options and
+> the relay design: **the [D-055 addendum](DECISIONS.md)**. Tracked as **G-02**, deferred
+> 2026-11-15 while Variant C is the focus.
+
+- **The principle:** it is not about where the *model* runs, it is about **where the MCP client
+  runs.** MCP's two transports both have the **client** initiate; for a remote connector the client
+  is Anthropic's cloud. So the gateway's only irreducible job is **holding a public address** — the
+  queue, session and policy are separable from it, which is why "fold it in" and "keep an independent
+  gate" are not actually in conflict.
+- **macOS:** a **local stdio** MCP server needs **no address, no port, no cert and no Funnel** —
+  Claude Desktop launches it as a subprocess. This is the clean answer and it was missed here.
+- **iPadOS:** Claude mobile is **remote-connector only**, so an address is required — but it can be
+  **borrowed** by having the app dial **out** to a relay, which is the same pattern every push
+  notification on the device already uses. An **on-device model** removes the requirement entirely
+  and leaves no public exposure, which is why the local-model row in the provider plan above deserves
+  first-class treatment rather than being an afterthought.
 
 **The operating limits.** **D-029** (both apps on screen; Split View) and **D-053** (no passkey
 ceremony in a third-party `WKWebView`, bounding the app to password-authenticated sites) are

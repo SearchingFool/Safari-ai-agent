@@ -1,10 +1,11 @@
 # File: fleet/fleet-registry.yaml (repo-relative; this repo is PUBLIC — see README.md)
 # Description: Seats, write scopes and project gates for the safari-ai-agent fleet.
 #   Rebuilt 2026-10-25 by operator decision; scoped release and Swift seats added 2026-11-09
-#   by operator direction. The prior registry — 667 lines, 27% of it a dead
+#   by operator direction; sole-agent lead established 2026-11-15 by operator direction.
+#   The prior registry — 667 lines, 27% of it a dead
 #   per-session roster — is preserved verbatim at fleet/archive-2026-10-25/fleet-registry.yaml.
 #   Nothing was deleted; git history follows every file.
-# Author: Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat)
+# Author: Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-29d964, lead seat)
 # Created: 2026-10-25
 
 fleet_id: safari-ai-agent
@@ -14,7 +15,7 @@ production_branch: main
 mailbox: fleet/mailbox              # IN-REPO. The central path is a symlink here.
 created: 2026-10-11
 rebuilt: 2026-10-25
-updated: 2026-11-09
+updated: 2026-11-15
 
 objective: >
   OPERATOR'S STATED GOAL, unchanged since 2026-10-13: "get this working on the iPad reliably."
@@ -23,60 +24,39 @@ objective: >
   reliability is still zero, and it needs the operator and a physical iPad, not more code.
 
 leadership:
-  current_holder: claude-11         # PROVISIONAL AS A LABEL ONLY — see liveness note below.
-  authorized_on: 2026-10-25
+  current_holder: safari-ai-agent-29d964
+  authorized_on: 2026-11-15
   authorized_by: Libor Ballaty
   scope: >
-    Sets priority against the objective; runs the full gate; integrates; owns D-### numbering
-    in docs/DECISIONS.md (peers propose, the lead numbers).
+    Sole active agent and lead for the repository: sets priority against the objective,
+    implements and verifies assigned work, reconciles documentation, runs the full gate,
+    integrates, and owns D-### numbering in docs/DECISIONS.md.
   not_scope: >
     Does NOT carry operator-reserved authority (AGENTS.md §6): widening the gateway origin
     allowlist, exposing a public endpoint, spending money, `git reset`, or accepting a device
-    gate as closed. Does NOT redirect a peer mid-task or edit its files — findings go to a peer
-    as findings, not orders.
+    gate as closed.
   precedent: >
-    Four seat transfers to date. In every one, the incoming lead reconciled with a live peer
-    rather than imposing, and NO successor ever rewrote a peer's self-declared entry. On
-    2026-10-14 claude-04 stood down voluntarily rather than contest the seat — "two agents
-    acting as lead is worse than either one leading." RECONCILE WITH A LIVE PEER, NEVER IMPOSE.
+    Earlier seat transfers followed live-peer reconciliation. On 2026-11-15 the operator
+    explicitly reassigned the lead and directed a sole-agent roster after no status reports
+    were found for today. The verifier had reported the previous lead process as LIVENESS
+    UNKNOWN; this is an operator-directed reassignment, not a measured process shutdown.
 
-# *** LIVENESS IS NOT IN THIS FILE. ***
-# Nothing updates an `occupant:` field when a session exits, and occupancy has no runtime
-# representation at all: fleet_identity.py:294-296 couples QUEUECTL_AGENT and AGENT_NAME into
-# one `<fleet>-<agent>` string and claude_w.py:636-638 derives the messaging --name from it, so
-# a seat IS the runtime identity. This file answers WHAT A SEAT IS FOR. To learn whether anyone
-# is sitting in one:
+# Active assignments are recorded here; this is not a substitute for process-based liveness
+# verification. Use the fleet-status tool before future seat transfers:
 #     python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent
 seats:
   - id: lead
     poll_key: lead                  # --agent lead -> mailbox/lead.md
+    state: occupied
+    occupant: safari-ai-agent-29d964
+    role: sole lead and agent
     owns:
-      - fleet/**
-      - docs/DECISIONS.md           # D-### NUMBERING only
+      - "**"
+    constraint: >
+      Observe AGENTS.md §6 operator-reserved boundaries. Sole-agent status does not authorize
+      widening gateway origins, exposing a public endpoint, spending money, `git reset`, or
+      accepting a device-acceptance gate as closed.
     mailbox: {inbox: mailbox/lead.md, outbox: mailbox/lead.status.md}
-
-  - id: implementation
-    poll_key: implementation        # --agent implementation -> mailbox/implementation.md
-    owns:
-      - src/**, gateway/**, tools/**
-      - README.md, docs/SETUP-GUIDE.md, docs/GATEWAY-CONTROLS.md, docs/RELEASE_CHECKLIST.md
-      - its own mailbox pair
-    constraint: >
-      Provider feasibility is RESEARCH ONLY. No provider implementation without explicit
-      operator approval of a plan.
-    mailbox: {inbox: mailbox/implementation.md, outbox: mailbox/implementation.status.md}
-
-  - id: swift-alternate
-    poll_key: swift-alternate
-    owns:
-      - app/**
-      - docs/SWIFT-APP-DESIGN.md
-      - its own mailbox pair
-    constraint: >
-      Build the alternate browser-host application for both macOS and iOS. Preserve the
-      measured WKWebView passkey limitation and current gateway boundary. No external
-      credentials, public exposure changes, paid services, or operator-only device prompts.
-    mailbox: {inbox: mailbox/swift-alternate.md, outbox: mailbox/swift-alternate.status.md}
 
 coordination:
   write_policy: reserve-before-write    # AGENTS.md §3; export QUEUECTL_AGENT
@@ -131,3 +111,5 @@ history:
     commits interpretable. It is NOT state — do not liveness-check it, and do not poll its
     mailboxes. Prior occupants: claude-safari-ai-agent (10-11), claude-04 (10-13),
     claude-9a (10-14), codex-01 (implementation seat, 10-25), claude-11 (lead, 10-25).
+    On 2026-11-15 the implementation and swift-alternate seats were removed from the active
+    roster by operator direction. Their mailbox and status files remain as historical records.

@@ -2,10 +2,10 @@
 
 **File:** `fleet/mailbox/lead.status.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
 **Description:** Reports from whoever holds the `lead` seat. Belongs to the SEAT, not to any session. Newest first.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat, 2026-10-25)
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-29d964, lead seat)
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-25
-**Last Updated By:** claude-11
+**Last Updated:** 2026-11-15
+**Last Updated By:** Codex (safari-ai-agent-29d964)
 
 > **ORDERING: NEWEST FIRST.** The tail is permanently the oldest content.
 
@@ -13,6 +13,17 @@
 > This file outlives its authors.
 
 > **THIS FILE IS THE SEAT'S HIGH-WATER MARK** — the inbox cannot give a new occupant a floor.
+
+## OCCUPANCY 2026-11-15 — `safari-ai-agent-29d964` (Codex) — operator-directed sole lead
+
+**ASSIGNMENT-ID:** `2026-11-15-codex-lead-01`.
+**Floor adopted:** `2026-11-11 — safari-ai-agent-90e45e — ChatGPT loopback listener failure diagnosed and fixed`.
+**Authorized by:** Libor Ballaty, who directed that the current session take the lead and become the sole active agent after finding no fleet status messages dated today.
+**Verification basis:** The repo's status files had no Nov 15 entries. The fleet-status tool showed the previous lead tmux session's liveness as unknown, not inactive; this occupancy change is therefore the operator's explicit reassignment, not a claim that the process was measured stopped.
+**In-flight:** The `fix/oauthtrace` worktree contains uncommitted Swift UI/session changes and an untracked `.build/` directory. The latest macOS and iOS Simulator app builds fail at the chat-turn SwiftUI expression in `BrowserHostView.swift`; no files in that worktree were changed during this fleet reassignment.
+**Priority reconciliation:** Read-only review of the Claude Code session in the primary checkout found its latest user direction on Nov 14 at 23:47 WET: focus on the Swift app with ChatGPT sign-in/OAuth (Option 5) and track the other options. That session hit its limit immediately after the user direction. The earlier Nov 11 discussion of making the Supabase gateway optional is superseded as the current priority. No Claude user/assistant messages or repository commits were recorded on Nov 15. The user's earlier report confirms ChatGPT sign-in works; a successful Responses answer and browser-tool call remain unverified.
+
+This session adopts the lead seat and the sole-agent assignment. Historical status reports and other seat mailboxes remain preserved as records.
 
 ## 2026-11-11 — safari-ai-agent-90e45e — ChatGPT loopback listener failure diagnosed and fixed
 

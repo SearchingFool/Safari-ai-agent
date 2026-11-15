@@ -2,10 +2,10 @@
 
 **File:** `fleet/README.md` (repo-relative — this repo is PUBLIC)
 **Description:** Where agents working this repo coordinate: the seats, the rules for writing here, and the small number of hazards that have actually bitten. Rebuilt 2026-10-25 from a fleet that had accumulated four layers of correction; the prior fleet is preserved verbatim in `archive-2026-10-25/`.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat, 2026-10-25)
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-29d964, lead seat)
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-25
-**Last Updated By:** claude-11
+**Last Updated:** 2026-11-15
+**Last Updated By:** Codex (safari-ai-agent-29d964)
 
 ---
 
@@ -21,14 +21,16 @@ fleet/
   archive-2026-10-25/     <- the prior fleet, verbatim. Record, not state.
 ```
 
-**Joining? Run this before anything else:**
+**Joining? Verify before taking a seat, then follow the repo-local mailbox policy in `AGENTS.md`:**
 
 ```bash
 python3 ~/.ai-dev-dotfiles/tools/fleet-status.py --fleet safari-ai-agent
 ```
 
-or invoke the `/fleet-join` skill, which walks the whole procedure. **Do not reason your way to
-an answer that command prints.**
+Run the `verify-fleet-seat` and `join-fleet` workflows in that order. The global fleet tool and
+join helper use machine-local coordination state; this repo's `fleet/` files are canonical here.
+Do not let the external roster override the in-repo registry or mailbox location.
+**Do not reason your way to an answer the process check prints.**
 
 ## ⚠ THIS REPOSITORY IS PUBLIC
 
@@ -53,20 +55,20 @@ closing. An **occupant** is a session — ephemeral, hours.
 
 | Seat | Function | Mailbox |
 |---|---|---|
-| `lead` | Priority, gates, D-### numbering, integration. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` |
-| `implementation` | `src/**`, `gateway/**`, build/tooling, setup docs, provider **research only** | `mailbox/implementation.*` |
-| `swift-alternate` | macOS/iOS Swift browser-host app and its design record | `mailbox/swift-alternate.*` |
+| `lead` (occupant: `safari-ai-agent-29d964`) | Sole active agent: priority, implementation, verification, reconciliation, gates, and D-### numbering. **No** operator-reserved authority (`AGENTS.md` §6) | `mailbox/lead.*` |
+
+The `implementation` and `swift-alternate` assignments were cleared by operator direction on
+2026-11-15. Their mailboxes and status reports remain in `fleet/mailbox/` as historical records;
+they are not active assignments.
 
 **Seats are named for their FUNCTION — never for their occupant.** Not a harness, not a model,
 not a person, not a role grant that can move. *A changeable attribute inside a durable
 identifier does not merely go stale — it propagates mistakes.*
 
-**Occupancy has no runtime representation.** `fleet_identity.py:294-296` makes `QUEUECTL_AGENT`
-and `AGENT_NAME` both `<fleet>-<agent>`, and `claude_w.py:636-638` derives the messaging
-`--name` from it. One `--agent X` sets the poll key, the lock identity **and** the message
-address, so an occupant cannot be named independently of its seat. The coupling is deliberate —
-it buys one-string addressability. **A seat is the runtime identity; occupancy is documentation
-laid over it.**
+The registry records the intended occupant and assignment, but it cannot prove that the process
+is still live. `QUEUECTL_AGENT` is the runtime identity used by the launcher and queue. Use the
+fleet status tool to inspect processes; if it says `LIVENESS UNKNOWN`, do not infer a vacancy from
+an old status report or an empty mailbox.
 
 ## The four hazards that have actually bitten
 

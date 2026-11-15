@@ -2,12 +2,12 @@
 
 **File:** `fleet/mailbox/lead.md` (repo-relative — this repo is PUBLIC; see `../README.md`)
 **Description:** Work directed at whoever holds the `lead` seat. Belongs to the SEAT, not to any session — it survives terminals and is inherited by the next occupant. Newest first.
-**Author:** Libor Ballaty <liborballaty@gmail.com>, with Claude Opus 5 (claude-11, lead seat, 2026-10-25)
+**Author:** Libor Ballaty <liborballaty@gmail.com>, with Codex (safari-ai-agent-29d964, lead seat)
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-25
-**Last Updated By:** claude-11
+**Last Updated:** 2026-11-15
+**Last Updated By:** Codex (safari-ai-agent-29d964)
 
-**ASSIGNMENT-ID:** 2026-10-25-lead-reset-01
+**ASSIGNMENT-ID:** 2026-11-15-codex-lead-01
 
 > **ORDERING: NEWEST FIRST.** The tail of this file is permanently the oldest content.
 
@@ -17,6 +17,24 @@
 > you cannot tell), **before your first write**.
 
 ---
+
+## ASSIGNMENT 2026-11-15 — sole lead and agent
+
+**From:** Libor Ballaty (operator).
+**To:** `safari-ai-agent-29d964` (Codex), lead seat.
+**Floor adopted:** `2026-11-11 — safari-ai-agent-90e45e — ChatGPT loopback listener failure diagnosed and fixed` in `lead.status.md`.
+**Authorization:** Take the lead role and act as the sole active agent. Clear the implementation and swift-alternate assignments from the active roster. Preserve their mailbox and status histories as records.
+
+### Assignment
+
+- Own the repository as the sole active agent, including prioritization, implementation, verification, reconciliation, and reporting.
+- Keep the operator's priority objective first: get the app working reliably on the iPad.
+- Record work and verification evidence newest-first in `lead.status.md`.
+- Observe all operator-reserved boundaries in `AGENTS.md` §6. Sole-agent status does not grant authority over those actions.
+
+### Known in-flight work
+
+The separate `fix/oauthtrace` worktree contains uncommitted Swift UI and session changes plus an untracked `.build/` directory. Its latest macOS and iOS Simulator app builds fail in the chat-turn SwiftUI view expression. Preserve that work and its user-owned Xcode settings while resuming it.
 
 ## 2026-11-05-implementation-handoff-01 — Antigravity session conclusion & hardware verification report
 

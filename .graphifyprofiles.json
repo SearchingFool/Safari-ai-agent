@@ -1,0 +1,19 @@
+{
+  "profiles": {
+    "core": {
+      "excludes": [],
+      "includes": [
+        "app/**",
+        "extension/**",
+        "gateway/**",
+        "poc-chatgpt/**",
+        "scripts/**",
+        "src/**",
+        "tests/**",
+        "tools/**"
+      ],
+      "kind": "code",
+      "purpose": "Main Swift/JS runtime, extension, gateway, tools, and tests."
+    }
+  }
+}
